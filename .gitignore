@@ -3,3 +3,4 @@ local/
 .gradle/
 build/
 .claude/
+.env
