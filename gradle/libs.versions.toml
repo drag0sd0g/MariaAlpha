@@ -1,0 +1,14 @@
+[versions]
+java = "21"
+spring-boot = "3.5.12"
+spring-dependency-management = "1.1.7"
+spotbugs-plugin = "6.4.8"
+checkstyle = "13.3.0"
+
+[libraries]
+spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
+spotbugs = { id = "com.github.spotbugs", version.ref = "spotbugs-plugin" }
