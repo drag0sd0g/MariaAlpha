@@ -18,7 +18,7 @@ clean:
 test:
     just test-java
     just test-python
-
+ths
 # Run Java unit and integration tests
 test-java:
     ./gradlew test
@@ -40,6 +40,7 @@ docker-build:
 proto:
     @echo "gRPC codegen not yet configured"
 
-# Run database migrations
+# Run database migrations (auto-run on each service startup)
 migrate:
-    @echo "Liquibase migrations not yet configured"
+    @echo "Migrations auto-run on service startup."
+    @echo "Verify: docker compose exec postgres psql -U mariaalpha -c '\\dt'"

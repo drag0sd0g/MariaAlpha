@@ -1,0 +1,48 @@
+databaseChangeLog:
+  - changeSet:
+      id: post-trade-002-create-tca-results
+      author: mariaalpha
+      changes:
+        - createTable:
+            tableName: tca_results
+            columns:
+              - column:
+                  name: tca_id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_tca_results
+              - column:
+                  name: order_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: uk_tca_results_order_id
+              - column:
+                  name: symbol
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: strategy
+                  type: varchar(32)
+              - column:
+                  name: slippage_bps
+                  type: decimal(12,4)
+              - column:
+                  name: impl_shortfall_bps
+                  type: decimal(12,4)
+              - column:
+                  name: vwap_benchmark_bps
+                  type: decimal(12,4)
+              - column:
+                  name: spread_cost_bps
+                  type: decimal(12,4)
+        - createIndex:
+            indexName: idx_tca_results_symbol
+            tableName: tca_results
+            columns:
+              - column:
+                  name: symbol

@@ -754,8 +754,8 @@ The Electronic Trading REST API (Phase 3) would expose endpoints for programmati
 ```mermaid
 erDiagram
     orders ||--o{ fills : "has"
-    orders ||--o| tca_results : "analyzed by"
-    orders ||--o{ reconciliation_breaks : "may have"
+    orders ||..o| tca_results : "analyzed by"
+    orders ||..o{ reconciliation_breaks : "may have"
 
     orders {
         uuid order_id PK
@@ -806,14 +806,18 @@ erDiagram
     market_data_daily {
         varchar symbol CPK
         date bar_date CPK
-        decimal ohlcv
+        decimal open_price
+        decimal high_price
+        decimal low_price
+        decimal close_price
+        bigint volume
         decimal vwap
     }
 
     reconciliation_breaks {
         uuid break_id PK
         date recon_date
-        uuid order_id FK
+        uuid order_id "ref"
         varchar break_type
         varchar severity
         varchar resolution
@@ -821,7 +825,7 @@ erDiagram
 
     tca_results {
         uuid tca_id PK
-        uuid order_id FK
+        uuid order_id "ref"
         varchar symbol
         varchar strategy
         decimal slippage_bps
@@ -834,12 +838,15 @@ erDiagram
         uuid snapshot_id PK
         decimal total_value
         decimal cash_balance
-        decimal gross_net_exposure
+        decimal gross_exposure
+        decimal net_exposure
         decimal daily_cumulative_pnl
         integer open_positions
         timestamptz snapshot_at
     }
 ```
+
+> **Table ownership:** Each service owns its tables exclusively — no cross-service foreign keys. `order-manager` owns `orders`, `fills`, `positions`, `portfolio_snapshots`. `post-trade` owns `reconciliation_breaks`, `tca_results`. `market-data-gateway` owns `market_data_daily`. Cross-service references (e.g. `order_id` in post-trade tables) are stored as UUIDs without FK constraints; consistency is maintained via Kafka events.
 
 > **Note:** `venue` and `display_quantity` on orders, `venue` on fills, `sector` and `beta` on positions are nullable Phase 2 columns unused in the MVP.
 

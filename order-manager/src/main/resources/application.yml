@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: order-manager
+  datasource:
+    url: jdbc:postgresql://localhost:5432/${POSTGRES_DB:mariaalpha}
+    username: ${POSTGRES_USER:mariaalpha}
+    password: ${POSTGRES_PASSWORD:mariaalpha}
+  jpa:
+    hibernate:
+      ddl-auto: none
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml

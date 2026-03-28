@@ -1,0 +1,50 @@
+databaseChangeLog:
+  - changeSet:
+      id: post-trade-001-create-reconciliation-breaks
+      author: mariaalpha
+      changes:
+        - createTable:
+            tableName: reconciliation_breaks
+            columns:
+              - column:
+                  name: break_id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_reconciliation_breaks
+              - column:
+                  name: recon_date
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: order_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: break_type
+                  type: varchar(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: severity
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: resolution
+                  type: varchar(32)
+        - createIndex:
+            indexName: idx_reconciliation_breaks_order_id
+            tableName: reconciliation_breaks
+            columns:
+              - column:
+                  name: order_id
+        - createIndex:
+            indexName: idx_reconciliation_breaks_recon_date
+            tableName: reconciliation_breaks
+            columns:
+              - column:
+                  name: recon_date
