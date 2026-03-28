@@ -1,0 +1,53 @@
+databaseChangeLog:
+  - changeSet:
+      id: order-manager-003-create-positions
+      author: mariaalpha
+      changes:
+        - createTable:
+            tableName: positions
+            columns:
+              - column:
+                  name: symbol
+                  type: varchar(16)
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_positions
+              - column:
+                  name: net_quantity
+                  type: decimal(18,8)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: avg_entry_price
+                  type: decimal(18,8)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: realized_pnl
+                  type: decimal(18,8)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: unrealized_pnl
+                  type: decimal(18,8)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_mark_price
+                  type: decimal(18,8)
+              - column:
+                  name: sector
+                  type: varchar(32)
+              - column:
+                  name: beta
+                  type: decimal(8,4)
+              - column:
+                  name: updated_at
+                  type: timestamptz
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false

@@ -1,0 +1,40 @@
+databaseChangeLog:
+  - changeSet:
+      id: market-data-gateway-001-create-market-data-daily
+      author: mariaalpha
+      changes:
+        - createTable:
+            tableName: market_data_daily
+            columns:
+              - column:
+                  name: symbol
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: bar_date
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: open_price
+                  type: decimal(18,8)
+              - column:
+                  name: high_price
+                  type: decimal(18,8)
+              - column:
+                  name: low_price
+                  type: decimal(18,8)
+              - column:
+                  name: close_price
+                  type: decimal(18,8)
+              - column:
+                  name: volume
+                  type: bigint
+              - column:
+                  name: vwap
+                  type: decimal(18,8)
+        - addPrimaryKey:
+            tableName: market_data_daily
+            columnNames: symbol, bar_date
+            constraintName: pk_market_data_daily

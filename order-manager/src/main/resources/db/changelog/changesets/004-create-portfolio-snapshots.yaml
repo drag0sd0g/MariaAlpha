@@ -1,0 +1,45 @@
+databaseChangeLog:
+  - changeSet:
+      id: order-manager-004-create-portfolio-snapshots
+      author: mariaalpha
+      changes:
+        - createTable:
+            tableName: portfolio_snapshots
+            columns:
+              - column:
+                  name: snapshot_id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_portfolio_snapshots
+              - column:
+                  name: total_value
+                  type: decimal(18,4)
+              - column:
+                  name: cash_balance
+                  type: decimal(18,4)
+              - column:
+                  name: gross_exposure
+                  type: decimal(18,4)
+              - column:
+                  name: net_exposure
+                  type: decimal(18,4)
+              - column:
+                  name: daily_cumulative_pnl
+                  type: decimal(18,4)
+              - column:
+                  name: open_positions
+                  type: integer
+              - column:
+                  name: snapshot_at
+                  type: timestamptz
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: idx_portfolio_snapshots_snapshot_at
+            tableName: portfolio_snapshots
+            columns:
+              - column:
+                  name: snapshot_at

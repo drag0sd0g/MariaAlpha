@@ -1,0 +1,113 @@
+databaseChangeLog:
+  - changeSet:
+      id: order-manager-001-create-orders
+      author: mariaalpha
+      changes:
+        - createTable:
+            tableName: orders
+            columns:
+              - column:
+                  name: order_id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_orders
+              - column:
+                  name: client_order_id
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: uk_orders_client_order_id
+              - column:
+                  name: symbol
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: side
+                  type: varchar(4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: order_type
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: quantity
+                  type: decimal(18,8)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: limit_price
+                  type: decimal(18,8)
+              - column:
+                  name: stop_price
+                  type: decimal(18,8)
+              - column:
+                  name: status
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: strategy
+                  type: varchar(32)
+              - column:
+                  name: filled_quantity
+                  type: decimal(18,8)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: avg_fill_price
+                  type: decimal(18,8)
+              - column:
+                  name: exchange_order_id
+                  type: varchar(64)
+              - column:
+                  name: venue
+                  type: varchar(32)
+              - column:
+                  name: display_quantity
+                  type: decimal(18,8)
+              - column:
+                  name: arrival_mid_price
+                  type: decimal(18,8)
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamptz
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: idx_orders_symbol
+            tableName: orders
+            columns:
+              - column:
+                  name: symbol
+        - createIndex:
+            indexName: idx_orders_status
+            tableName: orders
+            columns:
+              - column:
+                  name: status
+        - createIndex:
+            indexName: idx_orders_created_at
+            tableName: orders
+            columns:
+              - column:
+                  name: created_at
+        - createIndex:
+            indexName: idx_orders_exchange_order_id
+            tableName: orders
+            columns:
+              - column:
+                  name: exchange_order_id
