@@ -1,0 +1,162 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+    "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+    "https://checkstyle.org/dtds/configuration_1_3.dtd">
+<!--
+  Google Java Style Guide — https://google.github.io/styleguide/javaguide.html
+  Javadoc enforcement is intentionally omitted at this stage; it will be
+  re-enabled once services have real production code.
+-->
+<module name="Checker">
+  <property name="charset" value="UTF-8"/>
+  <property name="severity" value="error"/>
+  <property name="fileExtensions" value="java"/>
+
+  <!-- Skip module-info.java -->
+  <module name="BeforeExecutionExclusionFileFilter">
+    <property name="fileNamePattern" value="module\-info\.java$"/>
+  </module>
+
+  <!-- No tab characters anywhere in source files -->
+  <module name="FileTabCharacter">
+    <property name="eachLine" value="true"/>
+  </module>
+
+  <!-- Max line length: 100 (Google allows up to 100) -->
+  <module name="LineLength">
+    <property name="max" value="100"/>
+    <property name="ignorePattern"
+        value="^package.*|^import.*|a href|href|http://|https://|ftp://"/>
+  </module>
+
+  <module name="TreeWalker">
+    <!-- Each top-level class lives in its own file -->
+    <module name="OuterTypeFilename"/>
+    <module name="OneTopLevelClass"/>
+
+    <!-- No wildcard imports -->
+    <module name="AvoidStarImport"/>
+
+    <!-- No wrapping of package/import statements -->
+    <module name="NoLineWrap">
+      <property name="tokens" value="PACKAGE_DEF, IMPORT, STATIC_IMPORT"/>
+    </module>
+
+    <!-- Import ordering: static first, then third-party, alphabetically within groups -->
+    <module name="CustomImportOrder">
+      <property name="sortImportsInGroupAlphabetically" value="true"/>
+      <property name="separateLineBetweenGroups" value="true"/>
+      <property name="customImportOrderRules" value="STATIC###THIRD_PARTY_PACKAGE"/>
+    </module>
+
+    <!-- Naming conventions (Google style) -->
+    <module name="PackageName">
+      <property name="format" value="^[a-z]+(\.[a-z][a-z0-9]*)*$"/>
+    </module>
+    <module name="TypeName"/>
+    <module name="MethodName">
+      <property name="format" value="^[a-z][a-z0-9][a-zA-Z0-9_]*$|^[a-z]$"/>
+    </module>
+    <module name="ParameterName">
+      <property name="format" value="^[a-z]([a-z0-9][a-zA-Z0-9]*)?$"/>
+    </module>
+    <module name="LocalVariableName">
+      <property name="format" value="^[a-z]([a-z0-9][a-zA-Z0-9]*)?$"/>
+    </module>
+    <module name="CatchParameterName">
+      <property name="format" value="^[a-z]([a-z0-9][a-zA-Z0-9]*)?$"/>
+    </module>
+    <module name="LambdaParameterName">
+      <property name="format" value="^[a-z]([a-z0-9][a-zA-Z0-9]*)?$"/>
+    </module>
+    <module name="ClassTypeParameterName">
+      <property name="format" value="(^[A-Z][0-9]?)$|([A-Z][a-zA-Z0-9]*[T]$)"/>
+    </module>
+    <module name="MethodTypeParameterName">
+      <property name="format" value="(^[A-Z][0-9]?)$|([A-Z][a-zA-Z0-9]*[T]$)"/>
+    </module>
+    <module name="InterfaceTypeParameterName">
+      <property name="format" value="(^[A-Z][0-9]?)$|([A-Z][a-zA-Z0-9]*[T]$)"/>
+    </module>
+
+    <!-- Braces required for all control flow -->
+    <module name="NeedBraces">
+      <property name="tokens"
+          value="LITERAL_DO, LITERAL_ELSE, LITERAL_FOR, LITERAL_IF, LITERAL_WHILE"/>
+    </module>
+    <module name="LeftCurly"/>
+    <module name="RightCurly">
+      <property name="option" value="same"/>
+      <property name="tokens"
+          value="LITERAL_TRY, LITERAL_CATCH, LITERAL_FINALLY, LITERAL_IF, LITERAL_ELSE,
+                 LITERAL_DO"/>
+    </module>
+
+    <!-- Whitespace -->
+    <module name="WhitespaceAfter">
+      <property name="tokens"
+          value="COMMA, SEMI, TYPECAST, LITERAL_IF, LITERAL_ELSE, LITERAL_RETURN,
+                 LITERAL_WHILE, LITERAL_DO, LITERAL_FOR, LITERAL_FINALLY, LITERAL_TRY,
+                 LITERAL_CATCH, ELLIPSIS"/>
+    </module>
+    <module name="NoWhitespaceBefore">
+      <property name="tokens"
+          value="COMMA, SEMI, POST_INC, POST_DEC, DOT, LABELED_STAT, METHOD_REF"/>
+      <property name="allowLineBreaks" value="true"/>
+    </module>
+    <module name="NoWhitespaceAfter">
+      <property name="tokens"
+          value="BNOT, DEC, DOT, INC, LNOT, UNARY_MINUS, UNARY_PLUS, ARRAY_DECLARATOR,
+                 INDEX_OP, METHOD_REF"/>
+    </module>
+    <module name="GenericWhitespace"/>
+    <module name="MethodParamPad">
+      <property name="tokens"
+          value="CTOR_DEF, LITERAL_NEW, METHOD_CALL, METHOD_DEF, SUPER_CTOR_CALL,
+                 ENUM_CONSTANT_DEF, RECORD_DEF"/>
+    </module>
+    <module name="ParenPad"/>
+
+    <!-- Indentation: 2-space basic offset (Google style) -->
+    <module name="Indentation">
+      <property name="basicOffset" value="2"/>
+      <property name="braceAdjustment" value="0"/>
+      <property name="caseIndent" value="2"/>
+      <property name="throwsIndent" value="4"/>
+      <property name="lineWrappingIndentation" value="4"/>
+      <property name="arrayInitIndent" value="2"/>
+    </module>
+
+    <!-- Line wrapping: operators and separators -->
+    <module name="OperatorWrap">
+      <property name="option" value="NL"/>
+      <property name="tokens"
+          value="BAND, BOR, BSR, BXOR, DIV, EQUAL, GE, GT, LAND, LE,
+                 LITERAL_INSTANCEOF, LOR, LT, MINUS, MOD, NOT_EQUAL, PLUS, QUESTION,
+                 SL, SR, STAR, METHOD_REF, TYPE_EXTENSION_AND"/>
+    </module>
+    <module name="SeparatorWrap">
+      <property name="id" value="SeparatorWrapDot"/>
+      <property name="tokens" value="DOT"/>
+      <property name="option" value="nl"/>
+    </module>
+    <module name="SeparatorWrap">
+      <property name="id" value="SeparatorWrapComma"/>
+      <property name="tokens" value="COMMA"/>
+      <property name="option" value="EOL"/>
+    </module>
+
+    <!-- Misc -->
+    <module name="NoFinalizer"/>
+    <module name="OverloadMethodsDeclarationOrder"/>
+    <module name="EmptyCatchBlock">
+      <property name="exceptionVariableName" value="expected"/>
+    </module>
+    <module name="AnnotationLocation">
+      <property name="id" value="AnnotationLocationMostCases"/>
+      <property name="tokens"
+          value="CLASS_DEF, INTERFACE_DEF, ENUM_DEF, METHOD_DEF, CTOR_DEF,
+                 RECORD_DEF, COMPACT_CTOR_DEF"/>
+    </module>
+  </module>
+</module>

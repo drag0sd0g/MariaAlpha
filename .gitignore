@@ -1,2 +1,5 @@
 local/
 .idea/
+.gradle/
+build/
+.claude/
