@@ -8,94 +8,46 @@ permissions:
   contents: read
   pull-requests: write
   issues: read
-  projects: write
 
 jobs:
   populate:
     name: Auto-populate PR metadata
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.PROJECT_TOKEN || github.token }}
+      REPO: ${{ github.repository }}
+      OWNER: ${{ github.repository_owner }}
     steps:
-      - name: Apply labels, milestone, assignee, and project from linked issues
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const pr = context.payload.pull_request;
-            const title = pr.title;
+      - name: Apply metadata from linked issues
+        run: |
+          PR=${{ github.event.pull_request.number }}
+          TITLE="${{ github.event.pull_request.title }}"
+          CLOSES=""
 
-            // Extract issue references (e.g., 1.1.5, 2.3.1) from PR title
-            const refs = [...title.matchAll(/(\d+\.\d+\.\d+)/g)].map(m => m[1]);
-            if (refs.length === 0) {
-              console.log('No issue references found in PR title — skipping.');
-              return;
-            }
-            console.log(`Found issue references: ${refs.join(', ')}`);
+          for REF in $(echo "$TITLE" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+'); do
+            ISSUE=$(gh issue list -R "$REPO" --search "\"[${REF}]\" in:title" --json number --jq '.[0].number' 2>/dev/null)
+            [ -z "$ISSUE" ] && continue
 
-            const allLabels = new Set();
-            let milestone = null;
+            LABELS=$(gh issue view "$ISSUE" -R "$REPO" --json labels --jq '[.labels[].name] | join(",")')
+            [ -n "$LABELS" ] && gh pr edit "$PR" -R "$REPO" --add-label "$LABELS"
 
-            for (const ref of refs) {
-              // Search for the GitHub issue whose title contains [ref]
-              const search = await github.rest.search.issuesAndPullRequests({
-                q: `repo:${context.repo.owner}/${context.repo.repo} is:issue "[${ref}]" in:title`,
-              });
+            MS=$(gh issue view "$ISSUE" -R "$REPO" --json milestone --jq '.milestone.title // empty')
+            [ -n "$MS" ] && gh pr edit "$PR" -R "$REPO" --milestone "$MS"
 
-              const issue = search.data.items[0];
-              if (!issue) {
-                console.log(`No issue found for [${ref}]`);
-                continue;
-              }
+            PROJECT=$(gh issue view "$ISSUE" -R "$REPO" --json projectItems --jq '.projectItems[0].title // empty' 2>/dev/null)
 
-              console.log(`Matched [${ref}] → #${issue.number}: ${issue.title}`);
-              issue.labels.forEach(l => allLabels.add(l.name));
+            CLOSES="${CLOSES}Closes #${ISSUE}\n"
+          done
 
-              if (issue.milestone && !milestone) {
-                milestone = issue.milestone.number;
-              }
-            }
+          gh pr edit "$PR" -R "$REPO" --add-assignee "$OWNER" --add-reviewer "$OWNER"
+          [ -n "$PROJECT" ] && gh pr edit "$PR" -R "$REPO" --add-project "$PROJECT" || true
 
-            // Apply labels
-            if (allLabels.size > 0) {
-              const labels = [...allLabels];
-              console.log(`Applying labels: ${labels.join(', ')}`);
-              await github.rest.issues.addLabels({
-                ...context.repo,
-                issue_number: pr.number,
-                labels,
-              });
-            }
+          # Link issues in PR body so the "Development" section populates
+          if [ -n "$CLOSES" ]; then
+            BODY=$(gh pr view "$PR" -R "$REPO" --json body --jq .body)
+            if ! echo "$BODY" | grep -q "Closes #"; then
+              gh pr edit "$PR" -R "$REPO" --body "${BODY}
 
-            // Apply milestone
-            if (milestone) {
-              console.log(`Setting milestone: ${milestone}`);
-              await github.rest.issues.update({
-                ...context.repo,
-                issue_number: pr.number,
-                milestone,
-              });
-            }
-
-            // Assign repo owner
-            console.log('Assigning drag0sd0g');
-            await github.rest.issues.addAssignees({
-              ...context.repo,
-              issue_number: pr.number,
-              assignees: ['drag0sd0g'],
-            });
-
-            // Add PR to the MariaAlpha project
-            const projectId = 'PVT_kwHOAAlYhc4BSzmF';
-            try {
-              await github.graphql(`
-                mutation($projectId: ID!, $contentId: ID!) {
-                  addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
-                    item { id }
-                  }
-                }
-              `, {
-                projectId,
-                contentId: pr.node_id,
-              });
-              console.log('Added PR to MariaAlpha project');
-            } catch (e) {
-              console.log(`Could not add to project: ${e.message}`);
-            }
+          $(echo -e "$CLOSES")"
+            fi
+          fi

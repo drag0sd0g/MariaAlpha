@@ -28,14 +28,15 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Install Snyk CLI
+        run: npm install -g snyk
+
       - name: Snyk test
         id: snyk
-        uses: snyk/actions/gradle@master
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=critical --all-sub-projects
+        run: snyk test --severity-threshold=critical --all-sub-projects --sarif-file-output=snyk.sarif
 
       - name: Upload Snyk SARIF
         if: always()
@@ -72,11 +73,13 @@ jobs:
             echo "No Python requirements files — skipping Snyk Python scan."
           fi
 
+      - name: Install Snyk CLI
+        if: steps.detect.outputs.found == 'true'
+        run: npm install -g snyk
+
       - name: Snyk test
         if: steps.detect.outputs.found == 'true'
-        uses: snyk/actions/python@master
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=critical
+        run: snyk test --severity-threshold=critical --file=requirements.txt
