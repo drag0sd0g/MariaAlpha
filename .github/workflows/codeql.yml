@@ -1,0 +1,102 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1" # weekly Monday 06:00 UTC
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  security-events: write
+  contents: read
+
+jobs:
+
+  # Detect which languages have source files present
+  detect:
+    name: Detect languages
+    runs-on: ubuntu-latest
+    outputs:
+      java: ${{ steps.check.outputs.java }}
+      python: ${{ steps.check.outputs.python }}
+      javascript: ${{ steps.check.outputs.javascript }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for source files
+        id: check
+        run: |
+          has() { find . -name "$1" -not -path './.git/*' | head -1 | grep -q .; }
+          has '*.java' && echo "java=true" >> "$GITHUB_OUTPUT" || echo "java=false" >> "$GITHUB_OUTPUT"
+          has '*.py'   && echo "python=true" >> "$GITHUB_OUTPUT" || echo "python=false" >> "$GITHUB_OUTPUT"
+          (has '*.ts' || has '*.tsx' || has '*.js' || has '*.jsx') \
+            && echo "javascript=true" >> "$GITHUB_OUTPUT" || echo "javascript=false" >> "$GITHUB_OUTPUT"
+
+  analyze-java:
+    name: CodeQL (java-kotlin)
+    needs: detect
+    if: needs.detect.outputs.java == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java-kotlin
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Gradle compile
+        run: ./gradlew classes testClasses --no-daemon
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:java-kotlin"
+
+  analyze-python:
+    name: CodeQL (python)
+    needs: detect
+    if: needs.detect.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python"
+
+  analyze-javascript:
+    name: CodeQL (javascript-typescript)
+    needs: detect
+    if: needs.detect.outputs.javascript == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"

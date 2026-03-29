@@ -1,0 +1,101 @@
+name: PR Metadata
+
+on:
+  pull_request:
+    types: [opened, edited]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+  projects: write
+
+jobs:
+  populate:
+    name: Auto-populate PR metadata
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply labels, milestone, assignee, and project from linked issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const title = pr.title;
+
+            // Extract issue references (e.g., 1.1.5, 2.3.1) from PR title
+            const refs = [...title.matchAll(/(\d+\.\d+\.\d+)/g)].map(m => m[1]);
+            if (refs.length === 0) {
+              console.log('No issue references found in PR title — skipping.');
+              return;
+            }
+            console.log(`Found issue references: ${refs.join(', ')}`);
+
+            const allLabels = new Set();
+            let milestone = null;
+
+            for (const ref of refs) {
+              // Search for the GitHub issue whose title contains [ref]
+              const search = await github.rest.search.issuesAndPullRequests({
+                q: `repo:${context.repo.owner}/${context.repo.repo} is:issue "[${ref}]" in:title`,
+              });
+
+              const issue = search.data.items[0];
+              if (!issue) {
+                console.log(`No issue found for [${ref}]`);
+                continue;
+              }
+
+              console.log(`Matched [${ref}] → #${issue.number}: ${issue.title}`);
+              issue.labels.forEach(l => allLabels.add(l.name));
+
+              if (issue.milestone && !milestone) {
+                milestone = issue.milestone.number;
+              }
+            }
+
+            // Apply labels
+            if (allLabels.size > 0) {
+              const labels = [...allLabels];
+              console.log(`Applying labels: ${labels.join(', ')}`);
+              await github.rest.issues.addLabels({
+                ...context.repo,
+                issue_number: pr.number,
+                labels,
+              });
+            }
+
+            // Apply milestone
+            if (milestone) {
+              console.log(`Setting milestone: ${milestone}`);
+              await github.rest.issues.update({
+                ...context.repo,
+                issue_number: pr.number,
+                milestone,
+              });
+            }
+
+            // Assign repo owner
+            console.log('Assigning drag0sd0g');
+            await github.rest.issues.addAssignees({
+              ...context.repo,
+              issue_number: pr.number,
+              assignees: ['drag0sd0g'],
+            });
+
+            // Add PR to the MariaAlpha project
+            const projectId = 'PVT_kwHOAAlYhc4BSzmF';
+            try {
+              await github.graphql(`
+                mutation($projectId: ID!, $contentId: ID!) {
+                  addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
+                    item { id }
+                  }
+                }
+              `, {
+                projectId,
+                contentId: pr.node_id,
+              });
+              console.log('Added PR to MariaAlpha project');
+            } catch (e) {
+              console.log(`Could not add to project: ${e.message}`);
+            }
