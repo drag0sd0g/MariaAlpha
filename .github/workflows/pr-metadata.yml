@@ -15,12 +15,14 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.PROJECT_TOKEN || github.token }}
+      REPO: ${{ github.repository }}
+      OWNER: ${{ github.repository_owner }}
     steps:
       - name: Apply metadata from linked issues
         run: |
           PR=${{ github.event.pull_request.number }}
           TITLE="${{ github.event.pull_request.title }}"
-          REPO=${{ github.repository }}
+          CLOSES=""
 
           for REF in $(echo "$TITLE" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+'); do
             ISSUE=$(gh issue list -R "$REPO" --search "\"[${REF}]\" in:title" --json number --jq '.[0].number' 2>/dev/null)
@@ -31,7 +33,19 @@ jobs:
 
             MS=$(gh issue view "$ISSUE" -R "$REPO" --json milestone --jq '.milestone.title // empty')
             [ -n "$MS" ] && gh pr edit "$PR" -R "$REPO" --milestone "$MS"
+
+            CLOSES="${CLOSES}Closes #${ISSUE}\n"
           done
 
-          gh pr edit "$PR" -R "$REPO" --add-assignee drag0sd0g
+          gh pr edit "$PR" -R "$REPO" --add-assignee "$OWNER" --add-reviewer "$OWNER"
           gh pr edit "$PR" -R "$REPO" --add-project MariaAlpha || true
+
+          # Link issues in PR body so the "Development" section populates
+          if [ -n "$CLOSES" ]; then
+            BODY=$(gh pr view "$PR" -R "$REPO" --json body --jq .body)
+            if ! echo "$BODY" | grep -q "Closes #"; then
+              gh pr edit "$PR" -R "$REPO" --body "${BODY}
+
+          $(echo -e "$CLOSES")"
+            fi
+          fi
