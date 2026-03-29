@@ -18,7 +18,7 @@ clean:
 test:
     just test-java
     just test-python
-ths
+
 # Run Java unit and integration tests
 test-java:
     ./gradlew test

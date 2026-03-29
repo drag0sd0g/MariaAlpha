@@ -1158,103 +1158,103 @@ Each item below is scoped to be a single GitHub Issue with specific acceptance c
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
-| 1.1.1 | Initialize monorepo with Gradle multi-project build | Root `build.gradle.kts` and `settings.gradle.kts` with shared dependency versions, Java 21 toolchain, Checkstyle/SpotBugs/JaCoCo plugins. All Java sub-projects compile. |
-| 1.1.2 | Create `justfile` with core command recipes | `justfile` with recipes: `run` (docker compose up), `stop`, `clean`, `test`, `test-java`, `test-python`, `lint`, `docker-build`, `proto` (gRPC codegen), `migrate`. All recipes documented with `just --list`. |
-| 1.1.3 | Set up Docker Compose with PostgreSQL and Kafka (KRaft) | `docker-compose.yml` starts PostgreSQL 16 and Kafka in KRaft mode. Health checks pass. `just run` brings up infrastructure. |
-| 1.1.4 | Create database migration (Liquibase) with initial schema | Liquibase changelog creates all tables from §5.4. Migration runs automatically on Spring Boot startup. Verified via `psql`. |
-| 1.1.5 | Set up Grafana LGTM observability stack in Docker Compose | Prometheus, Loki, Tempo, Alloy, Grafana containers start. Alloy scrapes Prometheus metrics. Grafana accessible at `:3001`. |
-| 1.1.6 | Configure GitHub Actions CI pipeline (lint + test) | `ci.yml` runs Checkstyle, SpotBugs, JaCoCo (Java), ruff, mypy, pytest (Python). Fails on violations. Coverage uploaded as artifact. |
-| 1.1.7 | Add CodeQL and Snyk to CI pipeline | CodeQL analysis runs for Java, Python, TypeScript. Snyk scans dependencies. Both block merge on critical findings. |
-| 1.1.8 | Create Kafka topics init container | Docker Compose init service creates all topics from §5.4 with 1 partition and configured retention before any consumer starts. |
-| 1.1.9 | Set up shared proto module and gRPC code generation | `proto/signal.proto` defined. Gradle task generates Java stubs. Python script generates Python stubs. Both compile successfully. |
+| [1.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/1) | Initialize monorepo with Gradle multi-project build | Root `build.gradle.kts` and `settings.gradle.kts` with shared dependency versions, Java 21 toolchain, Checkstyle/SpotBugs/JaCoCo plugins. All Java sub-projects compile. |
+| [1.1.2](https://github.com/drag0sd0g/MariaAlpha/issues/2) | Create `justfile` with core command recipes | `justfile` with recipes: `run` (docker compose up), `stop`, `clean`, `test`, `test-java`, `test-python`, `lint`, `docker-build`, `proto` (gRPC codegen), `migrate`. All recipes documented with `just --list`. |
+| [1.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/3) | Set up Docker Compose with PostgreSQL and Kafka (KRaft) | `docker-compose.yml` starts PostgreSQL 16 and Kafka in KRaft mode. Health checks pass. `just run` brings up infrastructure. |
+| [1.1.4](https://github.com/drag0sd0g/MariaAlpha/issues/4) | Create database migration (Liquibase) with initial schema | Liquibase changelog creates all tables from §5.4. Migration runs automatically on Spring Boot startup. Verified via `psql`. |
+| [1.1.5](https://github.com/drag0sd0g/MariaAlpha/issues/5) | Set up Grafana LGTM observability stack in Docker Compose | Prometheus, Loki, Tempo, Alloy, Grafana containers start. Alloy scrapes Prometheus metrics. Grafana accessible at `:3001`. |
+| [1.1.6](https://github.com/drag0sd0g/MariaAlpha/issues/6) | Configure GitHub Actions CI pipeline (lint + test) | `ci.yml` runs Checkstyle, SpotBugs, JaCoCo (Java), ruff, mypy, pytest (Python). Fails on violations. Coverage uploaded as artifact. |
+| [1.1.7](https://github.com/drag0sd0g/MariaAlpha/issues/7) | Add CodeQL and Snyk to CI pipeline | CodeQL analysis runs for Java, Python, TypeScript. Snyk scans dependencies. Both block merge on critical findings. |
+| [1.1.8](https://github.com/drag0sd0g/MariaAlpha/issues/8) | Create Kafka topics init container | Docker Compose init service creates all topics from §5.4 with 1 partition and configured retention before any consumer starts. |
+| [1.1.9](https://github.com/drag0sd0g/MariaAlpha/issues/9) | Set up shared proto module and gRPC code generation | `proto/signal.proto` defined. Gradle task generates Java stubs. Python script generates Python stubs. Both compile successfully. |
 
 #### 1.2 Market Data Gateway
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
-| 1.2.1 | Implement `MarketDataAdapter` interface and `SimulatedMarketDataAdapter` | Interface defined per §5.2.1. Simulated adapter replays a CSV file at configurable speed. Unit tests pass with >80% coverage. |
-| 1.2.2 | Implement `AlpacaMarketDataAdapter` with WebSocket connection | Connects to Alpaca paper trading WebSocket. Subscribes to configurable symbols from `config/symbols.yml`. Receives and deserializes ticks. Integration test with Alpaca sandbox. |
-| 1.2.3 | Implement MarketTick normalization and Kafka publishing | Incoming Alpaca ticks normalized to `MarketTick` schema. Published to `market-data.ticks` topic. Verified via Kafka console consumer. Testcontainers integration test with real Kafka. |
-| 1.2.4 | Implement in-memory order book per symbol | Maintains best bid/ask, last price, cumulative volume per symbol. Updated on every tick. Accessible via gRPC streaming API. Unit tests for concurrent updates. |
-| 1.2.5 | Implement historical bar backfill from Alpaca REST API | Fetches daily bars from Alpaca REST API for configured symbols and date range. Persists to `market_data_daily` table. Idempotent on re-fetch. |
-| 1.2.6 | Add Prometheus metrics and health/ready endpoints | Metrics from §8.2 exposed on `/actuator/prometheus`. Health endpoint checks Kafka and Alpaca connectivity. Ready endpoint confirms subscription is active. |
-| 1.2.7 | Add WebSocket auto-reconnect with exponential backoff | On disconnect: retries with 1s, 2s, 4s, 8s, 16s delays. Max 5 attempts. Serves stale data with STALE flag during reconnect. Reconnect counter metric increments. |
+| [1.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/10) | Implement `MarketDataAdapter` interface and `SimulatedMarketDataAdapter` | Interface defined per §5.2.1. Simulated adapter replays a CSV file at configurable speed. Unit tests pass with >80% coverage. |
+| [1.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/11) | Implement `AlpacaMarketDataAdapter` with WebSocket connection | Connects to Alpaca paper trading WebSocket. Subscribes to configurable symbols from `config/symbols.yml`. Receives and deserializes ticks. Integration test with Alpaca sandbox. |
+| [1.2.3](https://github.com/drag0sd0g/MariaAlpha/issues/12) | Implement MarketTick normalization and Kafka publishing | Incoming Alpaca ticks normalized to `MarketTick` schema. Published to `market-data.ticks` topic. Verified via Kafka console consumer. Testcontainers integration test with real Kafka. |
+| [1.2.4](https://github.com/drag0sd0g/MariaAlpha/issues/13) | Implement in-memory order book per symbol | Maintains best bid/ask, last price, cumulative volume per symbol. Updated on every tick. Accessible via gRPC streaming API. Unit tests for concurrent updates. |
+| [1.2.5](https://github.com/drag0sd0g/MariaAlpha/issues/14) | Implement historical bar backfill from Alpaca REST API | Fetches daily bars from Alpaca REST API for configured symbols and date range. Persists to `market_data_daily` table. Idempotent on re-fetch. |
+| [1.2.6](https://github.com/drag0sd0g/MariaAlpha/issues/15) | Add Prometheus metrics and health/ready endpoints | Metrics from §8.2 exposed on `/actuator/prometheus`. Health endpoint checks Kafka and Alpaca connectivity. Ready endpoint confirms subscription is active. |
+| [1.2.7](https://github.com/drag0sd0g/MariaAlpha/issues/16) | Add WebSocket auto-reconnect with exponential backoff | On disconnect: retries with 1s, 2s, 4s, 8s, 16s delays. Max 5 attempts. Serves stale data with STALE flag during reconnect. Reconnect counter metric increments. |
 
 #### 1.3 Strategy Engine
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
-| 1.3.1 | Implement `TradingStrategy` interface and `StrategyRegistry` | Interface defined per §5.3.1. Registry auto-discovers Spring `@Component` strategies. REST endpoint lists available strategies. Unit tests for registry. |
-| 1.3.2 | Implement VWAP strategy | Accepts `targetQuantity`, `startTime`, `endTime`, `volumeProfile`. Slices orders proportional to volume curve. Emits child `OrderSignal`s at correct intervals. Unit tests with mock market data covering full trading day. |
-| 1.3.3 | Implement Kafka tick consumer and strategy evaluation loop | Consumes ticks from `market-data.ticks`. Routes to active strategy per symbol. Emits order signals to Execution Engine. Testcontainers integration test. |
-| 1.3.4 | Implement ML Signal Service gRPC client with circuit breaker | Calls `GetSignal` before acting on strategy signals. Resilience4j circuit breaker (threshold: 5, open: 30s). On timeout/open: proceeds without ML signal. Metrics for call count, latency, circuit breaker state. |
-| 1.3.5 | Implement runtime strategy switching via REST API | `PUT /api/strategies/{symbol}` changes active strategy. No restart required. Strategy registry queried dynamically. |
-| 1.3.6 | Add Prometheus metrics and health/ready endpoints | Strategy signals counter, evaluation duration histogram, ML call metrics per §8.2. |
+| [1.3.1](https://github.com/drag0sd0g/MariaAlpha/issues/17) | Implement `TradingStrategy` interface and `StrategyRegistry` | Interface defined per §5.3.1. Registry auto-discovers Spring `@Component` strategies. REST endpoint lists available strategies. Unit tests for registry. |
+| [1.3.2](https://github.com/drag0sd0g/MariaAlpha/issues/18) | Implement VWAP strategy | Accepts `targetQuantity`, `startTime`, `endTime`, `volumeProfile`. Slices orders proportional to volume curve. Emits child `OrderSignal`s at correct intervals. Unit tests with mock market data covering full trading day. |
+| [1.3.3](https://github.com/drag0sd0g/MariaAlpha/issues/19) | Implement Kafka tick consumer and strategy evaluation loop | Consumes ticks from `market-data.ticks`. Routes to active strategy per symbol. Emits order signals to Execution Engine. Testcontainers integration test. |
+| [1.3.4](https://github.com/drag0sd0g/MariaAlpha/issues/20) | Implement ML Signal Service gRPC client with circuit breaker | Calls `GetSignal` before acting on strategy signals. Resilience4j circuit breaker (threshold: 5, open: 30s). On timeout/open: proceeds without ML signal. Metrics for call count, latency, circuit breaker state. |
+| [1.3.5](https://github.com/drag0sd0g/MariaAlpha/issues/21) | Implement runtime strategy switching via REST API | `PUT /api/strategies/{symbol}` changes active strategy. No restart required. Strategy registry queried dynamically. |
+| [1.3.6](https://github.com/drag0sd0g/MariaAlpha/issues/22) | Add Prometheus metrics and health/ready endpoints | Strategy signals counter, evaluation duration histogram, ML call metrics per §8.2. |
 
 #### 1.4 ML Signal Service
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
-| 1.4.1 | Set up Python service scaffold with FastAPI and gRPC server | FastAPI sidecar running on port 8090 with `/health`, `/ready`, `/metrics`. gRPC server on port 50051. Dockerfile builds and runs. |
-| 1.4.2 | Implement feature computation engine | Consumes ticks from Kafka. Computes EMA(20), EMA(50), RSI(14), MACD, ATR(14), volume ratios per symbol. Maintains rolling window. Unit tests with known input/output pairs. |
-| 1.4.3 | Implement LightGBM signal model inference | Loads pre-trained `.joblib` model at startup. `GetSignal` gRPC endpoint returns direction + confidence. Unit test with mock features. |
-| 1.4.4 | Implement `StreamSignals` gRPC endpoint | Server-streaming RPC pushes signal updates to connected clients on every feature window update. Integration test with gRPC client. |
-| 1.4.5 | Implement model hot-reload endpoint | `POST /v1/models/reload` loads new model artifacts from disk without restart. Currently loaded model version exposed as metric. |
-| 1.4.6 | Train and bundle initial signal model | Python script trains LightGBM on Alpaca historical 1-min bars (freely available). Model artifact saved as `ml-models/signal_model.joblib`. Training script documented in README. |
+| [1.4.1](https://github.com/drag0sd0g/MariaAlpha/issues/23) | Set up Python service scaffold with FastAPI and gRPC server | FastAPI sidecar running on port 8090 with `/health`, `/ready`, `/metrics`. gRPC server on port 50051. Dockerfile builds and runs. |
+| [1.4.2](https://github.com/drag0sd0g/MariaAlpha/issues/24) | Implement feature computation engine | Consumes ticks from Kafka. Computes EMA(20), EMA(50), RSI(14), MACD, ATR(14), volume ratios per symbol. Maintains rolling window. Unit tests with known input/output pairs. |
+| [1.4.3](https://github.com/drag0sd0g/MariaAlpha/issues/25) | Implement LightGBM signal model inference | Loads pre-trained `.joblib` model at startup. `GetSignal` gRPC endpoint returns direction + confidence. Unit test with mock features. |
+| [1.4.4](https://github.com/drag0sd0g/MariaAlpha/issues/26) | Implement `StreamSignals` gRPC endpoint | Server-streaming RPC pushes signal updates to connected clients on every feature window update. Integration test with gRPC client. |
+| [1.4.5](https://github.com/drag0sd0g/MariaAlpha/issues/27) | Implement model hot-reload endpoint | `POST /v1/models/reload` loads new model artifacts from disk without restart. Currently loaded model version exposed as metric. |
+| [1.4.6](https://github.com/drag0sd0g/MariaAlpha/issues/28) | Train and bundle initial signal model | Python script trains LightGBM on Alpaca historical 1-min bars (freely available). Model artifact saved as `ml-models/signal_model.joblib`. Training script documented in README. |
 
 #### 1.5 Execution Engine
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
-| 1.5.1 | Implement `ExchangeAdapter` interface and `SimulatedExchangeAdapter` | Interface defined per §5.2.4. Simulated adapter fills orders against current market data with configurable latency. Supports MARKET, LIMIT, STOP. Unit tests. |
-| 1.5.2 | Implement `AlpacaExchangeAdapter` | Submits orders via Alpaca REST API. Receives fills via WebSocket `trade_updates` stream. Rate limited to 200 req/min. Integration test with Alpaca paper account. |
-| 1.5.3 | Implement `OrderTypeHandler` interface and MVP handlers | Interface defined per §5.3.2. `MarketOrderHandler`, `LimitOrderHandler`, `StopOrderHandler` implemented. Validation logic per order type. Unit tests. |
-| 1.5.4 | Implement composable `RiskCheck` chain | Interface defined per §5.3.3. MVP checks: `MaxOrderNotionalCheck`, `MaxPositionPerSymbolCheck`, `MaxPortfolioExposureCheck`, `MaxOpenOrdersCheck`, `DailyLossLimitCheck`. Chain short-circuits on first failure. Config loaded from `config/risk-limits.yml`. Unit tests for each check and the chain. |
-| 1.5.5 | Implement order lifecycle state machine and Kafka publishing | State transitions per §5.2.4 diagram. All transitions published to `orders.lifecycle`. Invalid transitions rejected with error. Unit tests for all state paths. |
-| 1.5.6 | Implement `DirectRouter` (SOR stub) | Pass-through router that forwards all orders to the configured exchange adapter. `SmartOrderRouter` interface defined. Routing decisions published to `routing.decisions`. |
-| 1.5.7 | Implement daily loss limit enforcement with trading halt | On breach: halt signal generation, cancel open orders, publish CRITICAL alert. Resume via `POST /api/strategies/resume` or next trading day. Integration test. |
-| 1.5.8 | Add Resilience4j configuration for Alpaca API calls | Circuit breaker (threshold: 3, open: 60s), retry (3 attempts, exp backoff), timeout (5s), bulkhead (separate thread pools per §7.1). Verified under simulated failure conditions. |
+| [1.5.1](https://github.com/drag0sd0g/MariaAlpha/issues/29) | Implement `ExchangeAdapter` interface and `SimulatedExchangeAdapter` | Interface defined per §5.2.4. Simulated adapter fills orders against current market data with configurable latency. Supports MARKET, LIMIT, STOP. Unit tests. |
+| [1.5.2](https://github.com/drag0sd0g/MariaAlpha/issues/30) | Implement `AlpacaExchangeAdapter` | Submits orders via Alpaca REST API. Receives fills via WebSocket `trade_updates` stream. Rate limited to 200 req/min. Integration test with Alpaca paper account. |
+| [1.5.3](https://github.com/drag0sd0g/MariaAlpha/issues/31) | Implement `OrderTypeHandler` interface and MVP handlers | Interface defined per §5.3.2. `MarketOrderHandler`, `LimitOrderHandler`, `StopOrderHandler` implemented. Validation logic per order type. Unit tests. |
+| [1.5.4](https://github.com/drag0sd0g/MariaAlpha/issues/32) | Implement composable `RiskCheck` chain | Interface defined per §5.3.3. MVP checks: `MaxOrderNotionalCheck`, `MaxPositionPerSymbolCheck`, `MaxPortfolioExposureCheck`, `MaxOpenOrdersCheck`, `DailyLossLimitCheck`. Chain short-circuits on first failure. Config loaded from `config/risk-limits.yml`. Unit tests for each check and the chain. |
+| [1.5.5](https://github.com/drag0sd0g/MariaAlpha/issues/33) | Implement order lifecycle state machine and Kafka publishing | State transitions per §5.2.4 diagram. All transitions published to `orders.lifecycle`. Invalid transitions rejected with error. Unit tests for all state paths. |
+| [1.5.6](https://github.com/drag0sd0g/MariaAlpha/issues/34) | Implement `DirectRouter` (SOR stub) | Pass-through router that forwards all orders to the configured exchange adapter. `SmartOrderRouter` interface defined. Routing decisions published to `routing.decisions`. |
+| [1.5.7](https://github.com/drag0sd0g/MariaAlpha/issues/35) | Implement daily loss limit enforcement with trading halt | On breach: halt signal generation, cancel open orders, publish CRITICAL alert. Resume via `POST /api/strategies/resume` or next trading day. Integration test. |
+| [1.5.8](https://github.com/drag0sd0g/MariaAlpha/issues/36) | Add Resilience4j configuration for Alpaca API calls | Circuit breaker (threshold: 3, open: 60s), retry (3 attempts, exp backoff), timeout (5s), bulkhead (separate thread pools per §7.1). Verified under simulated failure conditions. |
 
 #### 1.6 Order Manager
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
-| 1.6.1 | Implement order and fill persistence with Spring Data JPA | JPA entities for `orders`, `fills` tables. Repository interfaces. Orders persisted on creation, updated on state change. Fills persisted with foreign key to order. Testcontainers integration test with real PostgreSQL. |
-| 1.6.2 | Implement position tracking and P&L computation | Position book updates on every fill per §5.2.5. Realized P&L computed on position-reducing fills. Unrealized P&L mark-to-market against latest tick. Unit tests for long/short/flat transitions. |
-| 1.6.3 | Implement portfolio-level aggregates | Total P&L, gross/net exposure, open position count, cash balance. Computed in real time. Exposed via REST API. |
-| 1.6.4 | Implement Kafka publishing of position updates | Position snapshots published to `positions.updates` on every fill. Includes all fields from position table + portfolio totals. Testcontainers integration test. |
-| 1.6.5 | Add REST API for order and position queries | `GET /api/orders` (with filters), `GET /api/orders/{id}`, `GET /api/positions`, `GET /api/positions/{symbol}`, `GET /api/portfolio/summary`. OpenAPI spec auto-generated. |
+| [1.6.1](https://github.com/drag0sd0g/MariaAlpha/issues/37) | Implement order and fill persistence with Spring Data JPA | JPA entities for `orders`, `fills` tables. Repository interfaces. Orders persisted on creation, updated on state change. Fills persisted with foreign key to order. Testcontainers integration test with real PostgreSQL. |
+| [1.6.2](https://github.com/drag0sd0g/MariaAlpha/issues/38) | Implement position tracking and P&L computation | Position book updates on every fill per §5.2.5. Realized P&L computed on position-reducing fills. Unrealized P&L mark-to-market against latest tick. Unit tests for long/short/flat transitions. |
+| [1.6.3](https://github.com/drag0sd0g/MariaAlpha/issues/39) | Implement portfolio-level aggregates | Total P&L, gross/net exposure, open position count, cash balance. Computed in real time. Exposed via REST API. |
+| [1.6.4](https://github.com/drag0sd0g/MariaAlpha/issues/40) | Implement Kafka publishing of position updates | Position snapshots published to `positions.updates` on every fill. Includes all fields from position table + portfolio totals. Testcontainers integration test. |
+| [1.6.5](https://github.com/drag0sd0g/MariaAlpha/issues/41) | Add REST API for order and position queries | `GET /api/orders` (with filters), `GET /api/orders/{id}`, `GET /api/positions`, `GET /api/positions/{symbol}`, `GET /api/portfolio/summary`. OpenAPI spec auto-generated. |
 
 #### 1.7 Post-Trade
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
-| 1.7.1 | Implement TCA computation | Computes slippage, implementation shortfall, VWAP benchmark, spread cost per completed order. Persisted to `tca_results`. Published to `analytics.tca`. Unit tests with known benchmarks. |
+| [1.7.1](https://github.com/drag0sd0g/MariaAlpha/issues/42) | Implement TCA computation | Computes slippage, implementation shortfall, VWAP benchmark, spread cost per completed order. Persisted to `tca_results`. Published to `analytics.tca`. Unit tests with known benchmarks. |
 
 #### 1.8 API Gateway
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
-| 1.8.1 | Implement Spring Cloud Gateway with route configuration | Routes per §5.2.8 configured. Requests proxied to correct backend services. Health check aggregates downstream service health. |
-| 1.8.2 | Implement API key authentication filter | `X-API-Key` header required. Keys loaded from environment variable. HTTP 401 on missing/invalid key. Key not logged. |
-| 1.8.3 | Implement WebSocket proxy for real-time streams | WebSocket endpoints for market data, positions, orders. Proxied to respective backend services. Verified with `wscat`. |
+| [1.8.1](https://github.com/drag0sd0g/MariaAlpha/issues/43) | Implement Spring Cloud Gateway with route configuration | Routes per §5.2.8 configured. Requests proxied to correct backend services. Health check aggregates downstream service health. |
+| [1.8.2](https://github.com/drag0sd0g/MariaAlpha/issues/44) | Implement API key authentication filter | `X-API-Key` header required. Keys loaded from environment variable. HTTP 401 on missing/invalid key. Key not logged. |
+| [1.8.3](https://github.com/drag0sd0g/MariaAlpha/issues/45) | Implement WebSocket proxy for real-time streams | WebSocket endpoints for market data, positions, orders. Proxied to respective backend services. Verified with `wscat`. |
 
 #### 1.9 React UI (MVP)
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
-| 1.9.1 | Initialize React app with Vite, TypeScript, TailwindCSS | `npm create vite` scaffold. TypeScript configured. TailwindCSS + Recharts installed. ESLint + Prettier configured. App renders. |
-| 1.9.2 | Implement Dashboard page | Portfolio summary cards (P&L, exposure, cash). Position blotter table with live P&L column. Daily P&L chart (Recharts). Data fetched from Order Manager REST API. |
-| 1.9.3 | Implement Order Entry page | Order form (symbol, side, quantity, type, limit price). Submit via API Gateway. Active orders blotter with cancel button. Fill history table. WebSocket for real-time order status updates. |
-| 1.9.4 | Implement WebSocket hook for real-time updates | `useWebSocket` hook connects to API Gateway WebSocket endpoints. Auto-reconnect with visual indicator. State updates trigger re-renders. |
+| [1.9.1](https://github.com/drag0sd0g/MariaAlpha/issues/46) | Initialize React app with Vite, TypeScript, TailwindCSS | `npm create vite` scaffold. TypeScript configured. TailwindCSS + Recharts installed. ESLint + Prettier configured. App renders. |
+| [1.9.2](https://github.com/drag0sd0g/MariaAlpha/issues/47) | Implement Dashboard page | Portfolio summary cards (P&L, exposure, cash). Position blotter table with live P&L column. Daily P&L chart (Recharts). Data fetched from Order Manager REST API. |
+| [1.9.3](https://github.com/drag0sd0g/MariaAlpha/issues/48) | Implement Order Entry page | Order form (symbol, side, quantity, type, limit price). Submit via API Gateway. Active orders blotter with cancel button. Fill history table. WebSocket for real-time order status updates. |
+| [1.9.4](https://github.com/drag0sd0g/MariaAlpha/issues/49) | Implement WebSocket hook for real-time updates | `useWebSocket` hook connects to API Gateway WebSocket endpoints. Auto-reconnect with visual indicator. State updates trigger re-renders. |
 
 #### 1.10 End-to-End Integration
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
-| 1.10.1 | End-to-end integration test with simulated exchange | Full pipeline test: simulated market data → VWAP strategy → ML signal → risk check → simulated exchange → fill → position update → P&L. All services running via Docker Compose. Test passes with assertions on final position and P&L. |
-| 1.10.2 | End-to-end smoke test with Alpaca paper trading | Full pipeline with Alpaca paper trading. Place a LIMIT order, receive fill, verify position and P&L. Manual verification documented with screenshots. |
-| 1.10.3 | Docker Compose full stack documentation | README.md with quickstart: prerequisites, `just run`, expected output, UI URL, API examples. Verified on clean checkout. |
+| [1.10.1](https://github.com/drag0sd0g/MariaAlpha/issues/50) | End-to-end integration test with simulated exchange | Full pipeline test: simulated market data → VWAP strategy → ML signal → risk check → simulated exchange → fill → position update → P&L. All services running via Docker Compose. Test passes with assertions on final position and P&L. |
+| [1.10.2](https://github.com/drag0sd0g/MariaAlpha/issues/51) | End-to-end smoke test with Alpaca paper trading | Full pipeline with Alpaca paper trading. Place a LIMIT order, receive fill, verify position and P&L. Manual verification documented with screenshots. |
+| [1.10.3](https://github.com/drag0sd0g/MariaAlpha/issues/52) | Docker Compose full stack documentation | README.md with quickstart: prerequisites, `just run`, expected output, UI URL, API examples. Verified on clean checkout. |
 
 ### Phase 2: Full Desk Workflows + SOR + Rich Analytics
 
@@ -1262,77 +1262,77 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 
 | # | Issue Title | Component |
 | --- | --- | --- |
-| 2.1.1 | Implement full Smart Order Router with venue scoring | Execution Engine |
-| 2.1.2 | Implement simulated dark pool and internal crossing venues | Execution Engine |
-| 2.1.3 | Implement IOC and FOK order type handlers | Execution Engine |
-| 2.1.4 | Implement GTC and Iceberg order type handlers | Execution Engine |
-| 2.1.5 | Implement TWAP strategy | Strategy Engine |
-| 2.1.6 | Implement Momentum/Trend-following strategy | Strategy Engine |
-| 2.1.7 | Implement Implementation Shortfall algorithm | Strategy Engine |
-| 2.1.8 | Implement POV (Participation Rate) algorithm | Strategy Engine |
-| 2.1.9 | Implement Close algorithm (targeting closing auction) | Strategy Engine |
-| 2.1.10 | Implement internalization / crossing engine | Execution Engine |
-| 2.2.1 | Implement sector exposure risk check | Execution Engine |
-| 2.2.2 | Implement beta exposure risk check | Execution Engine |
-| 2.2.3 | Implement ADV-relative sizing risk check | Execution Engine |
-| 2.2.4 | Implement flow toxicity / adverse selection detector | Analytics Service |
-| 2.2.5 | Implement PnL attribution (spread, hedging, market, timing) | Analytics Service |
-| 2.2.6 | Implement client interest / axe matching model | Analytics Service |
-| 2.3.1 | Implement regime classifier (Random Forest) | ML Signal Service |
-| 2.3.2 | Implement ML signal confirmation/veto logic in Strategy Engine | Strategy Engine |
-| 2.4.1 | Implement inventory-aware RFQ pricing | Strategy Engine |
-| 2.4.2 | Implement volatility-adjusted and ADV-relative spread pricing | Strategy Engine |
-| 2.5.1 | Implement RFQ page in React UI | React UI |
-| 2.5.2 | Implement Strategy Control page with regime display | React UI |
-| 2.5.3 | Implement Analytics page (TCA, PnL attribution, performance) | React UI |
-| 2.5.4 | Implement Reconciliation page | React UI |
-| 2.5.5 | Implement WebSocket streaming for positions, orders, alerts | React UI |
-| 2.6.1 | Implement end-of-day reconciliation engine | Post-Trade |
-| 2.6.2 | Create Grafana Trading Pipeline dashboard | Observability |
-| 2.6.3 | Create Grafana Portfolio & Risk dashboard | Observability |
-| 2.6.4 | Create Grafana Post-Trade & Quality dashboard | Observability |
-| 2.7.1 | Create Helm charts for full Kubernetes deployment | Deployment |
-| 2.7.2 | Implement Docker image publish workflow | CI/CD |
-| 2.7.3 | Add mutation testing (PITest + mutmut) to CI | CI/CD |
-| 2.7.4 | Introduce Redis for distributed position cache | Infrastructure |
-| 2.7.5 | Create Bruno API collection with example requests | Developer Experience |
+| [2.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/53) | Implement full Smart Order Router with venue scoring | Execution Engine |
+| [2.1.2](https://github.com/drag0sd0g/MariaAlpha/issues/54) | Implement simulated dark pool and internal crossing venues | Execution Engine |
+| [2.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/55) | Implement IOC and FOK order type handlers | Execution Engine |
+| [2.1.4](https://github.com/drag0sd0g/MariaAlpha/issues/56) | Implement GTC and Iceberg order type handlers | Execution Engine |
+| [2.1.5](https://github.com/drag0sd0g/MariaAlpha/issues/57) | Implement TWAP strategy | Strategy Engine |
+| [2.1.6](https://github.com/drag0sd0g/MariaAlpha/issues/58) | Implement Momentum/Trend-following strategy | Strategy Engine |
+| [2.1.7](https://github.com/drag0sd0g/MariaAlpha/issues/59) | Implement Implementation Shortfall algorithm | Strategy Engine |
+| [2.1.8](https://github.com/drag0sd0g/MariaAlpha/issues/60) | Implement POV (Participation Rate) algorithm | Strategy Engine |
+| [2.1.9](https://github.com/drag0sd0g/MariaAlpha/issues/61) | Implement Close algorithm (targeting closing auction) | Strategy Engine |
+| [2.1.10](https://github.com/drag0sd0g/MariaAlpha/issues/62) | Implement internalization / crossing engine | Execution Engine |
+| [2.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/63) | Implement sector exposure risk check | Execution Engine |
+| [2.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/64) | Implement beta exposure risk check | Execution Engine |
+| [2.2.3](https://github.com/drag0sd0g/MariaAlpha/issues/65) | Implement ADV-relative sizing risk check | Execution Engine |
+| [2.2.4](https://github.com/drag0sd0g/MariaAlpha/issues/66) | Implement flow toxicity / adverse selection detector | Analytics Service |
+| [2.2.5](https://github.com/drag0sd0g/MariaAlpha/issues/67) | Implement PnL attribution (spread, hedging, market, timing) | Analytics Service |
+| [2.2.6](https://github.com/drag0sd0g/MariaAlpha/issues/68) | Implement client interest / axe matching model | Analytics Service |
+| [2.3.1](https://github.com/drag0sd0g/MariaAlpha/issues/69) | Implement regime classifier (Random Forest) | ML Signal Service |
+| [2.3.2](https://github.com/drag0sd0g/MariaAlpha/issues/70) | Implement ML signal confirmation/veto logic in Strategy Engine | Strategy Engine |
+| [2.4.1](https://github.com/drag0sd0g/MariaAlpha/issues/71) | Implement inventory-aware RFQ pricing | Strategy Engine |
+| [2.4.2](https://github.com/drag0sd0g/MariaAlpha/issues/72) | Implement volatility-adjusted and ADV-relative spread pricing | Strategy Engine |
+| [2.5.1](https://github.com/drag0sd0g/MariaAlpha/issues/73) | Implement RFQ page in React UI | React UI |
+| [2.5.2](https://github.com/drag0sd0g/MariaAlpha/issues/74) | Implement Strategy Control page with regime display | React UI |
+| [2.5.3](https://github.com/drag0sd0g/MariaAlpha/issues/75) | Implement Analytics page (TCA, PnL attribution, performance) | React UI |
+| [2.5.4](https://github.com/drag0sd0g/MariaAlpha/issues/76) | Implement Reconciliation page | React UI |
+| [2.5.5](https://github.com/drag0sd0g/MariaAlpha/issues/77) | Implement WebSocket streaming for positions, orders, alerts | React UI |
+| [2.6.1](https://github.com/drag0sd0g/MariaAlpha/issues/78) | Implement end-of-day reconciliation engine | Post-Trade |
+| [2.6.2](https://github.com/drag0sd0g/MariaAlpha/issues/79) | Create Grafana Trading Pipeline dashboard | Observability |
+| [2.6.3](https://github.com/drag0sd0g/MariaAlpha/issues/80) | Create Grafana Portfolio & Risk dashboard | Observability |
+| [2.6.4](https://github.com/drag0sd0g/MariaAlpha/issues/81) | Create Grafana Post-Trade & Quality dashboard | Observability |
+| [2.7.1](https://github.com/drag0sd0g/MariaAlpha/issues/82) | Create Helm charts for full Kubernetes deployment | Deployment |
+| [2.7.2](https://github.com/drag0sd0g/MariaAlpha/issues/83) | Implement Docker image publish workflow | CI/CD |
+| [2.7.3](https://github.com/drag0sd0g/MariaAlpha/issues/84) | Add mutation testing (PITest + mutmut) to CI | CI/CD |
+| [2.7.4](https://github.com/drag0sd0g/MariaAlpha/issues/85) | Introduce Redis for distributed position cache | Infrastructure |
+| [2.7.5](https://github.com/drag0sd0g/MariaAlpha/issues/86) | Create Bruno API collection with example requests | Developer Experience |
 
 ### Phase 3: Derivatives + Tokyo Market + Program Trading
 
 | # | Issue Title | Component |
 | --- | --- | --- |
-| 3.1.1 | Implement IBKR `MarketDataAdapter` (TWS API) | Market Data GW |
-| 3.1.2 | Implement IBKR `ExchangeAdapter` (TWS API) | Execution Engine |
-| 3.1.3 | Implement multi-market trading hours support | Strategy Engine |
-| 3.2.1 | Implement options pricing model (Black-Scholes) | Strategy Engine |
-| 3.2.2 | Implement Greeks computation (delta, gamma, vega, theta) | Strategy Engine |
-| 3.2.3 | Implement Pegged order type handler | Execution Engine |
-| 3.3.1 | Implement TSE tick size table and validation | Execution Engine |
-| 3.3.2 | Implement auction session handling (Itayose, closing) | Market Data GW |
-| 3.3.3 | Implement daily price limit enforcement | Execution Engine |
-| 3.3.4 | Implement short-selling uptick rule | Execution Engine |
-| 3.4.1 | Implement program / basket trading engine | Execution Engine |
-| 3.4.2 | Implement trade allocation | Post-Trade |
-| 3.4.3 | Implement FIX protocol gateway (QuickFIX/J) for inbound algo orders | API Gateway |
-| 3.4.4 | Implement Electronic Trading REST API for programmatic algo execution | API Gateway |
-| 3.4.5 | Implement algo execution tracking and progress reporting via WebSocket | API Gateway |
-| 3.5.1 | Implement intraday VaR risk check | Execution Engine |
-| 3.5.2 | Implement correlated position limits | Execution Engine |
-| 3.5.3 | Implement currency exposure tracking | Order Manager |
+| [3.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/87) | Implement IBKR `MarketDataAdapter` (TWS API) | Market Data GW |
+| [3.1.2](https://github.com/drag0sd0g/MariaAlpha/issues/88) | Implement IBKR `ExchangeAdapter` (TWS API) | Execution Engine |
+| [3.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/89) | Implement multi-market trading hours support | Strategy Engine |
+| [3.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/90) | Implement options pricing model (Black-Scholes) | Strategy Engine |
+| [3.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/91) | Implement Greeks computation (delta, gamma, vega, theta) | Strategy Engine |
+| [3.2.3](https://github.com/drag0sd0g/MariaAlpha/issues/92) | Implement Pegged order type handler | Execution Engine |
+| [3.3.1](https://github.com/drag0sd0g/MariaAlpha/issues/93) | Implement TSE tick size table and validation | Execution Engine |
+| [3.3.2](https://github.com/drag0sd0g/MariaAlpha/issues/94) | Implement auction session handling (Itayose, closing) | Market Data GW |
+| [3.3.3](https://github.com/drag0sd0g/MariaAlpha/issues/95) | Implement daily price limit enforcement | Execution Engine |
+| [3.3.4](https://github.com/drag0sd0g/MariaAlpha/issues/96) | Implement short-selling uptick rule | Execution Engine |
+| [3.4.1](https://github.com/drag0sd0g/MariaAlpha/issues/97) | Implement program / basket trading engine | Execution Engine |
+| [3.4.2](https://github.com/drag0sd0g/MariaAlpha/issues/98) | Implement trade allocation | Post-Trade |
+| [3.4.3](https://github.com/drag0sd0g/MariaAlpha/issues/99) | Implement FIX protocol gateway (QuickFIX/J) for inbound algo orders | API Gateway |
+| [3.4.4](https://github.com/drag0sd0g/MariaAlpha/issues/100) | Implement Electronic Trading REST API for programmatic algo execution | API Gateway |
+| [3.4.5](https://github.com/drag0sd0g/MariaAlpha/issues/119) | Implement algo execution tracking and progress reporting via WebSocket | API Gateway |
+| [3.5.1](https://github.com/drag0sd0g/MariaAlpha/issues/101) | Implement intraday VaR risk check | Execution Engine |
+| [3.5.2](https://github.com/drag0sd0g/MariaAlpha/issues/102) | Implement correlated position limits | Execution Engine |
+| [3.5.3](https://github.com/drag0sd0g/MariaAlpha/issues/103) | Implement currency exposure tracking | Order Manager |
 
 ### Phase 4: Advanced Features
 
 | # | Issue Title | Component |
 | --- | --- | --- |
-| 4.1.1 | Implement backtesting engine (historical replay) | Strategy Engine |
-| 4.2.1 | Implement JWT/OAuth2 authentication | API Gateway |
-| 4.2.2 | Implement role-based access control | API Gateway |
-| 4.3.1 | Implement warrant trading via IBKR | Execution Engine |
-| 4.4.1 | Implement model retraining pipeline | ML Signal Service |
-| 4.4.2 | Implement A/B testing (shadow mode) for signal models | ML Signal Service |
-| 4.5.1 | Implement Terraform/IaC for cloud deployment | Deployment |
-| 4.6.1 | Implement portfolio optimization (mean-variance) | Analytics Service |
-| 4.7.1 | Implement client tiering for RFQ pricing | Strategy Engine |
-| 4.8.1 | Implement ML-based adaptive SOR | Execution Engine |
-| 4.9.1 | Evaluate Apache Flink for complex event processing | Infrastructure |
+| [4.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/104) | Implement backtesting engine (historical replay) | Strategy Engine |
+| [4.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/105) | Implement JWT/OAuth2 authentication | API Gateway |
+| [4.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/106) | Implement role-based access control | API Gateway |
+| [4.3.1](https://github.com/drag0sd0g/MariaAlpha/issues/107) | Implement warrant trading via IBKR | Execution Engine |
+| [4.4.1](https://github.com/drag0sd0g/MariaAlpha/issues/108) | Implement model retraining pipeline | ML Signal Service |
+| [4.4.2](https://github.com/drag0sd0g/MariaAlpha/issues/109) | Implement A/B testing (shadow mode) for signal models | ML Signal Service |
+| [4.5.1](https://github.com/drag0sd0g/MariaAlpha/issues/110) | Implement Terraform/IaC for cloud deployment | Deployment |
+| [4.6.1](https://github.com/drag0sd0g/MariaAlpha/issues/111) | Implement portfolio optimization (mean-variance) | Analytics Service |
+| [4.7.1](https://github.com/drag0sd0g/MariaAlpha/issues/112) | Implement client tiering for RFQ pricing | Strategy Engine |
+| [4.8.1](https://github.com/drag0sd0g/MariaAlpha/issues/113) | Implement ML-based adaptive SOR | Execution Engine |
+| [4.9.1](https://github.com/drag0sd0g/MariaAlpha/issues/114) | Evaluate Apache Flink for complex event processing | Infrastructure |
 
