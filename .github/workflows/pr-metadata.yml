@@ -34,11 +34,13 @@ jobs:
             MS=$(gh issue view "$ISSUE" -R "$REPO" --json milestone --jq '.milestone.title // empty')
             [ -n "$MS" ] && gh pr edit "$PR" -R "$REPO" --milestone "$MS"
 
+            PROJECT=$(gh issue view "$ISSUE" -R "$REPO" --json projectItems --jq '.projectItems[0].title // empty' 2>/dev/null)
+
             CLOSES="${CLOSES}Closes #${ISSUE}\n"
           done
 
           gh pr edit "$PR" -R "$REPO" --add-assignee "$OWNER" --add-reviewer "$OWNER"
-          gh pr edit "$PR" -R "$REPO" --add-project MariaAlpha || true
+          [ -n "$PROJECT" ] && gh pr edit "$PR" -R "$REPO" --add-project "$PROJECT" || true
 
           # Link issues in PR body so the "Development" section populates
           if [ -n "$CLOSES" ]; then
