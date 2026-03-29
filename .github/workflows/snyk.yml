@@ -46,7 +46,13 @@ jobs:
 
       - name: Fail on critical vulnerabilities
         if: steps.snyk.outcome == 'failure'
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
+          if [ -z "$SNYK_TOKEN" ]; then
+            echo "::warning::Snyk skipped — SNYK_TOKEN secret not configured"
+            exit 0
+          fi
           echo "::error::Snyk found critical vulnerabilities in Java dependencies"
           exit 1
 
