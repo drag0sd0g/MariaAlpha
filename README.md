@@ -77,3 +77,19 @@ graph LR
 ```
 
 Alloy is the unified telemetry collector — it scrapes Prometheus-format metrics endpoints and forwards them to Prometheus via remote write, receives OTLP traces (gRPC `:4317`, HTTP `:4318`) and forwards to Tempo, and pushes logs to Loki. Grafana queries all three backends and supports cross-linking between traces, logs, and metrics.
+
+## CI/CD
+
+Three GitHub Actions workflows run on every push and PR to `main`:
+
+| Workflow | File | What it checks |
+| --- | --- | --- |
+| **CI** | `ci.yml` | Java: Checkstyle, SpotBugs, tests + JaCoCo. Python: ruff, mypy, pytest. UI: ESLint, Prettier, tsc. |
+| **CodeQL** | `codeql.yml` | Security analysis for Java, Python, TypeScript (also runs weekly). |
+| **Snyk** | `snyk.yml` | Dependency vulnerability scanning (requires `SNYK_TOKEN` secret). |
+
+Python and UI jobs skip automatically when no source files exist yet. JaCoCo and test reports are uploaded as build artifacts.
+
+### Branch rules
+
+Direct pushes to `main` are not allowed — all changes go through pull requests. Branches are auto-deleted after merge.

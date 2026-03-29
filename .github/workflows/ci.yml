@@ -1,0 +1,154 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+
+  java:
+    name: Java (lint + test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Checkstyle
+        run: ./gradlew checkstyleMain checkstyleTest --continue
+
+      - name: SpotBugs
+        run: ./gradlew spotbugsMain --continue
+
+      - name: Tests + JaCoCo
+        run: ./gradlew test
+
+      - name: Upload JaCoCo reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-reports
+          path: "**/build/reports/jacoco/test/html/"
+          if-no-files-found: ignore
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-test-results
+          path: "**/build/reports/tests/test/"
+          if-no-files-found: ignore
+
+  python:
+    name: Python (lint + test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for Python source files
+        id: detect
+        run: |
+          if find . -name '*.py' -not -path './.git/*' | head -1 | grep -q .; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "No Python files found — skipping Python checks."
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.detect.outputs.found == 'true'
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        if: steps.detect.outputs.found == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          # Install from requirements if available, plus lint/test tools
+          for req in requirements.txt requirements-dev.txt; do
+            [ -f "$req" ] && pip install -r "$req"
+          done
+          pip install ruff mypy pytest pytest-cov
+
+      - name: ruff check
+        if: steps.detect.outputs.found == 'true'
+        run: ruff check .
+
+      - name: mypy
+        if: steps.detect.outputs.found == 'true'
+        run: mypy . --ignore-missing-imports
+
+      - name: pytest + coverage
+        if: steps.detect.outputs.found == 'true'
+        run: pytest --cov --cov-report=html --cov-report=xml -q || true
+
+      - name: Upload Python coverage
+        if: steps.detect.outputs.found == 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-coverage
+          path: htmlcov/
+          if-no-files-found: ignore
+
+  ui:
+    name: UI (lint + typecheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for UI project
+        id: detect
+        run: |
+          # Look for package.json in likely UI directories
+          UI_DIR=""
+          for dir in ui frontend web-ui react-ui; do
+            [ -f "$dir/package.json" ] && UI_DIR="$dir" && break
+          done
+          if [ -n "$UI_DIR" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "dir=$UI_DIR" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "No UI project found — skipping UI checks."
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.detect.outputs.found == 'true'
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ${{ steps.detect.outputs.dir }}/package-lock.json
+
+      - name: Install dependencies
+        if: steps.detect.outputs.found == 'true'
+        working-directory: ${{ steps.detect.outputs.dir }}
+        run: npm ci
+
+      - name: ESLint
+        if: steps.detect.outputs.found == 'true'
+        working-directory: ${{ steps.detect.outputs.dir }}
+        run: npx eslint .
+
+      - name: Prettier
+        if: steps.detect.outputs.found == 'true'
+        working-directory: ${{ steps.detect.outputs.dir }}
+        run: npx prettier --check .
+
+      - name: TypeScript typecheck
+        if: steps.detect.outputs.found == 'true'
+        working-directory: ${{ steps.detect.outputs.dir }}
+        run: npx tsc --noEmit
