@@ -29,6 +29,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Snyk test
+        id: snyk
         uses: snyk/actions/gradle@master
         continue-on-error: true
         env:
@@ -42,6 +43,12 @@ jobs:
         with:
           sarif_file: snyk.sarif
         continue-on-error: true
+
+      - name: Fail on critical vulnerabilities
+        if: steps.snyk.outcome == 'failure'
+        run: |
+          echo "::error::Snyk found critical vulnerabilities in Java dependencies"
+          exit 1
 
   snyk-python:
     name: Snyk (Python dependencies)

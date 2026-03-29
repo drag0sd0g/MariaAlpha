@@ -80,16 +80,17 @@ Alloy is the unified telemetry collector — it scrapes Prometheus-format metric
 
 ## CI/CD
 
-Three GitHub Actions workflows run on every push and PR to `main`:
+GitHub Actions workflows run on every push and PR to `main`:
 
 | Workflow | File | What it checks |
 | --- | --- | --- |
 | **CI** | `ci.yml` | Java: Checkstyle, SpotBugs, tests + JaCoCo. Python: ruff, mypy, pytest. UI: ESLint, Prettier, tsc. |
 | **CodeQL** | `codeql.yml` | Security analysis for Java, Python, TypeScript (also runs weekly). |
 | **Snyk** | `snyk.yml` | Dependency vulnerability scanning (requires `SNYK_TOKEN` secret). |
+| **PR Metadata** | `pr-metadata.yml` | Auto-populates labels, milestone, assignee, and project from linked issues. |
 
-Python and UI jobs skip automatically when no source files exist yet. JaCoCo and test reports are uploaded as build artifacts.
+Python and UI jobs skip automatically when no source files exist yet. JaCoCo and test reports are uploaded as build artifacts. Snyk requires a `SNYK_TOKEN` repository secret — obtain one from [snyk.io](https://snyk.io).
 
 ### Branch rules
 
-Direct pushes to `main` are not allowed — all changes go through pull requests. Branches are auto-deleted after merge.
+Direct pushes to `main` are not allowed — all changes go through pull requests. The `Java (lint + test)` and `CodeQL (java-kotlin)` checks must pass before merging. Branches are auto-deleted after merge.
