@@ -4,11 +4,21 @@ spring-boot = "3.5.12"
 spring-dependency-management = "1.1.7"
 spotbugs-plugin = "6.4.8"
 checkstyle = "13.3.0"
+protobuf-java = "4.29.3"
+grpc-java = "1.70.0"
+protobuf-plugin = "0.9.4"
+javax-annotation = "1.3.2"
 
 [libraries]
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
+protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf-java" }
+grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded", version.ref = "grpc-java" }
+grpc-protobuf = { module = "io.grpc:grpc-protobuf", version.ref = "grpc-java" }
+grpc-stub = { module = "io.grpc:grpc-stub", version.ref = "grpc-java" }
+javax-annotation-api = { module = "javax.annotation:javax.annotation-api", version.ref = "javax-annotation" }
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
 spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
 spotbugs = { id = "com.github.spotbugs", version.ref = "spotbugs-plugin" }
+protobuf = { id = "com.google.protobuf", version.ref = "protobuf-plugin" }

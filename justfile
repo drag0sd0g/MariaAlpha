@@ -36,9 +36,10 @@ lint:
 docker-build:
     @echo "Dockerfiles not yet created"
 
-# Generate gRPC stubs from proto definitions
+# Generate gRPC stubs from proto definitions (Java + Python)
 proto:
-    @echo "gRPC codegen not yet configured"
+    ./gradlew :proto:generateProto
+    bash proto/generate_python.sh
 
 # Run database migrations (auto-run on each service startup)
 migrate:
