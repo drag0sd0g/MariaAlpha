@@ -4,3 +4,5 @@ local/
 build/
 .claude/
 .env
+.venv/
+proto/generated/

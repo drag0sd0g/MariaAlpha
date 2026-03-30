@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package mariaalpha.signal;
+
+option java_multiple_files = true;
+option java_package = "com.mariaalpha.proto.signal";
+
+import "google/protobuf/timestamp.proto";
+
+service SignalService {
+  rpc GetSignal(SignalRequest) returns (SignalResponse);
+  rpc GetRegime(RegimeRequest) returns (RegimeResponse);
+  rpc StreamSignals(SignalStreamRequest) returns (stream SignalResponse);
+}
+
+enum Direction {
+  NEUTRAL = 0;
+  LONG = 1;
+  SHORT = 2;
+}
+
+enum MarketRegime {
+  UNKNOWN = 0;
+  TRENDING_UP = 1;
+  TRENDING_DOWN = 2;
+  MEAN_REVERTING = 3;
+  HIGH_VOLATILITY = 4;
+  LOW_VOLATILITY = 5;
+}
+
+message SignalRequest {
+  string symbol = 1;
+}
+
+message SignalResponse {
+  string symbol = 1;
+  Direction direction = 2;
+  double confidence = 3;
+  double recommended_position_size = 4;
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+message RegimeRequest {
+  string symbol = 1;
+}
+
+message RegimeResponse {
+  string symbol = 1;
+  MarketRegime regime = 2;
+  double confidence = 3;
+  google.protobuf.Timestamp timestamp = 4;
+}
+
+message SignalStreamRequest {
+  repeated string symbols = 1;
+}
