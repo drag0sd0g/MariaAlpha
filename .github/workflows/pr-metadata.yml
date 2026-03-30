@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.PROJECT_TOKEN || github.token }}
+      DEFAULT_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
       OWNER: ${{ github.repository_owner }}
     steps:
@@ -39,7 +40,7 @@ jobs:
             CLOSES="${CLOSES}Closes #${ISSUE}\n"
           done
 
-          gh pr edit "$PR" -R "$REPO" --add-assignee "$OWNER" --add-reviewer "$OWNER"
+          GH_TOKEN="$DEFAULT_TOKEN" gh pr edit "$PR" -R "$REPO" --add-assignee "$OWNER" --add-reviewer "$OWNER"
           [ -n "$PROJECT" ] && gh pr edit "$PR" -R "$REPO" --add-project "$PROJECT" || true
 
           # Link issues in PR body so the "Development" section populates
