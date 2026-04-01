@@ -51,7 +51,13 @@ subprojects {
         }
 
         tasks.withType<Test> {
-            useJUnitPlatform()
+            useJUnitPlatform {
+                if (project.hasProperty("includeTags")) {
+                    includeTags(project.property("includeTags") as String)
+                } else {
+                    excludeTags("integration")
+                }
+            }
             finalizedBy(tasks.named("jacocoTestReport"))
         }
 
