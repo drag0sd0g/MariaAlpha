@@ -43,7 +43,7 @@ class AlpacaMarketDataAdapterIntegrationTest {
         .doOnNext(
             tick -> {
               receivedTicks.add(tick);
-                latch.countDown();
+              latch.countDown();
             })
         .subscribe();
 
