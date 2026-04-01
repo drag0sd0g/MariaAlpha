@@ -1,0 +1,9 @@
+spring:
+  config:
+    import: optional:file:./config/symbols.yml
+
+market-data:
+  alpaca:
+    websocket-url: wss://stream.data.alpaca.markets/v2/iex
+    api-key-id: ${ALPACA_API_KEY_ID}
+    api-secret-key: ${ALPACA_API_SECRET_KEY}

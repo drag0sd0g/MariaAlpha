@@ -27,6 +27,10 @@ test:
 test-java:
     ./gradlew test
 
+# Run integration tests only (requires credentials)
+test-integration:
+    ./gradlew test -PincludeTags=integration
+
 # Run Python tests
 test-python:
     @echo "Python test runner not yet configured"
