@@ -14,8 +14,9 @@ stop:
 clean:
     ./gradlew clean
 
-# Clean build
+# Clean build (auto-fixes formatting first)
 build:
+    just fix
     ./gradlew clean build
 
 # Run all tests (Java + Python)
@@ -35,18 +36,17 @@ test-integration:
 test-python:
     @echo "Python test runner not yet configured"
 
-# Run all linters and format checks
-lint:
+# Run all linters and format checks (CI gate)
+check:
     ./gradlew spotlessCheck checkstyleMain spotbugsMain
     ruff check .
+    ruff format --check .
 
-# Check code formatting (fails on violations)
-format-check:
-    ./gradlew spotlessCheck
-
-# Auto-format all source files
-format:
+# Auto-fix all formatting and lint violations
+fix:
     ./gradlew spotlessApply
+    ruff check --fix .
+    ruff format .
 
 # Build all Docker images
 docker-build:
