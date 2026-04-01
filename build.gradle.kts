@@ -7,9 +7,9 @@ plugins {
     alias(libs.plugins.spring.boot) apply false
     alias(libs.plugins.spring.dependency.management) apply false
     alias(libs.plugins.spotbugs) apply false
+    alias(libs.plugins.spotless) apply false
 }
 
-// Captured at root script level where libs is accessible
 val javaVersion = libs.versions.java.get().toInt()
 val springBomCoordinate = libs.spring.boot.bom.get().toString()
 val checkstyleToolVersion = libs.versions.checkstyle.get()
@@ -38,6 +38,7 @@ subprojects {
         apply(plugin = "checkstyle")
         apply(plugin = "com.github.spotbugs")
         apply(plugin = "jacoco")
+        apply(plugin = "com.diffplug.spotless")
 
         extensions.configure<CheckstyleExtension> {
             toolVersion = checkstyleToolVersion
@@ -50,6 +51,7 @@ subprojects {
         }
 
         tasks.withType<Test> {
+            useJUnitPlatform()
             finalizedBy(tasks.named("jacocoTestReport"))
         }
 
@@ -57,6 +59,13 @@ subprojects {
             reports {
                 xml.required = true
                 html.required = true
+            }
+        }
+
+        extensions.configure<com.diffplug.gradle.spotless.SpotlessExtension> {
+            java {
+                googleJavaFormat()
+                removeUnusedImports()
             }
         }
     }

@@ -84,7 +84,7 @@ GitHub Actions workflows run on every push and PR to `main`:
 
 | Workflow | File | What it checks |
 | --- | --- | --- |
-| **CI** | `ci.yml` | Java: Checkstyle, SpotBugs, tests + JaCoCo. Python: ruff, mypy, pytest. UI: ESLint, Prettier, tsc. |
+| **CI** | `ci.yml` | Java: Spotless, Checkstyle, SpotBugs, tests + JaCoCo. Python: ruff, mypy, pytest. UI: ESLint, Prettier, tsc. |
 | **CodeQL** | `codeql.yml` | Security analysis for Java, Python, TypeScript (also runs weekly). |
 | **Snyk** | `snyk.yml` | Dependency vulnerability scanning (requires `SNYK_TOKEN` secret). |
 | **PR Metadata** | `pr-metadata.yml` | Auto-populates labels, milestone, assignee, and project from linked issues. |

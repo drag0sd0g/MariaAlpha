@@ -410,7 +410,7 @@ sequenceDiagram
 
 | ID | Requirement |
 | --- | --- |
-| NFR-9 | All Java code SHALL pass Checkstyle and SpotBugs analysis with zero errors. |
+| NFR-9 | All Java code SHALL pass Checkstyle, SpotBugs, and Spotless (Google Java Format) analysis with zero errors. |
 | NFR-10 | All Python code SHALL pass `ruff` linting and `mypy` type checking with zero errors. |
 | NFR-11 | Each Java service SHALL have unit tests with at least 80% line coverage, measured by JaCoCo. |
 | NFR-12 | Each Python service SHALL have unit tests with at least 80% line coverage, measured by `pytest-cov`. |
@@ -725,7 +725,7 @@ Future checks: Sector Exposure (Phase 2), Beta Exposure (Phase 2), ADV Sizing (P
 
 #### 5.3.4 Exchange Adapter SPI
 
-Both `MarketDataAdapter` and `ExchangeAdapter` are pluggable via Spring profiles (`spring.profiles.active: alpaca | simulated | ibkr`). Adding a new exchange requires implementing two interfaces — no changes to upstream services.
+Both `MarketDataAdapter` and `ExchangeAdapter` are pluggable via Spring profiles (`spring.profiles.active: alpaca | simulated | ibkr`). Each adapter implementation is annotated with `@Profile("simulated")` / `@Profile("alpaca")` etc., and profile-specific configuration is externalized via `@ConfigurationProperties` records and corresponding `application-{profile}.yml` files (e.g., `application-simulated.yml` defines `market-data.simulated.csv-path` and `market-data.simulated.speed-multiplier`). Adding a new exchange requires implementing two interfaces — no changes to upstream services.
 
 #### 5.3.5 Smart Order Router (Phase 2)
 
@@ -887,6 +887,7 @@ All topics start with **1 partition** and **minimal retention** in the MVP. Part
 | Task management | GitHub Issues + GitHub Projects | Integrated with repo. Labels for categorization. Milestones for phases. Projects board for Kanban. |
 | Integration testing | Testcontainers | Real Kafka/PostgreSQL/Redis in tests. No mocked infrastructure. |
 | Database migrations | Liquibase | Supports XML/YAML/JSON/SQL changelogs. Rollback support. Widely used in enterprise Java. Runs automatically on Spring Boot startup. |
+| Code formatting | Spotless (Google Java Format) | Gradle plugin that auto-formats Java source code to Google Java Style on build. Enforced via `spotlessCheck` in CI, auto-fixed via `spotlessApply` locally (`just format`). Complements Checkstyle (which checks but does not fix). |
 | Command runner | just | Modern alternative to Make. No tab-sensitivity issues, cleaner syntax, built-in argument passing, cross-platform. `justfile` replaces `Makefile`. |
 | API testing (Phase 2) | Bruno | Open-source API client. Collections stored as files in the repo. Replaces Postman. |
 | Stream processing (Phase 4) | Apache Flink (consideration) | Complex event processing for multi-symbol pattern detection, windowed portfolio-level VaR computation, and real-time aggregation across high-volume streams. Adds significant infrastructure complexity — justified only at scale beyond MVP. |
@@ -1108,7 +1109,7 @@ Java: Gradle with dependency locking + OWASP Dependency-Check + Snyk in CI. Pyth
 graph LR
     subgraph "ci.yml (on push / PR)"
         direction LR
-        JL[Checkstyle] --> JSB[SpotBugs] --> JT[Tests + JaCoCo] --> JM[PITest] --> JO[OWASP] --> JCQ[CodeQL] --> JS[Snyk]
+        JF[Spotless] --> JL[Checkstyle] --> JSB[SpotBugs] --> JT[Tests + JaCoCo] --> JM[PITest] --> JO[OWASP] --> JCQ[CodeQL] --> JS[Snyk]
         PL[ruff] --> PM[mypy] --> PT[pytest + cov] --> PMT[mutmut] --> PA[pip-audit] --> PCQ[CodeQL] --> PS[Snyk]
         UL[ESLint + Prettier] --> UT[tsc --noEmit]
     end
@@ -1158,12 +1159,12 @@ Each item below is scoped to be a single GitHub Issue with specific acceptance c
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
-| [1.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/1) | Initialize monorepo with Gradle multi-project build | Root `build.gradle.kts` and `settings.gradle.kts` with shared dependency versions, Java 21 toolchain, Checkstyle/SpotBugs/JaCoCo plugins. All Java sub-projects compile. |
+| [1.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/1) | Initialize monorepo with Gradle multi-project build | Root `build.gradle.kts` and `settings.gradle.kts` with shared dependency versions, Java 21 toolchain, Checkstyle/SpotBugs/JaCoCo/Spotless plugins. All Java sub-projects compile. |
 | [1.1.2](https://github.com/drag0sd0g/MariaAlpha/issues/2) | Create `justfile` with core command recipes | `justfile` with recipes: `run` (docker compose up), `stop`, `clean`, `test`, `test-java`, `test-python`, `lint`, `docker-build`, `proto` (gRPC codegen), `migrate`. All recipes documented with `just --list`. |
 | [1.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/3) | Set up Docker Compose with PostgreSQL and Kafka (KRaft) | `docker-compose.yml` starts PostgreSQL 16 and Kafka in KRaft mode. Health checks pass. `just run` brings up infrastructure. |
 | [1.1.4](https://github.com/drag0sd0g/MariaAlpha/issues/4) | Create database migration (Liquibase) with initial schema | Liquibase changelog creates all tables from §5.4. Migration runs automatically on Spring Boot startup. Verified via `psql`. |
 | [1.1.5](https://github.com/drag0sd0g/MariaAlpha/issues/5) | Set up Grafana LGTM observability stack in Docker Compose | Prometheus, Loki, Tempo, Alloy, Grafana containers start. Alloy scrapes Prometheus metrics. Grafana accessible at `:3001`. |
-| [1.1.6](https://github.com/drag0sd0g/MariaAlpha/issues/6) | Configure GitHub Actions CI pipeline (lint + test) | `ci.yml` runs Checkstyle, SpotBugs, JaCoCo (Java), ruff, mypy, pytest (Python). Fails on violations. Coverage uploaded as artifact. |
+| [1.1.6](https://github.com/drag0sd0g/MariaAlpha/issues/6) | Configure GitHub Actions CI pipeline (lint + test) | `ci.yml` runs Spotless, Checkstyle, SpotBugs, JaCoCo (Java), ruff, mypy, pytest (Python). Fails on violations. Coverage uploaded as artifact. |
 | [1.1.7](https://github.com/drag0sd0g/MariaAlpha/issues/7) | Add CodeQL and Snyk to CI pipeline | CodeQL analysis runs for Java, Python, TypeScript. Snyk scans dependencies. Both block merge on critical findings. |
 | [1.1.8](https://github.com/drag0sd0g/MariaAlpha/issues/8) | Create Kafka topics init container | Docker Compose init service creates all topics from §5.4 with 1 partition and configured retention before any consumer starts. |
 | [1.1.9](https://github.com/drag0sd0g/MariaAlpha/issues/9) | Set up shared proto module and gRPC code generation | `proto/signal.proto` defined. Gradle task generates Java stubs. Python script generates Python stubs. Both compile successfully. |
