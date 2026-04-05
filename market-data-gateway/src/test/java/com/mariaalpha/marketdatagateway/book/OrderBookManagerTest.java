@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
@@ -113,7 +112,7 @@ class OrderBookManagerTest {
     int threadCount = 8;
     int ticksPerThread = 1000;
     var latch = new CountDownLatch(threadCount);
-    ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+    var executor = Executors.newVirtualThreadPerTaskExecutor();
 
     for (int t = 0; t < threadCount; t++) {
       final int threadId = t;
@@ -144,7 +143,7 @@ class OrderBookManagerTest {
     int symbolCount = 10;
     int ticksPerSymbol = 500;
     var latch = new CountDownLatch(symbolCount);
-    ExecutorService executor = Executors.newFixedThreadPool(symbolCount);
+    var executor = Executors.newVirtualThreadPerTaskExecutor();
     List<String> symbols = new ArrayList<>();
 
     for (int s = 0; s < symbolCount; s++) {
