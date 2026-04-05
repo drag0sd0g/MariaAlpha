@@ -22,6 +22,8 @@ spring-kafka = { module = "org.springframework.kafka:spring-kafka" }
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
 testcontainers-kafka = { module = "org.testcontainers:kafka", version.ref = "testcontainers" }
 testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
+grpc-inprocess = { module = "io.grpc:grpc-inprocess", version.ref = "grpc-java" }
+grpc-server-spring-boot-starter = { module = "net.devh:grpc-server-spring-boot-starter", version = "3.1.0.RELEASE" }
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }

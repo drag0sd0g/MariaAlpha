@@ -6,9 +6,9 @@ val protocVersion = libs.versions.protobuf.java.get()
 val grpcVersion = libs.versions.grpc.java.get()
 
 dependencies {
-    implementation(libs.protobuf.java)
-    implementation(libs.grpc.protobuf)
-    implementation(libs.grpc.stub)
+    api(libs.protobuf.java)
+    api(libs.grpc.protobuf)
+    api(libs.grpc.stub)
     compileOnly(libs.javax.annotation.api)
 }
 

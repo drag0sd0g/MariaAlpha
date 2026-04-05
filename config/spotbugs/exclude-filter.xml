@@ -5,4 +5,12 @@
         <Class name="com.mariaalpha.marketdatagateway.publisher.TickKafkaPublisher"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
+    <Match>
+        <Class name="com.mariaalpha.marketdatagateway.book.OrderBookManager"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.marketdatagateway.grpc.BookGrpcService"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
 </FindBugsFilter>
