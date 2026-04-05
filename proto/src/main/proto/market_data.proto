@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package mariaalpha.marketdata;
+
+option java_multiple_files = true;
+option java_package = "com.mariaalpha.proto.marketdata";
+
+import "google/protobuf/timestamp.proto";
+
+service MarketDataService {
+  // Unary: return the current book snapshot for a single symbol
+  rpc GetBookSnapshot(BookSnapshotRequest) returns (BookSnapshotResponse);
+
+  // Server-streaming: push book updates for requested symbols
+  rpc StreamBookSnapshots(StreamBookSnapshotsRequest) returns (stream BookSnapshotResponse);
+}
+
+message BookSnapshotRequest {
+  string symbol = 1;
+}
+
+message StreamBookSnapshotsRequest {
+  repeated string symbols = 1;
+}
+
+message BookSnapshotResponse {
+  string symbol = 1;
+  double bid_price = 2;
+  double ask_price = 3;
+  int64 bid_size = 4;
+  int64 ask_size = 5;
+  double last_price = 6;
+  int64 cumulative_volume = 7;
+  google.protobuf.Timestamp timestamp = 8;
+}
