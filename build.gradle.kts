@@ -48,6 +48,7 @@ subprojects {
         extensions.configure<SpotBugsExtension> {
             effort = Effort.MAX
             reportLevel = Confidence.MEDIUM
+            excludeFilter = rootProject.file("config/spotbugs/exclude-filter.xml")
         }
 
         tasks.withType<Test> {
