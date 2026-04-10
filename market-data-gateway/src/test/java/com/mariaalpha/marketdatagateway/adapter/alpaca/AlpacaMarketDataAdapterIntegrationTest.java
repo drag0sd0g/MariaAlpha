@@ -30,6 +30,7 @@ class AlpacaMarketDataAdapterIntegrationTest {
     var config =
         new AlpacaMarketDataConfig(
             "wss://stream.data.alpaca.markets/v2/iex",
+            "https://data.alpaca.markets",
             System.getenv("ALPACA_API_KEY_ID"),
             System.getenv("ALPACA_API_SECRET_KEY"));
     adapter = new AlpacaMarketDataAdapter(config);

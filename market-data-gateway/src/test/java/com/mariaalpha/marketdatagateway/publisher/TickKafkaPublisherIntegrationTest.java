@@ -43,7 +43,7 @@ class TickKafkaPublisherIntegrationTest {
 
   private static final String TOPIC = "market-data.ticks";
 
-  @Container static KafkaContainer kafka = new KafkaContainer("apache/kafka:3.9.0");
+  @Container static KafkaContainer kafka = new KafkaContainer("apache/kafka:latest");
 
   private final ObjectMapper objectMapper =
       new ObjectMapper()

@@ -13,4 +13,16 @@
         <Class name="com.mariaalpha.marketdatagateway.grpc.BookGrpcService"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
+    <Match>
+        <Class name="com.mariaalpha.marketdatagateway.repository.HistoricalBarRepository"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.marketdatagateway.backfill.BackfillService"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.marketdatagateway.backfill.BackfillRunner"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
 </FindBugsFilter>

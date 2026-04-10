@@ -5,5 +5,8 @@ spring:
 market-data:
   alpaca:
     websocket-url: wss://stream.data.alpaca.markets/v2/iex
+    base-url: https://data.alpaca.markets
     api-key-id: ${ALPACA_API_KEY_ID}
     api-secret-key: ${ALPACA_API_SECRET_KEY}
+  backfill:
+    lookback-days: ${BACKFILL_LOOKBACK_DAYS:60}
