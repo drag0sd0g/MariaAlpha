@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.mariaalpha.marketdatagateway.adapter.MarketDataAdapter;
 import com.mariaalpha.marketdatagateway.adapter.alpaca.message.AlpacaAuthStatus;
+import com.mariaalpha.marketdatagateway.adapter.alpaca.message.AlpacaBarsResponse;
 import com.mariaalpha.marketdatagateway.adapter.alpaca.message.AlpacaControl;
 import com.mariaalpha.marketdatagateway.adapter.alpaca.message.AlpacaMessageType;
 import com.mariaalpha.marketdatagateway.adapter.alpaca.message.AlpacaQuote;
@@ -20,12 +21,16 @@ import com.mariaalpha.marketdatagateway.model.MarketTick;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.socket.WebSocketMessage;
 import org.springframework.web.reactive.socket.WebSocketSession;
 import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClient;
@@ -38,11 +43,13 @@ import reactor.core.publisher.Sinks;
 public class AlpacaMarketDataAdapter implements MarketDataAdapter {
 
   private static final Logger LOG = LoggerFactory.getLogger(AlpacaMarketDataAdapter.class);
+  private static final int PAGE_LIMIT = 10000;
 
   private final AlpacaMarketDataConfig config;
   private final ObjectMapper objectMapper;
   private final Sinks.Many<MarketTick> tickSink;
   private volatile Disposable wsConnection;
+  private final WebClient webClient;
 
   public AlpacaMarketDataAdapter(AlpacaMarketDataConfig config) {
     this.config = config;
@@ -53,6 +60,12 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
     // bridge imperative (WebSocket callback pushes data) to reactive (downstream consumers
     // subscribe to a Flux)
     this.tickSink = Sinks.many().multicast().onBackpressureBuffer();
+    this.webClient =
+        WebClient.builder()
+            .baseUrl(config.baseUrl())
+            .defaultHeader("APCA-API-KEY-ID", config.apiKeyId())
+            .defaultHeader("APCA-API-SECRET-KEY", config.apiSecretKey())
+            .build();
   }
 
   @Override
@@ -93,7 +106,53 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
   @Override
   public List<HistoricalBar> getHistoricalBars(
       String symbol, LocalDate from, LocalDate to, BarTimeframe timeframe) {
-    throw new UnsupportedOperationException("Will implement in a later iteration");
+    var allBars = new ArrayList<HistoricalBar>();
+    String pageToken = null;
+
+    do {
+      final String currentToken = pageToken;
+      var response =
+          webClient
+              .get()
+              .uri(
+                  uriBuilder ->
+                      uriBuilder
+                          .path("/v2/stocks/{symbol}/bars")
+                          .queryParam("timeframe", timeframe.getLabel())
+                          .queryParam("start", from.toString())
+                          .queryParam("end", to.toString())
+                          .queryParam("limit", PAGE_LIMIT)
+                          .queryParam("adjustment", "raw")
+                          .queryParam("feed", "iex")
+                          .queryParamIfPresent(
+                              "page_token",
+                              currentToken == null ? Optional.empty() : Optional.of(currentToken))
+                          .build(symbol))
+              .retrieve()
+              .bodyToMono(AlpacaBarsResponse.class)
+              .block();
+
+      if (response != null) {
+        for (var bar : response.bars()) {
+          allBars.add(
+              new HistoricalBar(
+                  symbol,
+                  bar.timestamp().atZone(ZoneOffset.UTC).toLocalDate(),
+                  bar.open(),
+                  bar.high(),
+                  bar.low(),
+                  bar.close(),
+                  bar.volume(),
+                  bar.vwap()));
+        }
+        pageToken = response.nextPageToken();
+      } else {
+        pageToken = null;
+      }
+    } while (pageToken != null);
+
+    LOG.info("Fetched {} historical bars for {}", allBars.size(), symbol);
+    return allBars;
   }
 
   /** Parses the JSON once, reads the type field, and dispatches to the appropriate handler. */

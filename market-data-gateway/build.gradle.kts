@@ -11,10 +11,13 @@ dependencies {
     implementation(libs.spring.boot.starter.actuator)
     implementation(project(":proto"))
     implementation(libs.grpc.server.spring.boot.starter)
+    implementation(libs.guava)
     runtimeOnly("org.postgresql:postgresql")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.projectreactor:reactor-test")
     testImplementation(libs.testcontainers.kafka)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.grpc.inprocess)
+    testImplementation(libs.testcontainers.postgresql)
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }
