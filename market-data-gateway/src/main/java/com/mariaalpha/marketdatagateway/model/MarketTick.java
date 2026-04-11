@@ -14,4 +14,22 @@ public record MarketTick(
     long bidSize,
     long askSize,
     long cumulativeVolume,
-    DataSource source) {}
+    DataSource source,
+    boolean stale) {
+
+  public MarketTick withStale(boolean stale) {
+    return new MarketTick(
+        symbol,
+        timestamp,
+        eventType,
+        price,
+        size,
+        bidPrice,
+        askPrice,
+        bidSize,
+        askSize,
+        cumulativeVolume,
+        source,
+        stale);
+  }
+}

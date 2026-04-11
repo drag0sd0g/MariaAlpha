@@ -33,4 +33,8 @@
         <Class name="com.mariaalpha.marketdatagateway.health.TickReadinessIndicator"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
+    <Match>
+        <Class name="com.mariaalpha.marketdatagateway.websocket.WebSocketRunner"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
 </FindBugsFilter>

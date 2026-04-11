@@ -114,7 +114,8 @@ class OrderBookEntryTest {
             0L,
             0L,
             1000500L,
-            DataSource.ALPACA);
+            DataSource.ALPACA,
+            false);
 
     var updated = entry.update(tick);
 
@@ -148,7 +149,8 @@ class OrderBookEntryTest {
         0L,
         0L,
         volume,
-        DataSource.ALPACA);
+        DataSource.ALPACA,
+        false);
   }
 
   private static MarketTick quoteTick(
@@ -164,6 +166,7 @@ class OrderBookEntryTest {
         bidSize,
         askSize,
         0L,
-        DataSource.ALPACA);
+        DataSource.ALPACA,
+        false);
   }
 }

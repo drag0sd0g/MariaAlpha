@@ -18,4 +18,6 @@ public interface MarketDataAdapter {
       String symbol, LocalDate from, LocalDate to, BarTimeframe timeframe);
 
   boolean isConnected();
+
+  List<String> subscribedSymbols();
 }
