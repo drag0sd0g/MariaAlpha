@@ -7,8 +7,11 @@ import com.mariaalpha.marketdatagateway.config.KafkaPublisherConfig;
 import com.mariaalpha.marketdatagateway.model.MarketTick;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import java.time.Duration;
+import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -19,6 +22,7 @@ import reactor.core.Disposable;
 public class TickKafkaPublisher {
   private static final Logger LOG = LoggerFactory.getLogger(TickKafkaPublisher.class);
   private static final String METRIC_NAME = "mariaalpha_md_ticks_received_total";
+  private static final String TICK_LATENCY_METRIC = "mariaalpha_md_tick_latency_ms";
 
   private final MarketDataAdapter adapter;
   private final KafkaTemplate<String, String> kafkaTemplate;
@@ -65,8 +69,20 @@ public class TickKafkaPublisher {
           .tag("event_type", tick.eventType().name())
           .register(meterRegistry)
           .increment();
+      recordTickLatency(tick);
     } catch (JsonProcessingException e) {
       LOG.error("Failed to serialize MarketTick: {}", tick, e);
+    }
+  }
+
+  private void recordTickLatency(MarketTick tick) {
+    var latency = Duration.between(tick.timestamp(), Instant.now());
+    if (!latency.isNegative()) {
+      Timer.builder(TICK_LATENCY_METRIC)
+          .description("Exchange timestamp to Kafka publish latency")
+          .tag("symbol", tick.symbol())
+          .register(meterRegistry)
+          .record(latency);
     }
   }
 }

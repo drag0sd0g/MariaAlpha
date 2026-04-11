@@ -25,4 +25,12 @@
         <Class name="com.mariaalpha.marketdatagateway.backfill.BackfillRunner"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
+    <Match>
+        <Class name="com.mariaalpha.marketdatagateway.health.WebSocketHealthIndicator"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.marketdatagateway.health.TickReadinessIndicator"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
 </FindBugsFilter>

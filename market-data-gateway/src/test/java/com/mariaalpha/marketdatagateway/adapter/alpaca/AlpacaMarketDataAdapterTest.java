@@ -262,4 +262,9 @@ class AlpacaMarketDataAdapterTest {
 
     StepVerifier.create(adapter.streamTicks()).expectNextCount(1).verifyComplete();
   }
+
+  @Test
+  void isConnectedReturnsFalseBeforeConnect() {
+    assertThat(adapter.isConnected()).isFalse();
+  }
 }

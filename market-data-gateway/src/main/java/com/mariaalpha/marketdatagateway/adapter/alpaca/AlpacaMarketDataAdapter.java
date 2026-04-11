@@ -18,6 +18,8 @@ import com.mariaalpha.marketdatagateway.model.DataSource;
 import com.mariaalpha.marketdatagateway.model.EventType;
 import com.mariaalpha.marketdatagateway.model.HistoricalBar;
 import com.mariaalpha.marketdatagateway.model.MarketTick;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.time.LocalDate;
@@ -50,8 +52,9 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
   private final Sinks.Many<MarketTick> tickSink;
   private volatile Disposable wsConnection;
   private final WebClient webClient;
+  private final Counter reconnectCounter;
 
-  public AlpacaMarketDataAdapter(AlpacaMarketDataConfig config) {
+  public AlpacaMarketDataAdapter(AlpacaMarketDataConfig config, MeterRegistry meterRegistry) {
     this.config = config;
     this.objectMapper =
         new ObjectMapper()
@@ -66,6 +69,23 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
             .defaultHeader("APCA-API-KEY-ID", config.apiKeyId())
             .defaultHeader("APCA-API-SECRET-KEY", config.apiSecretKey())
             .build();
+    this.reconnectCounter =
+        Counter.builder("mariaalpha_md_websocket_reconnects_total")
+            .description("WebSocket reconnection attempts")
+            .register(meterRegistry);
+  }
+
+  AlpacaMarketDataAdapter(AlpacaMarketDataConfig config) {
+    this(config, new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
+  }
+
+  @Override
+  public boolean isConnected() {
+    return wsConnection != null && !wsConnection.isDisposed();
+  }
+
+  Counter reconnectCounter() {
+    return reconnectCounter;
   }
 
   @Override

@@ -16,4 +16,6 @@ public interface MarketDataAdapter {
 
   List<HistoricalBar> getHistoricalBars(
       String symbol, LocalDate from, LocalDate to, BarTimeframe timeframe);
+
+  boolean isConnected();
 }
