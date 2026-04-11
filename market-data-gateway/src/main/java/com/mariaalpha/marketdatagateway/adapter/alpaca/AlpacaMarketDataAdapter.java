@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.google.common.annotations.VisibleForTesting;
 import com.mariaalpha.marketdatagateway.adapter.MarketDataAdapter;
 import com.mariaalpha.marketdatagateway.adapter.alpaca.message.AlpacaAuthStatus;
 import com.mariaalpha.marketdatagateway.adapter.alpaca.message.AlpacaBarsResponse;
@@ -20,14 +21,17 @@ import com.mariaalpha.marketdatagateway.model.HistoricalBar;
 import com.mariaalpha.marketdatagateway.model.MarketTick;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
 import java.net.URI;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -38,6 +42,8 @@ import org.springframework.web.reactive.socket.WebSocketSession;
 import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClient;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.publisher.SignalType;
 import reactor.core.publisher.Sinks;
 
 @Component
@@ -46,6 +52,8 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
 
   private static final Logger LOG = LoggerFactory.getLogger(AlpacaMarketDataAdapter.class);
   private static final int PAGE_LIMIT = 10000;
+  static final int MAX_RETRIES = 5;
+  static final long[] BACKOFF_MS = {1000, 2000, 4000, 8000, 16000};
 
   private final AlpacaMarketDataConfig config;
   private final ObjectMapper objectMapper;
@@ -53,6 +61,11 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
   private volatile Disposable wsConnection;
   private final WebClient webClient;
   private final Counter reconnectCounter;
+  private final ConcurrentHashMap<String, MarketTick> lastTickBySymbol = new ConcurrentHashMap<>();
+
+  private volatile List<String> subscribedSymbols = List.of();
+  private volatile boolean shutdownRequested;
+  private volatile int reconnectAttempt;
 
   public AlpacaMarketDataAdapter(AlpacaMarketDataConfig config, MeterRegistry meterRegistry) {
     this.config = config;
@@ -75,8 +88,9 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
             .register(meterRegistry);
   }
 
+  @VisibleForTesting
   AlpacaMarketDataAdapter(AlpacaMarketDataConfig config) {
-    this(config, new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
+    this(config, new SimpleMeterRegistry());
   }
 
   @Override
@@ -84,33 +98,27 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
     return wsConnection != null && !wsConnection.isDisposed();
   }
 
+  @Override
+  public List<String> subscribedSymbols() {
+    return subscribedSymbols;
+  }
+
+  @VisibleForTesting
   Counter reconnectCounter() {
     return reconnectCounter;
   }
 
   @Override
   public void connect(List<String> symbols) {
-    var client = new ReactorNettyWebSocketClient();
-    var uri = URI.create(config.websocketUrl());
-
-    wsConnection =
-        client
-            .execute(
-                uri,
-                session ->
-                    session
-                        .receive()
-                        .map(WebSocketMessage::getPayloadAsText)
-                        .doOnNext(msg -> handleMessage(msg, session, symbols))
-                        .then())
-            .doOnError(err -> LOG.error("WebSocket error", err))
-            .doOnTerminate(() -> LOG.info("WebSocket connection closed"))
-            .subscribe();
-    LOG.info("Connecting to Alpaca WebSocket at {}", uri);
+    this.subscribedSymbols = List.copyOf(symbols);
+    this.shutdownRequested = false;
+    this.reconnectAttempt = 0;
+    doConnect();
   }
 
   @Override
   public void disconnect() {
+    shutdownRequested = true;
     if (wsConnection != null && !wsConnection.isDisposed()) {
       wsConnection.dispose();
     }
@@ -176,6 +184,7 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
   }
 
   /** Parses the JSON once, reads the type field, and dispatches to the appropriate handler. */
+  @VisibleForTesting
   void handleMessage(String raw, WebSocketSession session, List<String> symbols) {
     try {
       var tree = objectMapper.readTree(raw);
@@ -213,6 +222,7 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
       session.send(Flux.just(session.textMessage(authMsg))).subscribe();
 
     } else if (status == AlpacaAuthStatus.AUTHENTICATED) {
+      reconnectAttempt = 0;
       LOG.info("Authenticated, subscribing to {}", symbols);
       var subMsg =
           objectMapper.writeValueAsString(
@@ -236,7 +246,9 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
             0L,
             0L,
             0L,
-            DataSource.ALPACA);
+            DataSource.ALPACA,
+            false);
+    lastTickBySymbol.put(tick.symbol(), tick);
     tickSink.tryEmitNext(tick);
   }
 
@@ -255,7 +267,9 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
             quote.bidSize(),
             quote.askSize(),
             0L,
-            DataSource.ALPACA);
+            DataSource.ALPACA,
+            false);
+    lastTickBySymbol.put(tick.symbol(), tick);
     tickSink.tryEmitNext(tick);
   }
 
@@ -263,5 +277,55 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
   private void handleError(JsonNode node) throws JsonProcessingException {
     var control = objectMapper.treeToValue(node, AlpacaControl.class);
     LOG.error("Alpaca error — code: {}, message: {}", control.code(), control.message());
+  }
+
+  private void doConnect() {
+    var client = new ReactorNettyWebSocketClient();
+    var uri = URI.create(config.websocketUrl());
+    LOG.info("Connecting to Alpaca WebSocket at {}", uri);
+    wsConnection =
+        client
+            .execute(
+                uri,
+                session ->
+                    session
+                        .receive()
+                        .map(WebSocketMessage::getPayloadAsText)
+                        .doOnNext(msg -> handleMessage(msg, session, subscribedSymbols))
+                        .then())
+            .doOnError(err -> LOG.error("WebSocket error: {}", err.getMessage()))
+            .doFinally(
+                signal -> {
+                  if (!shutdownRequested && signal != SignalType.CANCEL) {
+                    scheduleReconnect();
+                  }
+                })
+            .subscribe(v -> {}, err -> {});
+  }
+
+  private void emitStaleTicks() {
+    lastTickBySymbol.forEach((symbol, tick) -> tickSink.tryEmitNext(tick.withStale(true)));
+    if (!lastTickBySymbol.isEmpty()) {
+      LOG.info("Emitted {} stale ticks", lastTickBySymbol.size());
+    }
+  }
+
+  @VisibleForTesting
+  void delayReconnect(long delayMs) {
+    Mono.delay(Duration.ofMillis(delayMs)).subscribe(ignored -> doConnect());
+  }
+
+  @VisibleForTesting
+  void scheduleReconnect() {
+    if (reconnectAttempt >= MAX_RETRIES) {
+      LOG.error("Max reconnect attempts ({}) exhausted", MAX_RETRIES);
+      emitStaleTicks();
+      return;
+    }
+    emitStaleTicks();
+    reconnectCounter.increment();
+    var delay = BACKOFF_MS[reconnectAttempt++];
+    LOG.warn("Reconnecting in {} millis (attempt {}/{})", delay, reconnectAttempt, MAX_RETRIES);
+    delayReconnect(delay);
   }
 }

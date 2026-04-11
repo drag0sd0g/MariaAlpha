@@ -149,7 +149,8 @@ class TickKafkaPublisherTest {
         0L,
         0L,
         0L,
-        DataSource.ALPACA);
+        DataSource.ALPACA,
+        false);
   }
 
   private static MarketTick quoteTick(String symbol) {
@@ -164,6 +165,7 @@ class TickKafkaPublisherTest {
         100L,
         80L,
         0L,
-        DataSource.ALPACA);
+        DataSource.ALPACA,
+        false);
   }
 }

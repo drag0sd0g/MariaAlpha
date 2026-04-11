@@ -78,6 +78,7 @@ class TickReadinessIndicatorTest {
         0L,
         0L,
         0L,
-        DataSource.ALPACA);
+        DataSource.ALPACA,
+        false);
   }
 }

@@ -36,7 +36,8 @@ class MarketTickJsonTest {
             200L,
             150L,
             12345678L,
-            DataSource.ALPACA);
+            DataSource.ALPACA,
+            false);
 
     var json = objectMapper.writeValueAsString(tick);
 
@@ -51,6 +52,7 @@ class MarketTickJsonTest {
     assertThat(json).contains("\"askSize\":150");
     assertThat(json).contains("\"cumulativeVolume\":12345678");
     assertThat(json).contains("\"source\":\"ALPACA\"");
+    assertThat(json).contains("\"stale\":false");
   }
 
   @Test
@@ -67,7 +69,8 @@ class MarketTickJsonTest {
             100L,
             80L,
             500000L,
-            DataSource.ALPACA);
+            DataSource.ALPACA,
+            false);
 
     var json = objectMapper.writeValueAsString(tick);
 
@@ -89,7 +92,8 @@ class MarketTickJsonTest {
             200L,
             150L,
             12345678L,
-            DataSource.ALPACA);
+            DataSource.ALPACA,
+            false);
 
     var json = objectMapper.writeValueAsString(original);
     var deserialized = objectMapper.readValue(json, MarketTick.class);

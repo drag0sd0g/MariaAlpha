@@ -184,7 +184,8 @@ class OrderBookManagerTest {
         0L,
         0L,
         volume,
-        DataSource.ALPACA);
+        DataSource.ALPACA,
+        false);
   }
 
   private static MarketTick quoteTick(
@@ -200,6 +201,7 @@ class OrderBookManagerTest {
         bidSize,
         askSize,
         0L,
-        DataSource.ALPACA);
+        DataSource.ALPACA,
+        false);
   }
 }

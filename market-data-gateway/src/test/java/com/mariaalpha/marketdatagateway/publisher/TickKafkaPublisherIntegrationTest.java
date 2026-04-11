@@ -108,7 +108,8 @@ class TickKafkaPublisherIntegrationTest {
             0L,
             0L,
             12345678L,
-            DataSource.ALPACA);
+            DataSource.ALPACA,
+            false);
 
     tickSink.tryEmitNext(tick);
 
@@ -181,6 +182,11 @@ class TickKafkaPublisherIntegrationTest {
       public boolean isConnected() {
         return true;
       }
+
+      @Override
+      public List<String> subscribedSymbols() {
+        return List.of();
+      }
     };
   }
 
@@ -196,6 +202,7 @@ class TickKafkaPublisherIntegrationTest {
         0L,
         0L,
         0L,
-        DataSource.ALPACA);
+        DataSource.ALPACA,
+        false);
   }
 }

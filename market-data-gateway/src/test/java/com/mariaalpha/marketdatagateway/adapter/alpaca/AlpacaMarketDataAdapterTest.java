@@ -1,8 +1,10 @@
 package com.mariaalpha.marketdatagateway.adapter.alpaca;
 
+import static com.mariaalpha.marketdatagateway.adapter.alpaca.AlpacaMarketDataAdapter.MAX_RETRIES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -11,10 +13,14 @@ import com.mariaalpha.marketdatagateway.model.BarTimeframe;
 import com.mariaalpha.marketdatagateway.model.DataSource;
 import com.mariaalpha.marketdatagateway.model.EventType;
 import com.mariaalpha.marketdatagateway.model.HistoricalBar;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.IntStream;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
@@ -69,6 +75,7 @@ class AlpacaMarketDataAdapterTest {
               assertThat(tick.source()).isEqualTo(DataSource.ALPACA);
               assertThat(tick.bidPrice()).isEqualByComparingTo(BigDecimal.ZERO);
               assertThat(tick.askPrice()).isEqualByComparingTo(BigDecimal.ZERO);
+              assertThat(tick.stale()).isFalse();
             })
         .verifyComplete();
   }
@@ -116,9 +123,7 @@ class AlpacaMarketDataAdapterTest {
   @Test
   void connectedMessageTriggersAuth() {
     var json = "[{\"T\":\"success\",\"msg\":\"connected\"}]";
-
     adapter.handleMessage(json, mockSession, List.of("AAPL"));
-
     verify(mockSession).textMessage(any(String.class));
     verify(mockSession).send(any());
   }
@@ -126,9 +131,7 @@ class AlpacaMarketDataAdapterTest {
   @Test
   void authenticatedMessageTriggersSubscription() {
     var json = "[{\"T\":\"success\",\"msg\":\"authenticated\"}]";
-
     adapter.handleMessage(json, mockSession, List.of("AAPL"));
-
     verify(mockSession).textMessage(any(String.class));
     verify(mockSession).send(any());
   }
@@ -136,10 +139,8 @@ class AlpacaMarketDataAdapterTest {
   @Test
   void errorMessageDoesNotProduceTick() {
     var json = "[{\"T\":\"error\",\"code\":402,\"msg\":\"auth failed\"}]";
-
     adapter.handleMessage(json, mockSession, List.of("AAPL"));
     adapter.disconnect();
-
     StepVerifier.create(adapter.streamTicks()).verifyComplete();
   }
 
@@ -147,17 +148,14 @@ class AlpacaMarketDataAdapterTest {
   void malformedJsonDoesNotThrow() {
     adapter.handleMessage("not valid json", mockSession, List.of("AAPL"));
     adapter.disconnect();
-
     StepVerifier.create(adapter.streamTicks()).verifyComplete();
   }
 
   @Test
   void unknownMessageTypeIsIgnored() {
     var json = "[{\"T\":\"unknown_type\",\"S\":\"AAPL\"}]";
-
     adapter.handleMessage(json, mockSession, List.of("AAPL"));
     adapter.disconnect();
-
     StepVerifier.create(adapter.streamTicks()).verifyComplete();
   }
 
@@ -266,5 +264,104 @@ class AlpacaMarketDataAdapterTest {
   @Test
   void isConnectedReturnsFalseBeforeConnect() {
     assertThat(adapter.isConnected()).isFalse();
+  }
+
+  @Test
+  void connectStoresSubscribedSymbols() {
+    var config =
+        new AlpacaMarketDataConfig(
+            "wss://unused", mockServer.url("/").toString(), "test-key", "test-secret");
+    var testAdapter = new AlpacaMarketDataAdapter(config);
+    assertThat(testAdapter.subscribedSymbols()).isEmpty();
+  }
+
+  @Test
+  void scheduleReconnectIncrementsCounter() {
+    var config =
+        new AlpacaMarketDataConfig(
+            "wss://unused", mockServer.url("/").toString(), "test-key", "test-secret");
+    var registry = new SimpleMeterRegistry();
+    var testAdapter = new TestableAdapter(config, registry);
+    testAdapter.connect(List.of("AAPL"));
+    testAdapter.scheduleReconnect();
+    var counter = registry.find("mariaalpha_md_websocket_reconnects_total").counter();
+    assertThat(counter).isNotNull();
+    assertThat(counter.count()).isEqualTo(1.0);
+  }
+
+  @Test
+  void scheduleReconnectEmitsStaleTicks() {
+    var config =
+        new AlpacaMarketDataConfig(
+            "wss://unused", mockServer.url("/").toString(), "test-key", "test-secret");
+    var testAdapter = new TestableAdapter(config, new SimpleMeterRegistry());
+    testAdapter.connect(List.of("AAPL"));
+
+    // Simulate a received tick
+    var tradeJson =
+        "[{\"T\":\"t\",\"S\":\"AAPL\",\"p\":178.52,"
+            + "\"s\":100,"
+            + "\"t\":\"2026-03-24T14:30:00.123Z\","
+            + "\"c\":[],\"z\":\"C\"}]";
+    testAdapter.handleMessage(tradeJson, mockSession, List.of("AAPL"));
+
+    // Trigger reconnect
+    testAdapter.scheduleReconnect();
+
+    // The second tick emitted should be stale
+    StepVerifier.create(testAdapter.streamTicks().take(2))
+        .assertNext(
+            tick -> {
+              assertThat(tick.stale()).isFalse();
+              assertThat(tick.symbol()).isEqualTo("AAPL");
+            })
+        .assertNext(
+            tick -> {
+              assertThat(tick.stale()).isTrue();
+              assertThat(tick.symbol()).isEqualTo("AAPL");
+              assertThat(tick.price()).isEqualByComparingTo(new BigDecimal("178.52"));
+            })
+        .verifyComplete();
+  }
+
+  @Test
+  void maxRetriesExhaustedStopsReconnecting() {
+    var config =
+        new AlpacaMarketDataConfig(
+            "wss://unused", mockServer.url("/").toString(), "test-key", "test-secret");
+    var registry = new SimpleMeterRegistry();
+    var testAdapter = new TestableAdapter(config, registry);
+    testAdapter.connect(List.of("AAPL"));
+    IntStream.range(0, MAX_RETRIES).forEach(ignore -> testAdapter.scheduleReconnect());
+
+    // One more should NOT increment the counter
+    var countBefore =
+        Objects.requireNonNull(registry.find("mariaalpha_md_websocket_reconnects_total").counter())
+            .count();
+    testAdapter.scheduleReconnect();
+    var countAfter =
+        Objects.requireNonNull(registry.find("mariaalpha_md_websocket_reconnects_total").counter())
+            .count();
+
+    assertThat(countAfter).isEqualTo(countBefore);
+    assertThat(countAfter).isEqualTo(MAX_RETRIES);
+  }
+
+  @Test
+  void authenticatedResetsReconnectAttempt() {
+    var authJson = "[{\"T\":\"success\",\"msg\":\"authenticated\"}]";
+    adapter.handleMessage(authJson, mockSession, List.of("AAPL"));
+    verify(mockSession, times(1)).textMessage(any(String.class));
+  }
+
+  static class TestableAdapter extends AlpacaMarketDataAdapter {
+    TestableAdapter(AlpacaMarketDataConfig config, MeterRegistry registry) {
+      super(config, registry);
+    }
+
+    @Override
+    void delayReconnect(long delayMs) {
+      // No-op: don't schedule actual reconnect in tests
+    }
   }
 }

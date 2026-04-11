@@ -64,6 +64,11 @@ public class SimulatedMarketDataAdapter implements MarketDataAdapter {
     return connected;
   }
 
+  @Override
+  public List<String> subscribedSymbols() {
+    return subscribedSymbols == null ? List.of() : List.copyOf(subscribedSymbols);
+  }
+
   /**
    * Returns a Flux that replays ticks for subscribed symbols, paced by the configured speed
    * multiplier (0 = no delay).
@@ -127,7 +132,8 @@ public class SimulatedMarketDataAdapter implements MarketDataAdapter {
         Long.parseLong(parts[7].trim()),
         Long.parseLong(parts[8].trim()),
         Long.parseLong(parts[9].trim()),
-        DataSource.SIMULATED);
+        DataSource.SIMULATED,
+        false);
   }
 
   /** Emits ticks with inter-tick delays derived from CSV timestamps. */
