@@ -7,6 +7,7 @@ import com.mariaalpha.marketdatagateway.adapter.alpaca.AlpacaMarketDataAdapter;
 import com.mariaalpha.marketdatagateway.config.AlpacaMarketDataConfig;
 import com.mariaalpha.marketdatagateway.config.BackfillConfig;
 import com.mariaalpha.marketdatagateway.repository.HistoricalBarRepository;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -62,7 +63,7 @@ class BackfillIntegrationTest {
     var config =
         new AlpacaMarketDataConfig(
             "wss://unused", mockAlpaca.url("/").toString(), "test-key", "test-secret");
-    var adapter = new AlpacaMarketDataAdapter(config);
+    var adapter = new AlpacaMarketDataAdapter(config, new SimpleMeterRegistry());
     repository = new HistoricalBarRepository(jdbcTemplate);
     var backfillConfig = new BackfillConfig(60);
     backfillService =

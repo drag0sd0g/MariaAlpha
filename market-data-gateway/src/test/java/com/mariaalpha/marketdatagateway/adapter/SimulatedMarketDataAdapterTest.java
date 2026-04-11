@@ -176,4 +176,25 @@ class SimulatedMarketDataAdapterTest {
                     "AAPL", LocalDate.now(), LocalDate.now(), BarTimeframe.ONE_DAY))
         .isInstanceOf(UnsupportedOperationException.class);
   }
+
+  @Test
+  void isConnectedReturnsFalseBeforeConnect() {
+    var adapter = createAdapter(TEST_CSV, 0.0);
+    assertThat(adapter.isConnected()).isFalse();
+  }
+
+  @Test
+  void isConnectedReturnsTrueAfterConnect() {
+    var adapter = createAdapter(TEST_CSV, 0.0);
+    adapter.connect(List.of("AAPL"));
+    assertThat(adapter.isConnected()).isTrue();
+  }
+
+  @Test
+  void isConnectedReturnsFalseAfterDisconnect() {
+    var adapter = createAdapter(TEST_CSV, 0.0);
+    adapter.connect(List.of("AAPL"));
+    adapter.disconnect();
+    assertThat(adapter.isConnected()).isFalse();
+  }
 }

@@ -125,6 +125,18 @@ class TickKafkaPublisherTest {
     verify(kafkaTemplate, timeout(1000)).send(eq(TOPIC), eq("GOOGL"), any(String.class));
   }
 
+  @Test
+  void recordsTickLatencyHistogram() {
+    tickSink.tryEmitNext(tradeTick("AAPL", "178.52"));
+
+    verify(kafkaTemplate, timeout(1000)).send(eq(TOPIC), eq("AAPL"), any(String.class));
+
+    var timer = meterRegistry.find("mariaalpha_md_tick_latency_ms").tag("symbol", "AAPL").timer();
+    assertThat(timer).isNotNull();
+    assertThat(timer.count()).isEqualTo(1);
+    assertThat(timer.totalTime(java.util.concurrent.TimeUnit.MILLISECONDS)).isPositive();
+  }
+
   private static MarketTick tradeTick(String symbol, String price) {
     return new MarketTick(
         symbol,

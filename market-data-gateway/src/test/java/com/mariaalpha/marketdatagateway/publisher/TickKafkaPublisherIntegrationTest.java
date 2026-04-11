@@ -176,6 +176,11 @@ class TickKafkaPublisherIntegrationTest {
           String symbol, LocalDate from, LocalDate to, BarTimeframe timeframe) {
         throw new UnsupportedOperationException();
       }
+
+      @Override
+      public boolean isConnected() {
+        return true;
+      }
     };
   }
 

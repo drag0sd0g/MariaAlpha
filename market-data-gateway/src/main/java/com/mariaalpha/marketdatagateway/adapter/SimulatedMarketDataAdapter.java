@@ -59,6 +59,11 @@ public class SimulatedMarketDataAdapter implements MarketDataAdapter {
     LOG.info("disconnected simulated market data adapter");
   }
 
+  @Override
+  public boolean isConnected() {
+    return connected;
+  }
+
   /**
    * Returns a Flux that replays ticks for subscribed symbols, paced by the configured speed
    * multiplier (0 = no delay).

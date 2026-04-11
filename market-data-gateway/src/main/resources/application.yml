@@ -23,10 +23,30 @@ grpc:
     port: ${GRPC_SERVER_PORT:50052}
 
 management:
+  server:
+    port: ${MANAGEMENT_PORT:8081}
   endpoints:
     web:
       exposure:
         include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,tick
+        liveness:
+          include: livenessState
+  health:
+    kafka:
+      enabled: true
   metrics:
     tags:
       application: market-data-gateway
+    distribution:
+      percentiles-histogram:
+        mariaalpha.md.tick.latency.ms: true
+      percentiles:
+        mariaalpha.md.tick.latency.ms: 0.5,0.95,0.99
