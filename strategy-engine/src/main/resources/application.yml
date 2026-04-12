@@ -4,3 +4,57 @@ server:
 spring:
   application:
     name: strategy-engine
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: strategy-engine
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+strategy-engine:
+  kafka:
+    ticks-topic: market-data.ticks
+    signals-topic: strategy.signals
+  ml:
+    host: ${ML_SERVICE_HOST:localhost}
+    port: ${ML_SERVICE_PORT:50051}
+    confidence-threshold: 0.7
+
+management:
+  server:
+    port: ${MANAGEMENT_PORT:8083}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState
+        liveness:
+          include: livenessState
+  health:
+    kafka:
+      enabled: true
+  metrics:
+    tags:
+      application: strategy-engine
+    distribution:
+      percentiles-histogram:
+        mariaalpha.strategy.evaluation.duration.ms: true
+        mariaalpha.strategy.ml.latency.ms: true
+      percentiles:
+        mariaalpha.strategy.evaluation.duration.ms: 0.5,0.95,0.99
+        mariaalpha.strategy.ml.latency.ms: 0.5,0.95,0.99

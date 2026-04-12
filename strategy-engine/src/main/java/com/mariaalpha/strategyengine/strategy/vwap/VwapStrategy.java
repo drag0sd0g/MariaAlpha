@@ -122,7 +122,24 @@ public class VwapStrategy implements TradingStrategy {
       this.endTime = LocalTime.parse((String) params.get("endTime"));
     }
     if (params.containsKey("volumeProfile")) {
-      this.volumeProfile = (List<TimeBin>) params.get("volumeProfile");
+      var raw = params.get("volumeProfile");
+      if (raw instanceof List<?> list && !list.isEmpty() && list.get(0) instanceof TimeBin) {
+        this.volumeProfile = (List<TimeBin>) list;
+      } else if (raw instanceof List<?> list) {
+        this.volumeProfile =
+            list.stream()
+                .filter(item -> item instanceof Map)
+                .map(
+                    item -> {
+                      @SuppressWarnings("unchecked")
+                      var m = (Map<String, Object>) item;
+                      return new TimeBin(
+                          LocalTime.parse((String) m.get("startTime")),
+                          LocalTime.parse((String) m.get("endTime")),
+                          ((Number) m.get("volumeFraction")).doubleValue());
+                    })
+                .toList();
+      }
     }
     computeAllocations();
     resetExecutionState();

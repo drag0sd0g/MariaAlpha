@@ -11,6 +11,7 @@ javax-annotation = "1.3.2"
 spotless = "7.0.4"
 testcontainers = "1.20.4"
 guava = "33.4.0-jre"
+resilience4j = "2.2.0"
 
 [libraries]
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
@@ -27,7 +28,7 @@ grpc-inprocess = { module = "io.grpc:grpc-inprocess", version.ref = "grpc-java" 
 grpc-server-spring-boot-starter = { module = "net.devh:grpc-server-spring-boot-starter", version = "3.1.0.RELEASE" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 testcontainers-postgresql = { module = "org.testcontainers:postgresql", version.ref = "testcontainers" }
-
+resilience4j-circuitbreaker = { module = "io.github.resilience4j:resilience4j-circuitbreaker", version.ref = "resilience4j" }
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
