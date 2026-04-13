@@ -1,0 +1,66 @@
+[project]
+name = "ml-signal-service"
+version = "0.1.0"
+description = "ML Signal Service for MariaAlpha — feature computation and LightGBM inference"
+requires-python = ">=3.12"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "TC",   # flake8-type-checking
+]
+
+[tool.ruff.lint.per-file-ignores]
+# gRPC servicer methods must be PascalCase to match proto-generated interface
+"src/ml_signal/grpc_server/servicer.py" = ["N802"]
+# Standard ML convention: X for feature matrices
+"tests/*" = ["N806", "TC001", "TC002", "TC003"]
+"scripts/*" = ["N806"]
+# sys.path manipulation must precede imports
+"tests/conftest.py" = ["E402", "N806", "TC003"]
+"src/ml_signal/__main__.py" = ["E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["ml_signal"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = [
+    "signal_pb2",
+    "signal_pb2_grpc",
+    "confluent_kafka",
+    "confluent_kafka.*",
+    "lightgbm",
+    "lightgbm.*",
+    "joblib",
+    "grpc",
+    "grpc.*",
+    "google.protobuf.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "../proto/generated/python"]
+addopts = "--strict-markers --tb=short -q"
+markers = [
+    "integration: marks tests that require external services",
+]

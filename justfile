@@ -34,19 +34,21 @@ test-integration:
 
 # Run Python tests
 test-python:
-    @echo "Python test runner not yet configured"
+    cd ml-signal-service && pytest
 
 # Run all linters and format checks (CI gate)
 check:
     ./gradlew spotlessCheck checkstyleMain spotbugsMain
     ruff check .
     ruff format --check .
+    cd ml-signal-service && ruff check src/ tests/ && mypy src/
 
 # Auto-fix all formatting and lint violations
 fix:
     ./gradlew spotlessApply
     ruff check --fix .
     ruff format .
+    cd ml-signal-service && ruff check --fix src/ tests/ && ruff format src/ tests/
 
 # Build all Docker images
 docker-build:
