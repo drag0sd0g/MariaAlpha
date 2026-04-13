@@ -1,0 +1,15 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+grpcio==1.70.0
+grpcio-tools==1.70.0
+protobuf==5.29.3
+confluent-kafka==2.8.0
+lightgbm==4.5.0
+scikit-learn==1.6.1
+numpy==2.2.1
+pandas==2.2.3
+joblib==1.4.2
+prometheus-client==0.22.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+structlog==25.1.0

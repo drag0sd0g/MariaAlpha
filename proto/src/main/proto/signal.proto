@@ -38,6 +38,7 @@ message SignalResponse {
   double confidence = 3;
   double recommended_position_size = 4;
   google.protobuf.Timestamp timestamp = 5;
+  map<string, double> features = 6;
 }
 
 message RegimeRequest {

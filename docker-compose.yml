@@ -148,6 +148,26 @@ services:
       retries: 5
       start_period: 15s
 
+  ml-signal-service:
+    build:
+      context: .
+      dockerfile: ml-signal-service/Dockerfile
+    ports:
+      - "8090:8090"
+      - "50051:50051"
+    environment:
+      ML_SIGNAL_KAFKA_BOOTSTRAP_SERVERS: kafka:9094
+      ML_SIGNAL_SIGNAL_MODEL_PATH: /app/ml-models/signal_model.joblib
+    depends_on:
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
 volumes:
   postgres-data:
   prometheus-data:
