@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ML Signal Service — Animated Explainer</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e4e4e7;
+    --muted: #8b8d97;
+    --accent: #6366f1;
+    --green: #22c55e;
+    --red: #ef4444;
+    --amber: #f59e0b;
+    --blue: #3b82f6;
+    --cyan: #06b6d4;
+    --purple: #a855f7;
+    --pink: #ec4899;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+  }
+  .container { max-width: 1280px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  h2 { font-size: 20px; font-weight: 600; margin: 32px 0 16px; color: var(--accent); }
+  h3 { font-size: 16px; font-weight: 600; margin: 24px 0 12px; }
+  p, .desc { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 12px; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 32px; }
+
+  /* Pipeline visualisation */
+  .pipeline {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    margin: 24px 0;
+    position: relative;
+    min-height: 360px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+  .stage {
+    flex: 1;
+    min-width: 180px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    position: relative;
+    transition: border-color 0.5s, box-shadow 0.5s;
+  }
+  .stage.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px rgba(99,102,241,0.15);
+  }
+  .stage-header {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .stage-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .stage-content {
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+  .stage-content .value {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .arrow {
+    display: flex;
+    align-items: center;
+    font-size: 20px;
+    color: var(--border);
+    flex-shrink: 0;
+    transition: color 0.5s;
+  }
+  .arrow.active { color: var(--accent); }
+
+  /* Data packet animation */
+  .packet {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0;
+    z-index: 10;
+    pointer-events: none;
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  /* Live data panels */
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  @media (max-width: 768px) { .panels { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    overflow: hidden;
+  }
+  .panel-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Price chart */
+  #priceChart { width: 100%; height: 180px; }
+  .chart-row { display: flex; align-items: flex-end; gap: 2px; height: 160px; padding-top: 20px; }
+  .bar {
+    flex: 1;
+    min-width: 4px;
+    border-radius: 2px 2px 0 0;
+    transition: height 0.3s, background 0.3s;
+    position: relative;
+  }
+  .bar.up { background: var(--green); }
+  .bar.down { background: var(--red); }
+  .bar.current { box-shadow: 0 0 6px var(--accent); }
+
+  /* Feature bars */
+  .feature-list { display: flex; flex-direction: column; gap: 6px; }
+  .feature-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+  }
+  .feature-name { width: 90px; color: var(--muted); text-align: right; flex-shrink: 0; }
+  .feature-bar-bg {
+    flex: 1;
+    height: 16px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+  .feature-bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease, background 0.6s;
+    position: absolute;
+  }
+  .feature-value { width: 55px; font-size: 11px; color: var(--text); text-align: right; }
+
+  /* Signal output */
+  .signal-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 24px;
+  }
+  .signal-direction {
+    font-size: 36px;
+    font-weight: 800;
+    transition: color 0.5s;
+  }
+  .signal-direction.long { color: var(--green); }
+  .signal-direction.short { color: var(--red); }
+  .signal-direction.neutral { color: var(--muted); }
+  .confidence-ring {
+    width: 120px;
+    height: 120px;
+    position: relative;
+  }
+  .confidence-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .confidence-ring circle {
+    fill: none;
+    stroke-width: 8;
+    stroke-linecap: round;
+  }
+  .confidence-ring .bg { stroke: var(--border); }
+  .confidence-ring .fg { transition: stroke-dashoffset 0.8s ease, stroke 0.5s; }
+  .confidence-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 22px;
+    font-weight: 700;
+  }
+  .signal-meta { font-size: 12px; color: var(--muted); text-align: center; }
+
+  /* Decision tree viz */
+  .tree-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 0;
+  }
+  .tree-level {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .tree-node {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 10px;
+    text-align: center;
+    transition: border-color 0.3s, background 0.3s, transform 0.3s;
+    min-width: 80px;
+  }
+  .tree-node.highlight {
+    border-color: var(--accent);
+    background: rgba(99,102,241,0.1);
+    transform: scale(1.05);
+  }
+  .tree-node.leaf-up {
+    border-color: var(--green);
+    background: rgba(34,197,94,0.1);
+  }
+  .tree-node.leaf-down {
+    border-color: var(--red);
+    background: rgba(239,68,68,0.1);
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin: 16px 0;
+    flex-wrap: wrap;
+  }
+  .btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: opacity 0.2s;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.secondary { background: var(--surface); border: 1px solid var(--border); }
+  .speed-label { font-size: 12px; color: var(--muted); }
+  input[type="range"] { width: 120px; accent-color: var(--accent); }
+
+  /* Log */
+  .log {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    max-height: 200px;
+    overflow-y: auto;
+    font-size: 11px;
+    line-height: 1.8;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .log-entry { display: flex; gap: 8px; }
+  .log-ts { color: var(--muted); flex-shrink: 0; }
+  .log-msg { color: var(--text); }
+  .log-msg.green { color: var(--green); }
+  .log-msg.red { color: var(--red); }
+  .log-msg.amber { color: var(--amber); }
+  .log-msg.blue { color: var(--blue); }
+
+  /* Indicator formulas */
+  .formula-box {
+    background: rgba(99,102,241,0.05);
+    border: 1px solid rgba(99,102,241,0.2);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 12px;
+    margin: 8px 0;
+    color: var(--text);
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  /* Threading diagram */
+  .thread-diagram {
+    display: flex;
+    gap: 12px;
+    margin: 16px 0;
+    flex-wrap: wrap;
+  }
+  .thread-lane {
+    flex: 1;
+    min-width: 200px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .thread-lane-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .thread-pulse {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: pulse-slide 2s ease-in-out infinite;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+  .thread-lane.active .thread-pulse { opacity: 1; }
+  @keyframes pulse-slide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .separator { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .badge.green { background: rgba(34,197,94,0.15); color: var(--green); }
+  .badge.red { background: rgba(239,68,68,0.15); color: var(--red); }
+  .badge.amber { background: rgba(245,158,11,0.15); color: var(--amber); }
+  .badge.blue { background: rgba(59,130,246,0.15); color: var(--blue); }
+
+  /* Section highlighting */
+  .section-note {
+    background: rgba(99,102,241,0.05);
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-size: 13px;
+    color: var(--muted);
+    border-radius: 0 8px 8px 0;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>ML Signal Service — Interactive Animation</h1>
+<p class="subtitle">Watch how raw market ticks become directional predictions in real time</p>
+
+<!-- Controls -->
+<div class="controls">
+  <button class="btn" id="btnStart">Start Simulation</button>
+  <button class="btn secondary" id="btnStep" disabled>Step</button>
+  <button class="btn secondary" id="btnReset">Reset</button>
+  <span class="speed-label">Speed</span>
+  <input type="range" id="speedSlider" min="1" max="10" value="5">
+  <span class="speed-label" id="speedValue">1.0x</span>
+</div>
+
+<!-- ===== SECTION 1: PIPELINE OVERVIEW ===== -->
+<h2>1. End-to-End Pipeline</h2>
+<p>Each tick flows through 5 stages before becoming a trading signal. Watch the data packet traverse the pipeline.</p>
+
+<div class="pipeline" id="pipeline">
+  <div class="stage" id="s-kafka">
+    <div class="stage-header">
+      <div class="stage-icon" style="background:rgba(245,158,11,0.15);color:var(--amber)">K</div>
+      Kafka Tick
+    </div>
+    <div class="stage-content" id="s-kafka-content">
+      Waiting for tick...
+    </div>
+  </div>
+  <div class="arrow" id="a1">→</div>
+  <div class="stage" id="s-bar">
+    <div class="stage-header">
+      <div class="stage-icon" style="background:rgba(6,182,212,0.15);color:var(--cyan)">B</div>
+      Bar Builder
+    </div>
+    <div class="stage-content" id="s-bar-content">
+      Aggregating ticks into<br>1-minute OHLCV bars
+    </div>
+  </div>
+  <div class="arrow" id="a2">→</div>
+  <div class="stage" id="s-feature">
+    <div class="stage-header">
+      <div class="stage-icon" style="background:rgba(168,85,247,0.15);color:var(--purple)">F</div>
+      Feature Engine
+    </div>
+    <div class="stage-content" id="s-feature-content">
+      Computes 15 technical<br>indicators per symbol
+    </div>
+  </div>
+  <div class="arrow" id="a3">→</div>
+  <div class="stage" id="s-model">
+    <div class="stage-header">
+      <div class="stage-icon" style="background:rgba(99,102,241,0.15);color:var(--accent)">M</div>
+      LightGBM Model
+    </div>
+    <div class="stage-content" id="s-model-content">
+      200 gradient-boosted trees<br>predict P(price_up_5min)
+    </div>
+  </div>
+  <div class="arrow" id="a4">→</div>
+  <div class="stage" id="s-signal">
+    <div class="stage-header">
+      <div class="stage-icon" style="background:rgba(34,197,94,0.15);color:var(--green)">S</div>
+      gRPC Signal
+    </div>
+    <div class="stage-content" id="s-signal-content">
+      Direction + confidence<br>served to strategy engine
+    </div>
+  </div>
+</div>
+
+<!-- ===== SECTION 2: THREADING ===== -->
+<h2>2. Threading Model</h2>
+<p>Three concurrent components share data through thread-safe structures.</p>
+
+<div class="thread-diagram">
+  <div class="thread-lane" id="tl-kafka">
+    <div class="thread-pulse"></div>
+    <div class="thread-lane-title" style="color:var(--amber)">Kafka Consumer Thread</div>
+    <div class="stage-content">
+      Polls <span class="value">market-data.ticks</span><br>
+      Feeds ticks to FeatureEngine<br>
+      <span class="badge amber">daemon thread</span>
+    </div>
+  </div>
+  <div class="thread-lane" id="tl-grpc">
+    <div class="thread-pulse"></div>
+    <div class="thread-lane-title" style="color:var(--accent)">gRPC Thread Pool (10)</div>
+    <div class="stage-content">
+      Serves <span class="value">GetSignal</span> RPCs<br>
+      Reads features from engine<br>
+      <span class="badge blue">managed by grpcio</span>
+    </div>
+  </div>
+  <div class="thread-lane" id="tl-fastapi">
+    <div class="thread-pulse"></div>
+    <div class="thread-lane-title" style="color:var(--green)">FastAPI Main Thread</div>
+    <div class="stage-content">
+      <span class="value">/health</span>, <span class="value">/ready</span>, <span class="value">/metrics</span><br>
+      <span class="value">/v1/models/reload</span><br>
+      <span class="badge green">uvicorn event loop</span>
+    </div>
+  </div>
+</div>
+
+<div class="section-note">
+  <strong>Thread Safety:</strong> FeatureEngine uses <code>threading.Lock</code> — the consumer thread writes bar data and features, while gRPC threads read them. The lock ensures no thread sees a half-updated feature vector. SignalModel has its own separate lock for atomic model hot-reload.
+</div>
+
+<!-- ===== SECTION 3: TICK → BAR → FEATURES ===== -->
+<h2>3. Tick Aggregation &amp; Feature Computation</h2>
+
+<div class="panels">
+  <!-- Price chart -->
+  <div class="panel">
+    <div class="panel-title">
+      <span style="color:var(--cyan)">◉</span> AAPL — 1-Minute Bars
+    </div>
+    <div class="chart-row" id="priceChart"></div>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px;">
+      <span id="chartTimeLeft">—</span>
+      <span id="chartPrice">—</span>
+      <span id="chartTimeRight">—</span>
+    </div>
+  </div>
+
+  <!-- Current bar builder -->
+  <div class="panel">
+    <div class="panel-title">
+      <span style="color:var(--amber)">◉</span> Current Bar Builder
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
+      <div>Open: <span class="value" id="barOpen">—</span></div>
+      <div>High: <span class="value" id="barHigh">—</span></div>
+      <div>Low: <span class="value" id="barLow">—</span></div>
+      <div>Close: <span class="value" id="barClose">—</span></div>
+      <div>Volume: <span class="value" id="barVolume">—</span></div>
+      <div>Ticks: <span class="value" id="barTicks">—</span></div>
+    </div>
+    <div style="margin-top:12px;font-size:11px;color:var(--muted);">
+      Bar interval: <span class="value">60 seconds</span><br>
+      Bar closes when the first tick of the next minute arrives.
+    </div>
+    <div style="margin-top:8px;">
+      <div style="background:var(--border);height:4px;border-radius:2px;overflow:hidden;">
+        <div id="barProgress" style="background:var(--accent);height:100%;width:0%;transition:width 0.3s;border-radius:2px;"></div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:2px;">Bar completion: <span id="barPct">0%</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SECTION 4: FEATURES ===== -->
+<h2>4. Technical Indicator Features (15)</h2>
+<p>When a bar completes, all 15 features are recomputed from the full bar window (~200 bars). Computation takes &lt; 1ms with NumPy.</p>
+
+<div class="panels">
+  <div class="panel">
+    <div class="panel-title"><span style="color:var(--purple)">◉</span> Trend &amp; Momentum</div>
+    <div class="feature-list" id="features-trend"></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title"><span style="color:var(--cyan)">◉</span> Volatility &amp; Volume</div>
+    <div class="feature-list" id="features-vol"></div>
+  </div>
+</div>
+
+<!-- ===== SECTION 5: MODEL INFERENCE ===== -->
+<h2>5. LightGBM Inference — Decision Tree Walk</h2>
+<p>The model is an ensemble of 200 gradient-boosted trees. Each tree "votes" on whether price will go up. Below is a simplified view of 3 trees being evaluated.</p>
+
+<div class="panels">
+  <div class="panel" style="grid-column: 1 / -1;">
+    <div class="panel-title"><span style="color:var(--accent)">◉</span> Tree Ensemble — Simplified (3 of 200 trees)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;" id="treeViz">
+      <!-- Trees injected by JS -->
+    </div>
+    <div style="margin-top:16px;text-align:center;">
+      <div style="font-size:12px;color:var(--muted);">
+        Ensemble vote: <span class="value" id="ensembleVote">—</span>
+        &nbsp;→&nbsp; Sigmoid → P(up) = <span class="value" id="probUp">—</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SECTION 6: SIGNAL OUTPUT ===== -->
+<h2>6. Signal Output</h2>
+<p>The probability is mapped to a direction using thresholds: P &gt; 0.55 → LONG, P &lt; 0.45 → SHORT, else NEUTRAL.</p>
+
+<div class="panels">
+  <div class="panel">
+    <div class="signal-display">
+      <div class="confidence-ring">
+        <svg viewBox="0 0 120 120">
+          <circle class="bg" cx="60" cy="60" r="52"/>
+          <circle class="fg" id="confRing" cx="60" cy="60" r="52"
+            stroke="var(--muted)"
+            stroke-dasharray="326.7"
+            stroke-dashoffset="326.7"/>
+        </svg>
+        <div class="confidence-text" id="confText">0%</div>
+      </div>
+      <div class="signal-direction neutral" id="signalDir">NEUTRAL</div>
+      <div class="signal-meta" id="signalMeta">Awaiting first prediction...</div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-title"><span style="color:var(--green)">◉</span> Signal History</div>
+    <div id="signalHistory" style="font-size:12px;color:var(--muted);max-height:200px;overflow-y:auto;">
+      No signals yet.
+    </div>
+  </div>
+</div>
+
+<!-- ===== SECTION 7: LOG ===== -->
+<h2>7. Event Log</h2>
+<div class="log" id="log"></div>
+
+<hr class="separator">
+<p style="text-align:center;font-size:12px;color:var(--muted);padding:16px 0;">
+  ML Signal Service Animation — MariaAlpha Trading System<br>
+  Data is simulated for demonstration purposes
+</p>
+
+</div>
+
+<script>
+// ============================================================
+// SIMULATION ENGINE
+// ============================================================
+
+const FEATURE_DEFS = [
+  // Trend group
+  { name: 'ema_20', group: 'trend', min: 170, max: 195, color: 'var(--blue)' },
+  { name: 'ema_50', group: 'trend', min: 170, max: 195, color: 'var(--blue)' },
+  { name: 'ema_cross', group: 'trend', min: -3, max: 3, color: 'var(--cyan)', center: true },
+  { name: 'ema_20_dist', group: 'trend', min: -0.02, max: 0.02, color: 'var(--cyan)', center: true },
+  { name: 'ema_50_dist', group: 'trend', min: -0.03, max: 0.03, color: 'var(--cyan)', center: true },
+  { name: 'rsi_14', group: 'trend', min: 0, max: 100, color: 'var(--purple)' },
+  { name: 'macd_line', group: 'trend', min: -2, max: 2, color: 'var(--pink)', center: true },
+  { name: 'macd_signal', group: 'trend', min: -1.5, max: 1.5, color: 'var(--pink)', center: true },
+  // Vol group
+  { name: 'macd_hist', group: 'vol', min: -1, max: 1, color: 'var(--pink)', center: true },
+  { name: 'atr_14', group: 'vol', min: 0, max: 3, color: 'var(--amber)' },
+  { name: 'atr_norm', group: 'vol', min: 0, max: 0.02, color: 'var(--amber)' },
+  { name: 'volume_ratio', group: 'vol', min: 0, max: 3, color: 'var(--green)' },
+  { name: 'realized_vol', group: 'vol', min: 0, max: 0.01, color: 'var(--red)' },
+  { name: 'return_1', group: 'vol', min: -0.005, max: 0.005, color: 'var(--text)', center: true },
+  { name: 'return_5', group: 'vol', min: -0.01, max: 0.01, color: 'var(--text)', center: true },
+];
+
+// State
+let running = false;
+let stepMode = false;
+let speed = 1;
+let tickCount = 0;
+let barTickCount = 0;
+let bars = [];
+let currentBar = null;
+let features = {};
+let basePrice = 182.50;
+let currentPrice = 182.50;
+let intervalId = null;
+let barStartTime = Date.now();
+let simTime = new Date('2026-04-14T14:30:00Z');
+
+// DOM refs
+const log = document.getElementById('log');
+const btnStart = document.getElementById('btnStart');
+const btnStep = document.getElementById('btnStep');
+const btnReset = document.getElementById('btnReset');
+const speedSlider = document.getElementById('speedSlider');
+
+// Initialise feature bars
+function initFeatureBars() {
+  const trendDiv = document.getElementById('features-trend');
+  const volDiv = document.getElementById('features-vol');
+  trendDiv.innerHTML = '';
+  volDiv.innerHTML = '';
+
+  FEATURE_DEFS.forEach(f => {
+    const container = f.group === 'trend' ? trendDiv : volDiv;
+    const row = document.createElement('div');
+    row.className = 'feature-row';
+    row.innerHTML = `
+      <div class="feature-name">${f.name}</div>
+      <div class="feature-bar-bg">
+        <div class="feature-bar" id="fb-${f.name}" style="width:0%;background:${f.color};${f.center ? 'left:50%;' : ''}"></div>
+      </div>
+      <div class="feature-value" id="fv-${f.name}">—</div>`;
+    container.appendChild(row);
+  });
+}
+
+// Initialise price chart
+function initChart() {
+  const chart = document.getElementById('priceChart');
+  chart.innerHTML = '';
+  for (let i = 0; i < 40; i++) {
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    bar.style.height = '0%';
+    bar.id = `cbar-${i}`;
+    chart.appendChild(bar);
+  }
+}
+
+// Initialise tree visualisation
+function initTrees() {
+  const container = document.getElementById('treeViz');
+  container.innerHTML = '';
+  for (let t = 0; t < 3; t++) {
+    const tree = document.createElement('div');
+    tree.className = 'tree-container';
+    tree.id = `tree-${t}`;
+    // Root
+    tree.innerHTML = `
+      <div class="tree-level"><div class="tree-node" id="tn-${t}-0">rsi_14 ${t === 0 ? '< 45?' : t === 1 ? '> 55?' : '< 65?'}</div></div>
+      <div style="font-size:10px;color:var(--muted)">↙ Yes &nbsp;&nbsp; No ↘</div>
+      <div class="tree-level">
+        <div class="tree-node" id="tn-${t}-1">${t === 0 ? 'ema_cross > 0?' : t === 1 ? 'macd_hist > 0?' : 'vol_ratio > 1.5?'}</div>
+        <div class="tree-node" id="tn-${t}-2">${t === 0 ? 'return_5 > 0?' : t === 1 ? 'atr_norm < 0.01?' : 'return_1 > 0?'}</div>
+      </div>
+      <div style="font-size:10px;color:var(--muted)">↙↘ &nbsp;&nbsp;&nbsp;&nbsp; ↙↘</div>
+      <div class="tree-level">
+        <div class="tree-node" id="tn-${t}-3">+0.${1+t}</div>
+        <div class="tree-node" id="tn-${t}-4">-0.0${5+t}</div>
+        <div class="tree-node" id="tn-${t}-5">+0.0${3+t}</div>
+        <div class="tree-node" id="tn-${t}-6">-0.${1+t}</div>
+      </div>
+      <div style="font-size:9px;color:var(--muted);text-align:center;margin-top:4px;">Tree ${t + 1} of 200</div>`;
+    container.appendChild(tree);
+  }
+}
+
+function addLog(msg, cls = '') {
+  const ts = simTime.toISOString().substring(11, 23);
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `<span class="log-ts">${ts}</span><span class="log-msg ${cls}">${msg}</span>`;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+  // Keep last 50
+  while (log.children.length > 50) log.removeChild(log.firstChild);
+}
+
+function formatPrice(p) { return p.toFixed(2); }
+
+function randomWalk(price) {
+  const drift = (Math.random() - 0.498) * 0.15;
+  const vol = (Math.random() - 0.5) * 0.4;
+  return Math.max(price + drift + vol, 100);
+}
+
+// Simulate one tick
+function simulateTick() {
+  tickCount++;
+  simTime = new Date(simTime.getTime() + 2000 + Math.random() * 3000);
+  currentPrice = randomWalk(currentPrice);
+  const volume = Math.floor(50 + Math.random() * 200);
+  const eventType = Math.random() > 0.3 ? 'TRADE' : 'QUOTE';
+
+  // Activate pipeline stage 1
+  activateStage('s-kafka', 'a1');
+  const kafkaContent = document.getElementById('s-kafka-content');
+  kafkaContent.innerHTML = `
+    <span class="value">${eventType}</span> AAPL<br>
+    Price: <span class="value">$${formatPrice(currentPrice)}</span><br>
+    Vol: <span class="value">${volume}</span><br>
+    <span style="font-size:10px">${simTime.toISOString().substring(11,19)}</span>`;
+
+  addLog(`TICK ${eventType} AAPL $${formatPrice(currentPrice)} vol=${volume}`, 'blue');
+
+  // Activate Kafka thread lane
+  document.getElementById('tl-kafka').classList.add('active');
+
+  // Bar builder
+  setTimeout(() => {
+    activateStage('s-bar', 'a2');
+    barTickCount++;
+
+    if (!currentBar) {
+      currentBar = { open: currentPrice, high: currentPrice, low: currentPrice, close: currentPrice, volume: volume, ticks: 1 };
+      barStartTime = Date.now();
+    } else {
+      currentBar.high = Math.max(currentBar.high, currentPrice);
+      currentBar.low = Math.min(currentBar.low, currentPrice);
+      currentBar.close = currentPrice;
+      currentBar.volume += volume;
+      currentBar.ticks++;
+    }
+
+    updateBarDisplay();
+
+    // Complete bar every ~8 ticks (simulating 1-min bar)
+    if (currentBar.ticks >= 6 + Math.floor(Math.random() * 4)) {
+      completeBar();
+    }
+  }, 200 / speed);
+}
+
+function updateBarDisplay() {
+  if (!currentBar) return;
+  document.getElementById('barOpen').textContent = '$' + formatPrice(currentBar.open);
+  document.getElementById('barHigh').textContent = '$' + formatPrice(currentBar.high);
+  document.getElementById('barLow').textContent = '$' + formatPrice(currentBar.low);
+  document.getElementById('barClose').textContent = '$' + formatPrice(currentBar.close);
+  document.getElementById('barVolume').textContent = currentBar.volume.toLocaleString();
+  document.getElementById('barTicks').textContent = currentBar.ticks;
+
+  const pct = Math.min(100, (currentBar.ticks / 8) * 100);
+  document.getElementById('barProgress').style.width = pct + '%';
+  document.getElementById('barPct').textContent = Math.round(pct) + '%';
+}
+
+function completeBar() {
+  const bar = { ...currentBar };
+  bars.push(bar);
+  if (bars.length > 40) bars.shift();
+
+  addLog(`BAR completed: O=${formatPrice(bar.open)} H=${formatPrice(bar.high)} L=${formatPrice(bar.low)} C=${formatPrice(bar.close)} V=${bar.volume}`, 'amber');
+
+  // Reset
+  currentBar = null;
+  document.getElementById('barProgress').style.width = '0%';
+  document.getElementById('barPct').textContent = '0%';
+
+  updateChart();
+
+  // Compute features if we have enough bars
+  if (bars.length >= 5) {
+    setTimeout(() => computeFeatures(), 300 / speed);
+  }
+}
+
+function updateChart() {
+  const minP = Math.min(...bars.map(b => b.low)) - 0.5;
+  const maxP = Math.max(...bars.map(b => b.high)) + 0.5;
+  const range = maxP - minP || 1;
+
+  for (let i = 0; i < 40; i++) {
+    const el = document.getElementById(`cbar-${i}`);
+    if (i < bars.length) {
+      const b = bars[i];
+      const h = ((b.close - minP) / range) * 100;
+      el.style.height = Math.max(3, h) + '%';
+      el.className = 'bar ' + (b.close >= b.open ? 'up' : 'down');
+      if (i === bars.length - 1) el.classList.add('current');
+    } else {
+      el.style.height = '0%';
+      el.className = 'bar';
+    }
+  }
+
+  if (bars.length > 0) {
+    const last = bars[bars.length - 1];
+    document.getElementById('chartPrice').textContent = '$' + formatPrice(last.close);
+  }
+  document.getElementById('chartTimeLeft').textContent = bars.length + ' bars';
+  document.getElementById('chartTimeRight').textContent = simTime.toISOString().substring(11,16);
+}
+
+function computeFeatures() {
+  activateStage('s-feature', 'a3');
+  addLog('Computing 15 features from ' + bars.length + ' bars...', 'green');
+
+  const closes = bars.map(b => b.close);
+  const last = closes[closes.length - 1];
+  const prev = closes.length > 1 ? closes[closes.length - 2] : last;
+  const prev5 = closes.length > 5 ? closes[closes.length - 6] : last;
+
+  // Compute approximate features
+  const ema20 = simpleEma(closes, 20);
+  const ema50 = simpleEma(closes, Math.min(50, closes.length));
+  const rsi = simpleRsi(closes, 14);
+  const macdLine = ema20 - ema50;
+  const macdSignal = macdLine * 0.7; // simplified
+  const returns = closes.slice(1).map((c, i) => (c - closes[i]) / closes[i]);
+  const realVol = returns.length > 0 ? std(returns.slice(-20)) : 0;
+  const vols = bars.map(b => b.volume);
+  const avgVol = vols.reduce((a, b) => a + b, 0) / vols.length;
+  const volRatio = vols[vols.length - 1] / (avgVol || 1);
+  const atr = simpleAtr(bars, 14);
+
+  features = {
+    ema_20: ema20,
+    ema_50: ema50,
+    ema_cross: ema20 - ema50,
+    ema_20_dist: ema20 !== 0 ? (last - ema20) / ema20 : 0,
+    ema_50_dist: ema50 !== 0 ? (last - ema50) / ema50 : 0,
+    rsi_14: rsi,
+    macd_line: macdLine,
+    macd_signal: macdSignal,
+    macd_hist: macdLine - macdSignal,
+    atr_14: atr,
+    atr_norm: last !== 0 ? atr / last : 0,
+    volume_ratio: volRatio,
+    realized_vol: realVol,
+    return_1: prev !== 0 ? (last - prev) / prev : 0,
+    return_5: prev5 !== 0 ? (last - prev5) / prev5 : 0,
+  };
+
+  updateFeatureBars();
+
+  // Run model inference
+  setTimeout(() => runInference(), 400 / speed);
+}
+
+function updateFeatureBars() {
+  FEATURE_DEFS.forEach(f => {
+    const val = features[f.name] || 0;
+    const bar = document.getElementById(`fb-${f.name}`);
+    const valEl = document.getElementById(`fv-${f.name}`);
+
+    if (f.center) {
+      // Centered bar: 0 is at 50%
+      const norm = Math.min(1, Math.max(-1, val / Math.max(Math.abs(f.max), Math.abs(f.min))));
+      const width = Math.abs(norm) * 50;
+      bar.style.width = width + '%';
+      bar.style.left = norm >= 0 ? '50%' : (50 - width) + '%';
+      bar.style.background = norm >= 0 ? 'var(--green)' : 'var(--red)';
+    } else {
+      const norm = Math.min(1, Math.max(0, (val - f.min) / (f.max - f.min)));
+      bar.style.width = (norm * 100) + '%';
+      bar.style.left = '0';
+      bar.style.background = f.color;
+    }
+
+    valEl.textContent = Math.abs(val) < 1 ? val.toFixed(4) : val.toFixed(2);
+  });
+}
+
+function runInference() {
+  activateStage('s-model', 'a4');
+  document.getElementById('tl-grpc').classList.add('active');
+
+  addLog('Running LightGBM inference (200 trees)...', 'green');
+
+  // Simulate tree traversal animation
+  animateTrees(() => {
+    // Compute a "probability" based on features
+    const rsi = features.rsi_14 || 50;
+    const emaCross = features.ema_cross || 0;
+    const macdHist = features.macd_hist || 0;
+    const ret1 = features.return_1 || 0;
+    const volRatio = features.volume_ratio || 1;
+
+    // Simulated model output
+    let logit = 0;
+    logit += (rsi < 40 ? 0.3 : rsi > 60 ? -0.2 : 0);
+    logit += (emaCross > 0 ? 0.4 : -0.3);
+    logit += (macdHist > 0 ? 0.2 : -0.15);
+    logit += (ret1 > 0 ? 0.15 : -0.1);
+    logit += (volRatio > 1.5 ? 0.1 : -0.05);
+    logit += (Math.random() - 0.5) * 0.3;
+
+    const prob = 1 / (1 + Math.exp(-logit));
+
+    document.getElementById('ensembleVote').textContent =
+      logit > 0 ? `+${logit.toFixed(3)} (bullish)` : `${logit.toFixed(3)} (bearish)`;
+    document.getElementById('probUp').textContent = (prob * 100).toFixed(1) + '%';
+
+    setTimeout(() => emitSignal(prob), 300 / speed);
+  });
+}
+
+function animateTrees(callback) {
+  const rsi = features.rsi_14 || 50;
+  const emaCross = features.ema_cross || 0;
+  const macdHist = features.macd_hist || 0;
+  const volRatio = features.volume_ratio || 1;
+  const ret1 = features.return_1 || 0;
+  const ret5 = features.return_5 || 0;
+
+  // Clear all tree highlights
+  for (let t = 0; t < 3; t++) {
+    for (let n = 0; n < 7; n++) {
+      const el = document.getElementById(`tn-${t}-${n}`);
+      if (el) el.className = 'tree-node';
+    }
+  }
+
+  // Tree 0: rsi_14 < 45?
+  const t0Root = rsi < 45;
+  const t0Left = emaCross > 0;
+  const t0Right = ret5 > 0;
+
+  // Tree 1: rsi_14 > 55?
+  const t1Root = rsi > 55;
+  const t1Left = macdHist > 0;
+  const t1Right = features.atr_norm < 0.01;
+
+  // Tree 2: rsi_14 < 65?
+  const t2Root = rsi < 65;
+  const t2Left = volRatio > 1.5;
+  const t2Right = ret1 > 0;
+
+  let step = 0;
+  const interval = setInterval(() => {
+    step++;
+    if (step === 1) {
+      // Highlight roots
+      highlight(`tn-0-0`);
+      highlight(`tn-1-0`);
+      highlight(`tn-2-0`);
+    } else if (step === 2) {
+      // Highlight second level
+      highlight(t0Root ? `tn-0-1` : `tn-0-2`);
+      highlight(t1Root ? `tn-1-1` : `tn-1-2`);
+      highlight(t2Root ? `tn-2-1` : `tn-2-2`);
+    } else if (step === 3) {
+      // Highlight leaves
+      let t0Leaf = t0Root ? (t0Left ? 3 : 4) : (t0Right ? 5 : 6);
+      let t1Leaf = t1Root ? (t1Left ? 3 : 4) : (t1Right ? 5 : 6);
+      let t2Leaf = t2Root ? (t2Left ? 3 : 4) : (t2Right ? 5 : 6);
+
+      leafHighlight(`tn-0-${t0Leaf}`, t0Leaf % 2 === 1);
+      leafHighlight(`tn-1-${t1Leaf}`, t1Leaf % 2 === 1);
+      leafHighlight(`tn-2-${t2Leaf}`, t2Leaf % 2 === 1);
+
+      clearInterval(interval);
+      setTimeout(callback, 300 / speed);
+    }
+  }, 350 / speed);
+
+  function highlight(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('highlight');
+  }
+  function leafHighlight(id, isUp) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add(isUp ? 'leaf-down' : 'leaf-up');
+  }
+}
+
+function emitSignal(prob) {
+  activateStage('s-signal');
+
+  let direction, dirClass, confidence;
+  if (prob > 0.55) {
+    direction = 'LONG';
+    dirClass = 'long';
+    confidence = (prob - 0.5) * 2;
+  } else if (prob < 0.45) {
+    direction = 'SHORT';
+    dirClass = 'short';
+    confidence = (0.5 - prob) * 2;
+  } else {
+    direction = 'NEUTRAL';
+    dirClass = 'neutral';
+    confidence = 0;
+  }
+
+  // Update signal display
+  const dirEl = document.getElementById('signalDir');
+  dirEl.textContent = direction;
+  dirEl.className = 'signal-direction ' + dirClass;
+
+  const confPct = Math.round(confidence * 100);
+  document.getElementById('confText').textContent = confPct + '%';
+  const ring = document.getElementById('confRing');
+  const circumference = 326.7;
+  ring.style.strokeDashoffset = circumference * (1 - confidence);
+  ring.style.stroke = dirClass === 'long' ? 'var(--green)' : dirClass === 'short' ? 'var(--red)' : 'var(--muted)';
+
+  const posSize = (confidence * 0.3).toFixed(2);
+  document.getElementById('signalMeta').innerHTML = `
+    P(up) = ${(prob*100).toFixed(1)}% &nbsp;|&nbsp; Position size: ${posSize}<br>
+    <span style="font-size:10px">Served via gRPC GetSignal → Strategy Engine</span>`;
+
+  document.getElementById('s-signal-content').innerHTML = `
+    Direction: <span class="value">${direction}</span><br>
+    Confidence: <span class="value">${confPct}%</span><br>
+    Position: <span class="value">${posSize}</span>`;
+
+  // Signal history
+  const hist = document.getElementById('signalHistory');
+  if (hist.textContent === 'No signals yet.') hist.innerHTML = '';
+  const entry = document.createElement('div');
+  const ts = simTime.toISOString().substring(11, 19);
+  const badge = direction === 'LONG' ? 'green' : direction === 'SHORT' ? 'red' : 'amber';
+  entry.innerHTML = `<span style="color:var(--muted)">${ts}</span> <span class="badge ${badge}">${direction}</span> conf=${confPct}% P(up)=${(prob*100).toFixed(1)}%`;
+  hist.insertBefore(entry, hist.firstChild);
+
+  const logCls = direction === 'LONG' ? 'green' : direction === 'SHORT' ? 'red' : 'amber';
+  addLog(`SIGNAL → ${direction} (confidence=${confPct}%, P(up)=${(prob*100).toFixed(1)}%)`, logCls);
+
+  // Deactivate thread lanes after a delay
+  setTimeout(() => {
+    document.querySelectorAll('.thread-lane').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.stage').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.arrow').forEach(el => el.classList.remove('active'));
+  }, 800 / speed);
+}
+
+function activateStage(stageId, arrowId) {
+  // Deactivate all first
+  document.querySelectorAll('.stage').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.arrow').forEach(el => el.classList.remove('active'));
+  document.getElementById(stageId).classList.add('active');
+  if (arrowId) document.getElementById(arrowId).classList.add('active');
+}
+
+// Helper math functions
+function simpleEma(data, period) {
+  if (data.length === 0) return 0;
+  const alpha = 2 / (period + 1);
+  let ema = data[0];
+  for (let i = 1; i < data.length; i++) {
+    ema = alpha * data[i] + (1 - alpha) * ema;
+  }
+  return ema;
+}
+
+function simpleRsi(data, period) {
+  if (data.length < period + 1) return 50;
+  let gains = 0, losses = 0;
+  for (let i = data.length - period; i < data.length; i++) {
+    const diff = data[i] - data[i - 1];
+    if (diff > 0) gains += diff;
+    else losses -= diff;
+  }
+  if (losses === 0) return 100;
+  const rs = (gains / period) / (losses / period);
+  return 100 - 100 / (1 + rs);
+}
+
+function simpleAtr(bars, period) {
+  if (bars.length < 2) return 0;
+  const trs = [];
+  for (let i = 1; i < bars.length; i++) {
+    const tr = Math.max(
+      bars[i].high - bars[i].low,
+      Math.abs(bars[i].high - bars[i - 1].close),
+      Math.abs(bars[i].low - bars[i - 1].close)
+    );
+    trs.push(tr);
+  }
+  const window = trs.slice(-period);
+  return window.reduce((a, b) => a + b, 0) / window.length;
+}
+
+function std(arr) {
+  if (arr.length === 0) return 0;
+  const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+  const sq = arr.map(x => (x - mean) ** 2);
+  return Math.sqrt(sq.reduce((a, b) => a + b, 0) / arr.length);
+}
+
+// ============================================================
+// CONTROLS
+// ============================================================
+
+btnStart.addEventListener('click', () => {
+  if (running) {
+    running = false;
+    clearInterval(intervalId);
+    btnStart.textContent = 'Start Simulation';
+    btnStep.disabled = false;
+  } else {
+    running = true;
+    stepMode = false;
+    btnStart.textContent = 'Pause';
+    btnStep.disabled = true;
+    intervalId = setInterval(simulateTick, 1200 / speed);
+  }
+});
+
+btnStep.addEventListener('click', () => {
+  simulateTick();
+});
+
+btnReset.addEventListener('click', () => {
+  running = false;
+  clearInterval(intervalId);
+  tickCount = 0;
+  barTickCount = 0;
+  bars = [];
+  currentBar = null;
+  features = {};
+  currentPrice = 182.50;
+  simTime = new Date('2026-04-14T14:30:00Z');
+
+  btnStart.textContent = 'Start Simulation';
+  btnStep.disabled = false;
+  log.innerHTML = '';
+  document.getElementById('signalHistory').innerHTML = 'No signals yet.';
+  document.getElementById('signalDir').textContent = 'NEUTRAL';
+  document.getElementById('signalDir').className = 'signal-direction neutral';
+  document.getElementById('confText').textContent = '0%';
+  document.getElementById('confRing').style.strokeDashoffset = '326.7';
+  document.getElementById('signalMeta').textContent = 'Awaiting first prediction...';
+  document.getElementById('ensembleVote').textContent = '—';
+  document.getElementById('probUp').textContent = '—';
+
+  document.querySelectorAll('.stage').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.arrow').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.thread-lane').forEach(el => el.classList.remove('active'));
+
+  initChart();
+  initFeatureBars();
+  initTrees();
+
+  document.getElementById('s-kafka-content').textContent = 'Waiting for tick...';
+  document.getElementById('s-bar-content').innerHTML = 'Aggregating ticks into<br>1-minute OHLCV bars';
+  document.getElementById('s-feature-content').innerHTML = 'Computes 15 technical<br>indicators per symbol';
+  document.getElementById('s-model-content').innerHTML = '200 gradient-boosted trees<br>predict P(price_up_5min)';
+  document.getElementById('s-signal-content').innerHTML = 'Direction + confidence<br>served to strategy engine';
+
+  document.getElementById('barOpen').textContent = '—';
+  document.getElementById('barHigh').textContent = '—';
+  document.getElementById('barLow').textContent = '—';
+  document.getElementById('barClose').textContent = '—';
+  document.getElementById('barVolume').textContent = '—';
+  document.getElementById('barTicks').textContent = '—';
+  document.getElementById('barProgress').style.width = '0%';
+  document.getElementById('barPct').textContent = '0%';
+
+  addLog('Simulation reset.', 'amber');
+});
+
+speedSlider.addEventListener('input', () => {
+  speed = parseFloat(speedSlider.value) / 5;
+  document.getElementById('speedValue').textContent = speed.toFixed(1) + 'x';
+  if (running) {
+    clearInterval(intervalId);
+    intervalId = setInterval(simulateTick, 1200 / speed);
+  }
+});
+
+// Init
+initChart();
+initFeatureBars();
+initTrees();
+addLog('ML Signal Service animation ready. Click "Start Simulation" to begin.', 'green');
+</script>
+</body>
+</html>
