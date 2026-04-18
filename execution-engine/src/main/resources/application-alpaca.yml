@@ -1,0 +1,8 @@
+execution-engine:
+  alpaca:
+    api-key: ${ALPACA_API_KEY_ID}
+    api-secret: ${ALPACA_API_SECRET_KEY}
+    base-url: ${ALPACA_BASE_URL:https://paper-api.alpaca.markets}
+    data-url: ${ALPACA_DATA_URL:https://data.alpaca.markets}
+    websocket-url: ${ALPACA_WS_URL:wss://paper-api.alpaca.markets/stream}
+    venue: ALPACA

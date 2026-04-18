@@ -1,0 +1,6 @@
+execution-engine:
+  simulated:
+    fill-latency-ms: 50
+    slippage-bps: 2
+    partial-fill-ratio: 1.0  # 1.0 = always full fill
+    venue: SIMULATED

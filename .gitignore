@@ -6,3 +6,4 @@ build/
 .env
 .venv/
 proto/generated/
+.DS_Store

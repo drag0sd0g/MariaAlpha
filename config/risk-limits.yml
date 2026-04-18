@@ -1,0 +1,8 @@
+# Risk check limits — loaded by execution-engine at startup
+# Override in application.yml or via environment variables
+risk:
+  max-order-notional: 100000
+  max-position-per-symbol: 500000
+  max-portfolio-exposure: 2000000
+  max-open-orders: 50
+  max-daily-loss: 25000

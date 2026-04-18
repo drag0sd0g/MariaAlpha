@@ -1,0 +1,67 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: execution-engine
+  profiles:
+    active: simulated
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: execution-engine
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+execution-engine:
+  kafka:
+    signals-topic: strategy.signals
+    market-data-topic: market-data.ticks
+    orders-lifecycle-topic: orders.lifecycle
+    routing-decisions-topic: routing.decisions
+    risk-alerts-topic: analytics.risk-alerts
+  risk:
+    max-order-notional: 100000       # $100,000
+    max-position-per-symbol: 500000  # $500,000 notional
+    max-portfolio-exposure: 2000000  # $2,000,000 gross
+    max-open-orders: 50
+    max-daily-loss: 25000            # $25,000
+
+management:
+  server:
+    port: ${MANAGEMENT_PORT:8085}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState
+        liveness:
+          include: livenessState
+  health:
+    kafka:
+      enabled: true
+  metrics:
+    tags:
+      application: execution-engine
+    distribution:
+      percentiles-histogram:
+        mariaalpha.execution.order.latency.ms: true
+        mariaalpha.execution.risk.check.duration.ms: true
+      percentiles:
+        mariaalpha.execution.order.latency.ms: 0.5,0.95,0.99
+        mariaalpha.execution.risk.check.duration.ms: 0.5,0.95,0.99
