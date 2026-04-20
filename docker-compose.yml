@@ -188,6 +188,38 @@ services:
       retries: 5
       start_period: 15s
 
+  order-manager:
+    build:
+      context: .
+      dockerfile: order-manager/Dockerfile
+    image: mariaalpha/order-manager:local
+    container_name: order-manager
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-mariaalpha}
+      POSTGRES_USER: ${POSTGRES_USER:-mariaalpha}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mariaalpha}
+      MANAGEMENT_PORT: 8087
+    ports:
+      - "8086:8086"
+      - "8087:8087"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8087/actuator/health/liveness"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    networks:
+      - mariaalpha-net
+
 volumes:
   postgres-data:
   prometheus-data:
