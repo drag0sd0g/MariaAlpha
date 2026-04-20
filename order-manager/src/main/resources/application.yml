@@ -1,12 +1,71 @@
+server:
+  port: 8086
+
 spring:
   application:
     name: order-manager
   datasource:
-    url: jdbc:postgresql://localhost:5432/${POSTGRES_DB:mariaalpha}
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:mariaalpha}
     username: ${POSTGRES_USER:mariaalpha}
     password: ${POSTGRES_PASSWORD:mariaalpha}
   jpa:
     hibernate:
       ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: order-manager
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+order-manager:
+  kafka:
+    orders-lifecycle-topic: orders.lifecycle
+    market-data-topic: market-data.ticks
+    positions-updates-topic: positions.updates
+  portfolio:
+    initial-cash: 1000000.00
+
+management:
+  server:
+    port: ${MANAGEMENT_PORT:8087}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+        liveness:
+          include: livenessState
+  health:
+    kafka:
+      enabled: true
+  metrics:
+    tags:
+      application: order-manager
+    distribution:
+      percentiles-histogram:
+        mariaalpha.orders.persist.duration.ms: true
+      percentiles:
+        mariaalpha.orders.persist.duration.ms: 0.5,0.95,0.99
