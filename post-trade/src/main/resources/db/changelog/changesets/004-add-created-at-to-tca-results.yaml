@@ -1,0 +1,51 @@
+databaseChangeLog:
+  - changeSet:
+      id: post-trade-004-extend-tca-results
+      author: mariaalpha
+      changes:
+        - addColumn:
+            tableName: tca_results
+            columns:
+              - column:
+                  name: side
+                  type: varchar(4)
+              - column:
+                  name: quantity
+                  type: decimal(18,8)
+              - column:
+                  name: arrival_price
+                  type: decimal(18,8)
+              - column:
+                  name: arrival_bid_price
+                  type: decimal(18,8)
+              - column:
+                  name: arrival_ask_price
+                  type: decimal(18,8)
+              - column:
+                  name: realized_avg_price
+                  type: decimal(18,8)
+              - column:
+                  name: vwap_benchmark_price
+                  type: decimal(18,8)
+              - column:
+                  name: commission_total
+                  type: decimal(18,8)
+              - column:
+                  name: execution_duration_ms
+                  type: bigint
+              - column:
+                  name: computed_at
+                  type: timestamptz
+                  defaultValueComputed: now()
+        - createIndex:
+            indexName: idx_tca_results_computed_at
+            tableName: tca_results
+            columns:
+              - column:
+                  name: computed_at
+        - createIndex:
+            indexName: idx_tca_results_strategy
+            tableName: tca_results
+            columns:
+              - column:
+                  name: strategy

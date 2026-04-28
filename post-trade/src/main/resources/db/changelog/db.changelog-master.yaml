@@ -5,3 +5,9 @@ databaseChangeLog:
   - include:
       file: changesets/002-create-tca-results.yaml
       relativeToChangelogFile: true
+  - include:
+      file: changesets/003-create-arrival-snapshots.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/004-add-created-at-to-tca-results.yaml
+      relativeToChangelogFile: true

@@ -1,0 +1,50 @@
+databaseChangeLog:
+  - changeSet:
+      id: post-trade-003-create-arrival-snapshots
+      author: mariaalpha
+      changes:
+        - createTable:
+            tableName: arrival_snapshots
+            columns:
+              - column:
+                  name: order_id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_arrival_snapshots
+              - column:
+                  name: symbol
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: arrival_ts
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+              - column:
+                  name: arrival_mid_price
+                  type: decimal(18,8)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: arrival_bid_price
+                  type: decimal(18,8)
+              - column:
+                  name: arrival_ask_price
+                  type: decimal(18,8)
+              - column:
+                  name: tick_ts
+                  type: timestamptz
+              - column:
+                  name: captured_at
+                  type: timestamptz
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: idx_arrival_snapshots_symbol
+            tableName: arrival_snapshots
+            columns:
+              - column:
+                  name: symbol

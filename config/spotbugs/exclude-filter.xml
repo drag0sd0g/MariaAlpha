@@ -234,4 +234,54 @@
         <Class name="com.mariaalpha.ordermanager.entity.PortfolioSnapshotEntity"/>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
     </Match>
+    <!-- Post-Trade Service: model records (DTO, value objects) -->
+    <Match>
+        <Class name="com.mariaalpha.posttrade.model.OrderDetails"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <!-- Post-Trade Service: Spring-managed beans and JPA entities -->
+    <Match>
+        <Class name="com.mariaalpha.posttrade.tca.MarketDataCache"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.posttrade.service.TcaService"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.posttrade.service.ArrivalSnapshotService"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.posttrade.service.OrderManagerClient"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.posttrade.consumer.OrderLifecycleConsumer"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.posttrade.consumer.MarketDataConsumer"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.posttrade.publisher.TcaResultPublisher"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.posttrade.controller.TcaController"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.posttrade.metrics.PostTradeMetrics"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.posttrade.entity.TcaResultEntity"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.posttrade.entity.ArrivalSnapshotEntity"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
 </FindBugsFilter>

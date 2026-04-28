@@ -52,6 +52,7 @@ public class OrderPersistenceService {
         return order;
       }
 
+      captureArrivalPriceIfFirstEvent(order, event, isNew);
       applyMutableFields(order, snapshot, event);
 
       var saved = orderRepository.save(order);
@@ -63,6 +64,17 @@ public class OrderPersistenceService {
       return saved;
     } finally {
       metrics.recordOrderPersistDuration(System.currentTimeMillis() - start);
+    }
+  }
+
+  private void captureArrivalPriceIfFirstEvent(
+      OrderEntity order, OrderLifecycleEvent event, boolean isNew) {
+    if (isNew && event.order() != null) {
+      order.setArrivalMidPrice(event.order().limitPrice());
+      LOG.debug(
+          "Captured arrival mid-price {} for new order {}",
+          order.getArrivalMidPrice(),
+          order.getOrderId());
     }
   }
 
