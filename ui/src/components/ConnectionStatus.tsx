@@ -17,8 +17,12 @@ export default function ConnectionStatus() {
       setShowFail(false);
       return;
     }
-    const t = setTimeout(() => { setShowFail(true); }, DEBOUNCE_MS);
-    return () => { clearTimeout(t); };
+    const t = setTimeout(() => {
+      setShowFail(true);
+    }, DEBOUNCE_MS);
+    return () => {
+      clearTimeout(t);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(failingNow)]);
 

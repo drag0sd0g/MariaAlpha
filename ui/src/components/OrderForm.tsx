@@ -68,7 +68,9 @@ export default function OrderForm({ onSubmitted }: Props) {
           <input
             aria-label="Symbol"
             value={symbol}
-            onChange={(e) => { setSymbol(e.target.value); }}
+            onChange={(e) => {
+              setSymbol(e.target.value);
+            }}
             placeholder="AAPL"
             className="w-full border rounded px-2 py-1 uppercase"
           />
@@ -77,7 +79,9 @@ export default function OrderForm({ onSubmitted }: Props) {
           <select
             aria-label="Side"
             value={side}
-            onChange={(e) => { setSide(e.target.value as Side); }}
+            onChange={(e) => {
+              setSide(e.target.value as Side);
+            }}
             className="w-full border rounded px-2 py-1"
           >
             <option>BUY</option>
@@ -88,7 +92,9 @@ export default function OrderForm({ onSubmitted }: Props) {
           <select
             aria-label="Order Type"
             value={orderType}
-            onChange={(e) => { setOrderType(e.target.value as OrderType); }}
+            onChange={(e) => {
+              setOrderType(e.target.value as OrderType);
+            }}
             className="w-full border rounded px-2 py-1"
           >
             <option>MARKET</option>
@@ -102,7 +108,9 @@ export default function OrderForm({ onSubmitted }: Props) {
             type="number"
             min={1}
             value={quantity}
-            onChange={(e) => { setQuantity(e.target.value); }}
+            onChange={(e) => {
+              setQuantity(e.target.value);
+            }}
             className="w-full border rounded px-2 py-1 num"
           />
         </Field>
@@ -113,7 +121,9 @@ export default function OrderForm({ onSubmitted }: Props) {
               type="number"
               step="0.01"
               value={limitPrice}
-              onChange={(e) => { setLimitPrice(e.target.value); }}
+              onChange={(e) => {
+                setLimitPrice(e.target.value);
+              }}
               className="w-full border rounded px-2 py-1 num"
             />
           </Field>
@@ -125,7 +135,9 @@ export default function OrderForm({ onSubmitted }: Props) {
               type="number"
               step="0.01"
               value={stopPrice}
-              onChange={(e) => { setStopPrice(e.target.value); }}
+              onChange={(e) => {
+                setStopPrice(e.target.value);
+              }}
               className="w-full border rounded px-2 py-1 num"
             />
           </Field>

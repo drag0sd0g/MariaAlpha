@@ -83,9 +83,7 @@ afterEach(() => {
 
 describe("useWebSocket", () => {
   it("mounts and constructs a WebSocket with apiKey in the URL", () => {
-    renderHook(() =>
-      useWebSocket({ endpoint: "/ws/positions", onMessage: vi.fn() }),
-    );
+    renderHook(() => useWebSocket({ endpoint: "/ws/positions", onMessage: vi.fn() }));
     expect(allSockets).toHaveLength(1);
     expect(allSockets[0]!.url).toContain("apiKey=local-dev-key");
     expect(allSockets[0]!.url).toContain("/ws/positions");
@@ -115,22 +113,20 @@ describe("useWebSocket", () => {
   });
 
   it("reconnects after a non-1000 close after initial backoff", () => {
-    renderHook(() =>
-      useWebSocket({ endpoint: "/ws/positions", onMessage: vi.fn() }),
-    );
+    renderHook(() => useWebSocket({ endpoint: "/ws/positions", onMessage: vi.fn() }));
     act(() => {
       lastSocket?.triggerOpen();
       lastSocket?.triggerClose(1006);
     });
     expect(allSockets).toHaveLength(1);
-    act(() => { vi.advanceTimersByTime(1_000); });
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+    });
     expect(allSockets).toHaveLength(2);
   });
 
   it("doubles backoff on each reconnect up to 30s cap", () => {
-    renderHook(() =>
-      useWebSocket({ endpoint: "/ws/positions", onMessage: vi.fn() }),
-    );
+    renderHook(() => useWebSocket({ endpoint: "/ws/positions", onMessage: vi.fn() }));
     const delays = [1, 2, 4, 8, 16, 30, 30, 30].map((s) => s * 1_000);
     for (const delay of delays) {
       act(() => {
@@ -145,7 +141,9 @@ describe("useWebSocket", () => {
     const { unmount } = renderHook(() =>
       useWebSocket({ endpoint: "/ws/positions", onMessage: vi.fn() }),
     );
-    act(() => { lastSocket?.triggerOpen(); });
+    act(() => {
+      lastSocket?.triggerOpen();
+    });
     const closeSpy = vi.spyOn(lastSocket!, "close");
     unmount();
     expect(closeSpy).toHaveBeenCalledWith(1000);
@@ -159,13 +157,15 @@ describe("useWebSocket", () => {
   });
 
   it("propagates connection state to connectionStore", () => {
-    renderHook(() =>
-      useWebSocket({ endpoint: "/ws/positions", onMessage: vi.fn() }),
-    );
+    renderHook(() => useWebSocket({ endpoint: "/ws/positions", onMessage: vi.fn() }));
     expect(useConnectionStore.getState().states["/ws/positions"]).toBe("connecting");
-    act(() => { lastSocket?.triggerOpen(); });
+    act(() => {
+      lastSocket?.triggerOpen();
+    });
     expect(useConnectionStore.getState().states["/ws/positions"]).toBe("open");
-    act(() => { lastSocket?.triggerClose(1006); });
+    act(() => {
+      lastSocket?.triggerClose(1006);
+    });
     expect(useConnectionStore.getState().states["/ws/positions"]).toBe("closed");
   });
 });

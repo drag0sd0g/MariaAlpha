@@ -29,7 +29,9 @@ export default function DailyPnlChart() {
       if (samplesRef.current.length > MAX_SAMPLES) samplesRef.current.shift();
       setTick((n) => n + 1);
     }, SAMPLE_INTERVAL_MS);
-    return () => { clearInterval(id); };
+    return () => {
+      clearInterval(id);
+    };
   }, []);
 
   return (
@@ -38,10 +40,7 @@ export default function DailyPnlChart() {
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={samplesRef.current}>
-            <XAxis
-              dataKey="t"
-              tickFormatter={(t: number) => new Date(t).toLocaleTimeString()}
-            />
+            <XAxis dataKey="t" tickFormatter={(t: number) => new Date(t).toLocaleTimeString()} />
             <YAxis tickFormatter={(v: number) => `$${v.toFixed(0)}`} />
             <Tooltip
               labelFormatter={(t: number) => new Date(t).toLocaleTimeString()}

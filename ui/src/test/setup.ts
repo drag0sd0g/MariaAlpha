@@ -2,9 +2,15 @@ import "@testing-library/jest-dom/vitest";
 import { afterAll, afterEach, beforeAll } from "vitest";
 import { server } from "./mockServer";
 
-beforeAll(() => { server.listen({ onUnhandledRequest: "error" }); });
-afterEach(() => { server.resetHandlers(); });
-afterAll(() => { server.close(); });
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: "error" });
+});
+afterEach(() => {
+  server.resetHandlers();
+});
+afterAll(() => {
+  server.close();
+});
 
 // Stub VITE env for tests
 Object.assign(import.meta.env, {

@@ -33,9 +33,7 @@ export default function FillHistoryTable() {
 
   if (fills.length === 0) {
     return (
-      <div className="bg-white rounded shadow-sm p-6 text-center text-slate-500">
-        No fills yet.
-      </div>
+      <div className="bg-white rounded shadow-sm p-6 text-center text-slate-500">No fills yet.</div>
     );
   }
 
@@ -60,9 +58,7 @@ export default function FillHistoryTable() {
                 {new Date(f.filledAt).toLocaleTimeString()}
               </td>
               <td className="px-4 py-2 font-medium">{f.symbol}</td>
-              <td
-                className={`px-4 py-2 ${f.side === "BUY" ? "text-green-700" : "text-red-700"}`}
-              >
+              <td className={`px-4 py-2 ${f.side === "BUY" ? "text-green-700" : "text-red-700"}`}>
                 {f.side}
               </td>
               <td className="px-4 py-2 text-right num">{fmtQty(f.fillQuantity)}</td>
