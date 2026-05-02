@@ -14,9 +14,13 @@ stop:
 clean:
     ./gradlew clean
 
-# Clean build (auto-fixes formatting first)
+# Clean build (auto-fixes formatting first, builds UI and Java)
 build:
     just fix
+    just ui-install
+    just ui-lint
+    just ui-test
+    just ui-build
     ./gradlew clean build
 
 # Run all tests (Java + Python)
