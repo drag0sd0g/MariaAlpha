@@ -261,7 +261,7 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9094
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-mariaalpha}
@@ -293,7 +293,7 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9094
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-mariaalpha}
@@ -355,6 +355,21 @@ services:
       timeout: 3s
       retries: 5
       start_period: 30s
+
+  # ui:
+  #   build:
+  #     context: .
+  #     dockerfile: ui/Dockerfile
+  #   image: mariaalpha/ui:local
+  #   container_name: ui
+  #   environment:
+  #     # Bake the API key in at build time. For real deploys, replace with a runtime config-map.
+  #     VITE_MARIAALPHA_API_KEY: ${MARIAALPHA_API_KEY:?must be set}
+  #   ports:
+  #     - "5173:80"
+  #   depends_on:
+  #     api-gateway:
+  #       condition: service_healthy
 
 volumes:
   postgres-data:

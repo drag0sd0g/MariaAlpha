@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+/* Tabular numerals for any column where digits should align (P&L, prices, quantities). */
+.num {
+  font-variant-numeric: tabular-nums;
+}

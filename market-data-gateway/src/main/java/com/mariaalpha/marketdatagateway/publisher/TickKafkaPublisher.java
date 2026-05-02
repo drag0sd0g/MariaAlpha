@@ -46,6 +46,13 @@ public class TickKafkaPublisher {
 
   @PostConstruct
   void start() {
+    startStreaming();
+  }
+
+  public void startStreaming() {
+    if (subscription != null && !subscription.isDisposed()) {
+      subscription.dispose();
+    }
     subscription = adapter.streamTicks().subscribe(this::publishTick);
     LOG.info("Started publishing ticks to Kafka topic: {}", config.ticksTopic());
   }

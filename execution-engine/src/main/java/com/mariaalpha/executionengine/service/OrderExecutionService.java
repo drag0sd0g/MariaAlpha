@@ -54,20 +54,31 @@ public class OrderExecutionService {
   }
 
   public void executeSignal(OrderSignal signal) {
+    processOrder(new Order(signal));
+  }
+
+  /**
+   * Submits an order created externally (e.g. manual order entry) and returns it so the caller can
+   * read the assigned orderId.
+   */
+  public Order submitOrder(Order order) {
+    processOrder(order);
+    return order;
+  }
+
+  private void processOrder(Order order) {
     long startTime = System.currentTimeMillis();
 
     // 0. Check trading halt
     if (dailyLossMonitor.isTradingHalted()) {
-      LOG.warn("Signal rejected - trading halted. Symbol: {}", signal.symbol());
+      LOG.warn("Signal rejected - trading halted. Symbol: {}", order.getSymbol());
       metrics.recordRejection("TradingHalted");
       return;
     }
 
-    // 1. Create order
-    var order = new Order(signal);
     lifecycleManager.registerOrder(order);
 
-    // 2. Validate via order type handler
+    // 1. Validate via order type handler
     var handler = handlerRegistry.getHandler(order.getOrderType()).orElse(null);
     if (handler == null) {
       lifecycleManager.transition(
@@ -85,7 +96,7 @@ public class OrderExecutionService {
       return;
     }
 
-    // 3. Risk check chain
+    // 2. Risk check chain
     var riskResult = riskCheckChain.evaluate(order);
     if (!riskResult.passed()) {
       lifecycleManager.transition(
@@ -94,10 +105,10 @@ public class OrderExecutionService {
       return;
     }
 
-    // 4. Route
+    // 3. Route
     var routingDecision = router.route(order);
 
-    // 5. Build execution instruction and submit
+    // 4. Build execution instruction and submit
     var execInstruction = handler.toExecutionInstruction(order);
     var orderAck = exchangeAdapter.submitOrder(execInstruction);
     if (orderAck.accepted()) {
@@ -129,8 +140,11 @@ public class OrderExecutionService {
         new Fill(
             UUID.randomUUID().toString(),
             order.getOrderId(),
+            order.getSymbol(),
+            order.getSide(),
             report.fillPrice(),
             report.fillQuantity(),
+            report.exchangeOrderId(),
             report.venue(),
             report.timestamp());
     var newStatus =

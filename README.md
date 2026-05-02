@@ -58,6 +58,48 @@ Single front door for the React UI and external clients. Implements:
 export MARIAALPHA_API_KEY=local-dev-key
 just run
 ./gradlew :api-gateway:bootRun
+```
+
+### React UI (port 5173 in dev)
+
+The web UI is a Vite + React 18 + TypeScript single-page app. The Phase-1 MVP exposes a Dashboard (live positions, P&L, exposure) and an Order Entry page (manual order submission, active orders, fills). Five additional pages (Market Data, RFQ, Strategies, Analytics, Reconciliation) are scaffolded as placeholders for Phase 2.
+
+#### Quickstart
+
+```bash
+just run                    # bring up infra + backend services
+cp ui/.env.example ui/.env.local
+echo "VITE_MARIAALPHA_API_KEY=local-dev-key" >> ui/.env.local
+just ui-install             # one-time: npm install
+just ui-dev                 # opens http://localhost:5173
+```
+
+The dev server proxies `/api/*` and `/ws/*` to `http://localhost:8080` (the API Gateway), so no CORS configuration is needed.
+
+#### Configuration
+
+| Env var (in `ui/.env.local`) | Required | Description |
+|---|---|---|
+| `VITE_MARIAALPHA_API_KEY` | yes | Must match the key in repo-root `.env`. |
+| `VITE_API_BASE_URL` | no | Leave blank for dev (uses Vite proxy). Set to `http://localhost:8080` only when running `vite preview` against a built bundle. |
+
+#### Production-ish build
+
+```bash
+just ui-build               # static assets in ui/dist/
+cd ui && npm run preview    # serves dist/ on http://localhost:4173
+```
+
+A nginx Dockerfile (`ui/Dockerfile`) is planned for issue 1.10.3 once the full-stack docker-compose flow is documented.
+
+#### Manual order API surface
+
+Manual orders submitted via the Order Entry page hit **`POST /api/execution/orders`** (not `/api/orders`). The distinction matters for external clients:
+
+| Method | Path | Backend | Notes |
+|---|---|---|---|
+| `POST` | `/api/execution/orders` | execution-engine | Submit a manual order; returns `{orderId, status, acceptedAt}` |
+| `DELETE` | `/api/execution/orders/{orderId}` | execution-engine | Cancel a manual order; 204 on success, 404 if unknown/terminal |
 
 ## Database
 

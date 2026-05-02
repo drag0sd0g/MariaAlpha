@@ -63,3 +63,27 @@ proto:
 migrate:
     @echo "Migrations auto-run on service startup."
     @echo "Verify: docker compose exec postgres psql -U mariaalpha -c '\\dt'"
+
+# UI: install dependencies (run once after cloning or when package.json changes)
+ui-install:
+    cd ui && npm install
+
+# UI: start dev server with proxy to api-gateway on 8080
+ui-dev:
+    cd ui && npm run dev
+
+# UI: production-style build
+ui-build:
+    cd ui && npm run build
+
+# UI: run unit tests
+ui-test:
+    cd ui && npm test
+
+# UI: lint + format check
+ui-lint:
+    cd ui && npm run lint && npm run format:check
+
+# UI: auto-fix formatting and lint violations
+ui-fix:
+    cd ui && npm run lint:fix && npm run format

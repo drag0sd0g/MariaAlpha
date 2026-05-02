@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import com.mariaalpha.executionengine.config.RiskLimitsConfig;
 import com.mariaalpha.executionengine.model.Fill;
 import com.mariaalpha.executionengine.model.RiskAlert;
+import com.mariaalpha.executionengine.model.Side;
 import com.mariaalpha.executionengine.publisher.RiskAlertPublisher;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -35,7 +36,16 @@ class DailyLossMonitorTest {
   void haltsOnLossBreachCritical() {
     // Simulate losing fill: sold at $140 but entered at $170 → loss = -$30 * 1000 = -$30K
     var fill =
-        new Fill("fill-1", "order-1", new BigDecimal("140.00"), 1000, "SIMULATED", Instant.now());
+        new Fill(
+            "fill-1",
+            "order-1",
+            "AAPL",
+            Side.SELL,
+            new BigDecimal("140.00"),
+            1000,
+            null,
+            "SIMULATED",
+            Instant.now());
     monitor.onFill(fill, new BigDecimal("170.00"), "AAPL");
 
     assertThat(monitor.isTradingHalted()).isTrue();
@@ -45,7 +55,16 @@ class DailyLossMonitorTest {
   void doesNotHaltWhenWithinLimit() {
     // Small loss: sold at $149 entered at $150 → loss = -$1 * 100 = -$100
     var fill =
-        new Fill("fill-1", "order-1", new BigDecimal("149.00"), 100, "SIMULATED", Instant.now());
+        new Fill(
+            "fill-1",
+            "order-1",
+            "AAPL",
+            Side.SELL,
+            new BigDecimal("149.00"),
+            100,
+            null,
+            "SIMULATED",
+            Instant.now());
     monitor.onFill(fill, new BigDecimal("150.00"), "AAPL");
 
     assertThat(monitor.isTradingHalted()).isFalse();
@@ -55,7 +74,16 @@ class DailyLossMonitorTest {
   void resumeUnhaltsTrading() {
     // Trigger halt
     var fill =
-        new Fill("fill-1", "order-1", new BigDecimal("140.00"), 1000, "SIMULATED", Instant.now());
+        new Fill(
+            "fill-1",
+            "order-1",
+            "AAPL",
+            Side.SELL,
+            new BigDecimal("140.00"),
+            1000,
+            null,
+            "SIMULATED",
+            Instant.now());
     monitor.onFill(fill, new BigDecimal("170.00"), "AAPL");
     assertThat(monitor.isTradingHalted()).isTrue();
 
@@ -66,7 +94,16 @@ class DailyLossMonitorTest {
   @Test
   void publishesCriticalAlertOnHalt() {
     var fill =
-        new Fill("fill-1", "order-1", new BigDecimal("140.00"), 1000, "SIMULATED", Instant.now());
+        new Fill(
+            "fill-1",
+            "order-1",
+            "AAPL",
+            Side.SELL,
+            new BigDecimal("140.00"),
+            1000,
+            null,
+            "SIMULATED",
+            Instant.now());
     monitor.onFill(fill, new BigDecimal("170.00"), "AAPL");
 
     var captor = ArgumentCaptor.forClass(RiskAlert.class);
@@ -79,7 +116,16 @@ class DailyLossMonitorTest {
   void resetClearsPnl() {
     // Accumulate some loss
     var fill =
-        new Fill("fill-1", "order-1", new BigDecimal("149.00"), 100, "SIMULATED", Instant.now());
+        new Fill(
+            "fill-1",
+            "order-1",
+            "AAPL",
+            Side.SELL,
+            new BigDecimal("149.00"),
+            100,
+            null,
+            "SIMULATED",
+            Instant.now());
     monitor.onFill(fill, new BigDecimal("150.00"), "AAPL");
 
     monitor.resetDailyLimits();

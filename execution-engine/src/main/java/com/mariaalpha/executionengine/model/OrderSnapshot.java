@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 
 public record OrderSnapshot(
     String orderId,
+    String clientOrderId,
     String symbol,
     Side side,
     int quantity,
