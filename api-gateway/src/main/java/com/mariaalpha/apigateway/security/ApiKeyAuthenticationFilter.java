@@ -101,7 +101,7 @@ public class ApiKeyAuthenticationFilter implements WebFilter, Ordered {
     if (excluded == null) {
       return false;
     }
-    for (String pattern : excluded) {
+    for (var pattern : excluded) {
       if (MATCHER.match(pattern, path)) {
         return true;
       }
