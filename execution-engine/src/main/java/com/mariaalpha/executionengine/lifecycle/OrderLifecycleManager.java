@@ -46,12 +46,12 @@ public class OrderLifecycleManager {
 
     var currentStatus = order.getStatus();
     if (!currentStatus.canTransitionTo(newStatus)) {
-      throw new IllegalStateTransitionException(orderId, order.getStatus(), newStatus);
+      throw new IllegalStateTransitionException(orderId, currentStatus, newStatus);
     }
 
     // Atomic CAS
     if (!order.compareAndSetStatus(currentStatus, newStatus)) {
-      throw new IllegalStateTransitionException(orderId, order.getStatus(), newStatus);
+      throw new IllegalStateTransitionException(orderId, currentStatus, newStatus);
     }
 
     if (fill != null) {

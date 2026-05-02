@@ -155,7 +155,7 @@ public class VwapStrategy implements TradingStrategy {
       return;
     }
     int allocated = 0;
-    for (int i = 0; i < volumeProfile.size() - 1; i++) {
+    for (var i = 0; i < volumeProfile.size() - 1; i++) {
       int qty = (int) Math.round(targetQuantity * volumeProfile.get(i).volumeFraction());
       binAllocations.add(qty);
       allocated += qty;
@@ -196,7 +196,7 @@ public class VwapStrategy implements TradingStrategy {
 
   /** Finds the bin index for the given market time. Returns -1 if not in any bin. */
   private int findBinIndex(LocalTime marketTime) {
-    for (int i = 0; i < volumeProfile.size(); i++) {
+    for (var i = 0; i < volumeProfile.size(); i++) {
       var bin = volumeProfile.get(i);
       if (!marketTime.isBefore(bin.startTime()) && marketTime.isBefore(bin.endTime())) {
         return i;

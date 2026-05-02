@@ -48,7 +48,7 @@ public class MarketDataCache {
   private void enforceSizeLimit(ConcurrentNavigableMap<Instant, MarketTickEvent> bucket) {
     int max = tcaConfig.marketDataCacheMaxTicksPerSymbol();
     while (bucket.size() > max) {
-      Map.Entry<Instant, MarketTickEvent> eldest = bucket.firstEntry();
+      var eldest = bucket.firstEntry();
       if (eldest == null) {
         return;
       }
@@ -70,9 +70,9 @@ public class MarketDataCache {
     if (bucket == null || start == null || end == null || start.isAfter(end)) {
       return List.of();
     }
-    ConcurrentNavigableMap<Instant, MarketTickEvent> sub = bucket.subMap(start, true, end, true);
-    List<MarketTickEvent> out = new ArrayList<>(sub.size());
-    for (MarketTickEvent t : sub.values()) {
+    var sub = bucket.subMap(start, true, end, true);
+    var out = new ArrayList<MarketTickEvent>(sub.size());
+    for (var t : sub.values()) {
       if (t.eventType() == EventType.TRADE
           && t.size() != null
           && t.size() > 0L
