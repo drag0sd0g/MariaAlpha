@@ -1,0 +1,136 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: 2000
+            response-timeout: 10s
+          routes:
+            - id: strategies
+              uri: ${STRATEGY_ENGINE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/strategies/**,/api/rfq/**
+
+            - id: orders
+              uri: ${ORDER_MANAGER_URL:http://localhost:8086}
+              predicates:
+                - Path=/api/orders/**,/api/positions/**,/api/portfolio/**
+
+            - id: execution
+              uri: ${EXECUTION_ENGINE_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/execution/**,/api/routing/**
+
+            - id: post-trade
+              uri: ${POST_TRADE_URL:http://localhost:8088}
+              predicates:
+                - Path=/api/tca/**,/api/recon/**
+
+            - id: market-data
+              uri: ${MARKET_DATA_GATEWAY_URL:http://localhost:8079}
+              predicates:
+                - Path=/api/market-data/**
+
+mariaalpha:
+  gateway:
+    downstreams:
+      strategy-engine:
+        url: ${STRATEGY_ENGINE_URL:http://localhost:8082}
+        management-url: ${STRATEGY_ENGINE_MANAGEMENT_URL:http://localhost:8083}
+        required: true
+      execution-engine:
+        url: ${EXECUTION_ENGINE_URL:http://localhost:8084}
+        management-url: ${EXECUTION_ENGINE_MANAGEMENT_URL:http://localhost:8085}
+        required: true
+      order-manager:
+        url: ${ORDER_MANAGER_URL:http://localhost:8086}
+        management-url: ${ORDER_MANAGER_MANAGEMENT_URL:http://localhost:8087}
+        required: true
+      post-trade:
+        url: ${POST_TRADE_URL:http://localhost:8088}
+        management-url: ${POST_TRADE_MANAGEMENT_URL:http://localhost:8089}
+        required: true
+      analytics-service:
+        url: ${ANALYTICS_SERVICE_URL:http://localhost:8095}
+        management-url: ${ANALYTICS_SERVICE_MANAGEMENT_URL:http://localhost:8095}
+        required: false
+
+    security:
+      api-key: ${MARIAALPHA_API_KEY:}
+      header-name: X-API-Key
+      query-param-name: apiKey
+      excluded-paths:
+        - /actuator/**
+        - /v3/api-docs/**
+        - /swagger-ui
+        - /swagger-ui/**
+        - /webjars/**
+        - /favicon.ico
+        - /
+
+    websocket:
+      endpoints:
+        market-data:
+          path: /ws/market-data
+          topic: market-data.ticks
+          filter-key: symbol
+        positions:
+          path: /ws/positions
+          topic: positions.updates
+          filter-key: symbol
+        orders:
+          path: /ws/orders
+          topic: orders.lifecycle
+          filter-key: orderId
+        alerts:
+          path: /ws/alerts
+          topic: analytics.risk-alerts
+          filter-key: symbol
+      backpressure-buffer-size: 1024
+
+management:
+  server:
+    port: ${MANAGEMENT_PORT:8091}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,gateway
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,downstreams
+        liveness:
+          include: livenessState
+  metrics:
+    tags:
+      application: api-gateway
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui
+  show-actuator: false
+
+logging:
+  level:
+    com.mariaalpha.apigateway: INFO
+    org.springframework.cloud.gateway: INFO
+    reactor.netty: WARN
