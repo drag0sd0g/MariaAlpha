@@ -11,6 +11,7 @@ dependencies {
     implementation(libs.spring.boot.starter.actuator)
     implementation(project(":proto"))
     implementation(libs.grpc.server.spring.boot.starter)
+    implementation(libs.grpc.netty.shaded)
     implementation(libs.guava)
     runtimeOnly("org.postgresql:postgresql")
     testImplementation("org.springframework.boot:spring-boot-starter-test")

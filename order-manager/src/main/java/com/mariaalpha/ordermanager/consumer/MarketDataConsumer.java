@@ -44,7 +44,11 @@ public class MarketDataConsumer {
 
   @Scheduled(fixedDelayString = "${order-manager.mark-to-market.interval-ms:1000}")
   public void runMarkToMarket() {
-    positionService.markToMarket();
+    try {
+      positionService.markToMarket();
+    } catch (Exception e) {
+      LOG.warn("mark-to-market skipped: {}", e.getMessage());
+    }
   }
 
   // Prefer the last traded price as the most direct mark. Fall back to the mid-price

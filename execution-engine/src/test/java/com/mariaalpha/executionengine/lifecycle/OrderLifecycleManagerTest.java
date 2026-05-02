@@ -76,7 +76,15 @@ class OrderLifecycleManagerTest {
 
     var fill =
         new Fill(
-            "fill-1", order.getOrderId(), new BigDecimal("150.25"), 50, "SIMULATED", Instant.now());
+            "fill-1",
+            order.getOrderId(),
+            "AAPL",
+            Side.BUY,
+            new BigDecimal("150.25"),
+            50,
+            null,
+            "SIMULATED",
+            Instant.now());
     manager.transition(order.getOrderId(), OrderStatus.PARTIALLY_FILLED, fill, null);
 
     assertThat(order.getFilledQuantity()).isEqualTo(50);
