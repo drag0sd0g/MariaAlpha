@@ -32,6 +32,33 @@ just                       # list available recipes
 
 Loki (logs) and Tempo (traces) run within the Docker network, reachable by Alloy and Grafana.
 
+### API Gateway (port 8080)
+
+Single front door for the React UI and external clients. Implements:
+- REST routing to all backend services (`/api/...`).
+- API key authentication via `X-API-Key` header (or `?apiKey=` query parameter for browser WebSocket clients).
+- Real-time WebSocket fan-out from Kafka to UI clients.
+
+#### Configuration
+
+| Env var | Required | Description |
+|---|---|---|
+| `MARIAALPHA_API_KEY` | yes | Shared secret. Without it the gateway rejects every request with HTTP 401. |
+| `KAFKA_BOOTSTRAP_SERVERS` | yes | Kafka cluster (default `localhost:9092`). |
+| `STRATEGY_ENGINE_URL` | optional | Default `http://localhost:8082`. |
+| `ORDER_MANAGER_URL` | optional | Default `http://localhost:8086`. |
+| `EXECUTION_ENGINE_URL` | optional | Default `http://localhost:8084`. |
+| `POST_TRADE_URL` | optional | Default `http://localhost:8088`. |
+| `ANALYTICS_SERVICE_URL` | optional | Default `http://localhost:8095`. |
+| `MARKET_DATA_GATEWAY_URL` | optional | Default `http://localhost:8079`. |
+
+#### Quickstart
+
+```bash
+export MARIAALPHA_API_KEY=local-dev-key
+just run
+./gradlew :api-gateway:bootRun
+
 ## Database
 
 Liquibase migrations run automatically on Spring Boot service startup. Verify schema:

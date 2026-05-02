@@ -77,7 +77,6 @@
         <Class name="com.mariaalpha.strategyengine.metrics.StrategyMetrics"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
-    <!-- Execution Engine: Spring-managed beans and records storing injected dependencies -->
     <Match>
         <Class name="com.mariaalpha.executionengine.model.ExecutionInstruction"/>
         <Bug pattern="EI_EXPOSE_REP"/>
@@ -234,12 +233,10 @@
         <Class name="com.mariaalpha.ordermanager.entity.PortfolioSnapshotEntity"/>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
     </Match>
-    <!-- Post-Trade Service: model records (DTO, value objects) -->
     <Match>
         <Class name="com.mariaalpha.posttrade.model.OrderDetails"/>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
     </Match>
-    <!-- Post-Trade Service: Spring-managed beans and JPA entities -->
     <Match>
         <Class name="com.mariaalpha.posttrade.tca.MarketDataCache"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
@@ -282,6 +279,47 @@
     </Match>
     <Match>
         <Class name="com.mariaalpha.posttrade.entity.ArrivalSnapshotEntity"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.apigateway.config.RouteConfiguration"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.apigateway.health.DownstreamHealthChecker"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.apigateway.health.AggregateDownstreamHealthIndicator"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.apigateway.security.ApiKeyAuthenticationFilter"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.apigateway.websocket.KafkaTopicBroadcaster"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.apigateway.websocket.StreamingWebSocketHandler"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.apigateway.websocket.WebSocketRoutingConfig"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <!-- API Gateway: @ConfigurationProperties records with Map/List fields -->
+    <Match>
+        <Class name="com.mariaalpha.apigateway.config.DownstreamServicesProperties"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.apigateway.security.SecurityProperties"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.apigateway.websocket.WebSocketProperties"/>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
     </Match>
 </FindBugsFilter>

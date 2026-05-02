@@ -1,6 +1,7 @@
 [versions]
 java = "21"
 spring-boot = "3.5.12"
+spring-cloud = "2025.0.0"
 spring-dependency-management = "1.1.7"
 spotbugs-plugin = "6.4.8"
 checkstyle = "13.3.0"
@@ -13,9 +14,12 @@ testcontainers = "1.20.4"
 guava = "33.4.0-jre"
 resilience4j = "2.2.0"
 okhttp = "4.12.0"
+caffeine = "3.1.8"
+springdoc = "2.6.0"
 
 [libraries]
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
+spring-cloud-bom = { module = "org.springframework.cloud:spring-cloud-dependencies", version.ref = "spring-cloud" }
 protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf-java" }
 grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded", version.ref = "grpc-java" }
 grpc-protobuf = { module = "io.grpc:grpc-protobuf", version.ref = "grpc-java" }
@@ -35,6 +39,9 @@ resilience4j-bulkhead = { module = "io.github.resilience4j:resilience4j-bulkhead
 resilience4j-ratelimiter = { module = "io.github.resilience4j:resilience4j-ratelimiter", version.ref = "resilience4j" }
 resilience4j-timelimiter = { module = "io.github.resilience4j:resilience4j-timelimiter", version.ref = "resilience4j" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
+springdoc-openapi-webflux-ui = { module = "org.springdoc:springdoc-openapi-starter-webflux-ui", version.ref = "springdoc" }
+mockwebserver = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "okhttp" }
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }

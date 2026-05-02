@@ -1,3 +1,6 @@
+server:
+  port: ${MARKET_DATA_GATEWAY_PORT:8079}
+
 spring:
   application:
     name: market-data-gateway

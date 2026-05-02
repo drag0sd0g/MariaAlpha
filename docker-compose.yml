@@ -168,6 +168,66 @@ services:
       retries: 5
       start_period: 10s
 
+  market-data-gateway:
+    build:
+      context: .
+      dockerfile: market-data-gateway/Dockerfile
+    image: mariaalpha/market-data-gateway:local
+    container_name: market-data-gateway
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${MARKET_DATA_PROFILE:-simulated}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9094
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-mariaalpha}
+      POSTGRES_USER: ${POSTGRES_USER:-mariaalpha}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mariaalpha}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-mariaalpha}
+      ALPACA_API_KEY_ID: ${ALPACA_API_KEY_ID:-}
+      ALPACA_API_SECRET_KEY: ${ALPACA_API_SECRET_KEY:-}
+      MANAGEMENT_PORT: 8081
+    ports:
+      - "8079:8079"
+      - "8081:8081"
+      - "50052:50052"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health/liveness"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+
+  strategy-engine:
+    build:
+      context: .
+      dockerfile: strategy-engine/Dockerfile
+    image: mariaalpha/strategy-engine:local
+    container_name: strategy-engine
+    depends_on:
+      kafka:
+        condition: service_healthy
+      ml-signal-service:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9094
+      ML_SERVICE_HOST: ml-signal-service
+      ML_SERVICE_PORT: 50051
+      MANAGEMENT_PORT: 8083
+    ports:
+      - "8082:8082"
+      - "8083:8083"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health/liveness"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+
   execution-engine:
     build:
       context: .
@@ -217,8 +277,6 @@ services:
       timeout: 3s
       retries: 5
       start_period: 30s
-    networks:
-      - mariaalpha-net
 
   post-trade:
     build:
@@ -252,8 +310,51 @@ services:
       timeout: 3s
       retries: 5
       start_period: 30s
-    networks:
-      - mariaalpha-net
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    image: mariaalpha/api-gateway:local
+    container_name: api-gateway
+    depends_on:
+      kafka:
+        condition: service_healthy
+      strategy-engine:
+        condition: service_healthy
+      execution-engine:
+        condition: service_started
+      order-manager:
+        condition: service_healthy
+      post-trade:
+        condition: service_healthy
+      market-data-gateway:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9094
+      MARIAALPHA_API_KEY: ${MARIAALPHA_API_KEY:?MARIAALPHA_API_KEY must be set}
+      MARKET_DATA_GATEWAY_URL: http://market-data-gateway:8079
+      MARKET_DATA_GATEWAY_MANAGEMENT_URL: http://market-data-gateway:8081
+      STRATEGY_ENGINE_URL: http://strategy-engine:8082
+      STRATEGY_ENGINE_MANAGEMENT_URL: http://strategy-engine:8083
+      EXECUTION_ENGINE_URL: http://execution-engine:8084
+      EXECUTION_ENGINE_MANAGEMENT_URL: http://execution-engine:8085
+      ORDER_MANAGER_URL: http://order-manager:8086
+      ORDER_MANAGER_MANAGEMENT_URL: http://order-manager:8087
+      POST_TRADE_URL: http://post-trade:8088
+      POST_TRADE_MANAGEMENT_URL: http://post-trade:8089
+      ANALYTICS_SERVICE_URL: http://analytics-service:8095
+      MANAGEMENT_PORT: 8091
+    ports:
+      - "8080:8080"
+      - "8091:8091"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8091/actuator/health/liveness"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
 
 volumes:
   postgres-data:
