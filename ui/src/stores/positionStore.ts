@@ -9,8 +9,10 @@ interface PositionStore {
 
 export const usePositionStore = create<PositionStore>((set) => ({
   positions: new Map(),
-  replaceAll: (rows) => set(() => ({ positions: new Map(rows.map((r) => [r.symbol, r])) })),
-  applyUpdate: (u) =>
+  replaceAll: (rows) => {
+    set(() => ({ positions: new Map(rows.map((r) => [r.symbol, r])) }));
+  },
+  applyUpdate: (u) => {
     set((s) => {
       const next = new Map(s.positions);
       next.set(u.symbol, {
@@ -25,5 +27,6 @@ export const usePositionStore = create<PositionStore>((set) => ({
         updatedAt: u.timestamp,
       });
       return { positions: next };
-    }),
+    });
+  },
 }));

@@ -12,11 +12,12 @@ export default function FillHistoryTable() {
   const [fills, setFills] = useState<Fill[]>([]);
 
   useEffect(() => {
-    let cancelled = false;
+    let cancelled: boolean = false;
     void (async () => {
       const settled = await Promise.allSettled(
         orderIds.map((id) => api<Order>(`/api/orders/${id}`)),
       );
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (cancelled) return;
       const collected = settled
         .flatMap((r) => (r.status === "fulfilled" ? (r.value.fills ?? []) : []))

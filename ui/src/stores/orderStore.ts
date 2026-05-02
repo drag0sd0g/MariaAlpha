@@ -10,8 +10,10 @@ interface OrderStore {
 
 export const useOrderStore = create<OrderStore>((set) => ({
   orders: new Map(),
-  replaceAll: (rows) => set(() => ({ orders: new Map(rows.map((r) => [r.orderId, r])) })),
-  applyEvent: (e) =>
+  replaceAll: (rows) => {
+    set(() => ({ orders: new Map(rows.map((r) => [r.orderId, r])) }));
+  },
+  applyEvent: (e) => {
     set((s) => {
       const next = new Map(s.orders);
       const existing = next.get(e.orderId);
@@ -28,13 +30,15 @@ export const useOrderStore = create<OrderStore>((set) => ({
       merged.updatedAt = e.timestamp;
       next.set(e.orderId, merged);
       return { orders: next };
-    }),
-  remove: (id) =>
+    });
+  },
+  remove: (id) => {
     set((s) => {
       const next = new Map(s.orders);
       next.delete(id);
       return { orders: next };
-    }),
+    });
+  },
 }));
 
 function snapshotToOrder(snap: NonNullable<OrderEvent["order"]>): Order {

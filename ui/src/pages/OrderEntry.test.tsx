@@ -37,9 +37,9 @@ describe("OrderEntry", () => {
     await user.type(screen.getByLabelText(/limit price/i), "178.50");
     await user.click(screen.getByRole("button", { name: /submit/i }));
 
-    await waitFor(() =>
-      expect(screen.queryByRole("button", { name: /submitting/i })).toBeNull(),
-    );
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: /submitting/i })).toBeNull();
+    });
   });
 
   it("rejects LIMIT order without price", async () => {

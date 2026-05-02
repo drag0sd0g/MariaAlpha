@@ -33,6 +33,7 @@ class FakeWebSocket implements FakeSocket {
 
   constructor(url: string) {
     this.url = url;
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     lastSocket = this;
     allSockets.push(this);
   }
@@ -113,7 +114,7 @@ describe("useWebSocket", () => {
     warnSpy.mockRestore();
   });
 
-  it("reconnects after a non-1000 close after initial backoff", async () => {
+  it("reconnects after a non-1000 close after initial backoff", () => {
     renderHook(() =>
       useWebSocket({ endpoint: "/ws/positions", onMessage: vi.fn() }),
     );

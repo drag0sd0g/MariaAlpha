@@ -29,7 +29,7 @@ export default function DailyPnlChart() {
       if (samplesRef.current.length > MAX_SAMPLES) samplesRef.current.shift();
       setTick((n) => n + 1);
     }, SAMPLE_INTERVAL_MS);
-    return () => clearInterval(id);
+    return () => { clearInterval(id); };
   }, []);
 
   return (

@@ -29,7 +29,7 @@ describe("Dashboard", () => {
         <Dashboard />
       </MemoryRouter>,
     );
-    await waitFor(() => expect(screen.getByText("$100,000.00")).toBeInTheDocument());
+    await waitFor(() => { expect(screen.getByText("$100,000.00")).toBeInTheDocument(); });
     expect(screen.getByText("$300.00")).toBeInTheDocument();
   });
 
@@ -42,6 +42,6 @@ describe("Dashboard", () => {
         <Dashboard />
       </MemoryRouter>,
     );
-    await waitFor(() => expect(screen.getByText(/boom/i)).toBeInTheDocument());
+    await waitFor(() => { expect(screen.getByText(/boom/i)).toBeInTheDocument(); });
   });
 });
