@@ -1,3 +1,5 @@
+<img width="290" height="276" alt="Screenshot 2026-05-03 at 19 09 21" src="https://github.com/user-attachments/assets/29ff50d2-35e8-4cd1-9a7d-870d895438c6" />
+
 # MariaAlpha
 
 Full-stack algorithmic trading engine — see [Technical Design Document](docs/technical-design-document.md) for architecture and details.
