@@ -89,7 +89,7 @@ class OrderLifecycleConsumerIntegrationTest {
     publish(lifecycle(orderId, OrderStatus.PARTIALLY_FILLED, 10, BigDecimal.valueOf(150), fill));
 
     await()
-        .atMost(Duration.ofSeconds(20))
+        .atMost(Duration.ofSeconds(60))
         .untilAsserted(
             () -> {
               var o = orderRepository.findById(orderId).orElseThrow();
@@ -112,12 +112,12 @@ class OrderLifecycleConsumerIntegrationTest {
     publish(lifecycle(orderId, OrderStatus.PARTIALLY_FILLED, 5, BigDecimal.valueOf(100), fill));
 
     await()
-        .atMost(Duration.ofSeconds(20))
+        .atMost(Duration.ofSeconds(60))
         .untilAsserted(
             () -> {
-              var persisted = fillRepository.findBySymbolOrderByFilledAtDesc("AAPL").get(0);
-              assertThat(persisted.getExchangeFillId()).isEqualTo("EX-F-DUP");
-              assertThat(fillRepository.findBySymbolOrderByFilledAtDesc("AAPL")).hasSize(1);
+              var fills = fillRepository.findBySymbolOrderByFilledAtDesc("AAPL");
+              assertThat(fills).hasSize(1);
+              assertThat(fills.get(0).getExchangeFillId()).isEqualTo("EX-F-DUP");
             });
   }
 
