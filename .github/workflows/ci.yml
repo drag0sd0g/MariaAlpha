@@ -172,6 +172,13 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - name: Build all service images
+        env:
+          MARIAALPHA_API_KEY: e2e-test-key
+          POSTGRES_USER: mariaalpha
+          POSTGRES_PASSWORD: mariaalpha
+          POSTGRES_DB: mariaalpha
+          ALPACA_API_KEY_ID: unused
+          ALPACA_API_SECRET_KEY: unused
         run: |
           docker compose build \
             ml-signal-service market-data-gateway strategy-engine \

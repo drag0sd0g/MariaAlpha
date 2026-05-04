@@ -37,10 +37,10 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
     healthcheck:
       test: ["CMD", "/opt/kafka/bin/kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9094"]
-      interval: 10s
+      interval: 5s
       timeout: 10s
-      retries: 10
-      start_period: 30s
+      retries: 12
+      start_period: 15s
 
   kafka-init:
     image: apache/kafka:3.9.0
@@ -199,10 +199,10 @@ services:
       - "50052:50052"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health/liveness"]
-      interval: 10s
+      interval: 5s
       timeout: 3s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 15s
 
   strategy-engine:
     build:
@@ -225,10 +225,10 @@ services:
       - "8083:8083"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health/liveness"]
-      interval: 10s
+      interval: 5s
       timeout: 3s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 15s
 
   execution-engine:
     build:
@@ -276,10 +276,10 @@ services:
       - "8087:8087"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8087/actuator/health/liveness"]
-      interval: 10s
+      interval: 5s
       timeout: 3s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 15s
 
   post-trade:
     build:
@@ -310,10 +310,10 @@ services:
       - "8089:8089"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8089/actuator/health/liveness"]
-      interval: 10s
+      interval: 5s
       timeout: 3s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 15s
 
   api-gateway:
     build:
@@ -355,10 +355,10 @@ services:
       - "8091:8091"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8091/actuator/health/liveness"]
-      interval: 10s
+      interval: 5s
       timeout: 3s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 15s
 
   # ui:
   #   build:
