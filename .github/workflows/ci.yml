@@ -171,6 +171,11 @@ jobs:
       # Buildx + the local cache exporter give us layer reuse across PRs.
       - uses: docker/setup-buildx-action@v3
 
+      - name: Generate Python proto stubs
+        run: |
+          pip install grpcio-tools==1.70.0 --quiet
+          bash proto/generate_python.sh
+
       - name: Build all service images
         env:
           MARIAALPHA_API_KEY: e2e-test-key
