@@ -20,6 +20,7 @@ create_topic() {
 }
 
 create_topic "market-data.ticks"     1 14400000    # 4 hours
+create_topic "strategy.signals"      1 259200000   # 3 days
 create_topic "orders.lifecycle"      1 259200000   # 3 days
 create_topic "positions.updates"     1 259200000   # 3 days
 create_topic "analytics.tca"         1 259200000   # 3 days

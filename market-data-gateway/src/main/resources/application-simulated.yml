@@ -2,4 +2,5 @@ market-data:
   simulated:
     csv-path: classpath:simulated/market-data.csv
     speed-multiplier: 10.0
+    loop-delay-ms: 3000
   symbols: AAPL,MSFT

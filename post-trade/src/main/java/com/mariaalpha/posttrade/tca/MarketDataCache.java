@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -27,6 +28,7 @@ public class MarketDataCache {
   private final TcaConfig tcaConfig;
   private final Clock clock;
 
+  @Autowired
   public MarketDataCache(TcaConfig tcaConfig) {
     this(tcaConfig, Clock.systemUTC());
   }

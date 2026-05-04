@@ -82,7 +82,17 @@ public class SimulatedMarketDataAdapter implements MarketDataAdapter {
     if (filtered.isEmpty()) {
       return Flux.empty();
     }
-    return config.speedMultiplier() <= 0 ? Flux.fromIterable(filtered) : replayWithDelay(filtered);
+    Flux<MarketTick> singlePass =
+        config.speedMultiplier() <= 0 ? Flux.fromIterable(filtered) : replayWithDelay(filtered);
+    if (config.loopDelayMs() <= 0) {
+      return singlePass;
+    }
+    // Loop the CSV replay with a pause between iterations so strategies configured
+    // after startup still receive ticks. Stops immediately when disconnect() is called.
+    return singlePass.repeatWhen(
+        n ->
+            n.delayElements(Duration.ofMillis(config.loopDelayMs()))
+                .takeWhile(ignored -> connected));
   }
 
   /** Returns only ticks whose symbol matches the subscription list. */

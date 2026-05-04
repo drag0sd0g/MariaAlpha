@@ -9,6 +9,7 @@ COPY execution-engine/build.gradle.kts execution-engine/
 COPY post-trade/build.gradle.kts post-trade/
 COPY api-gateway/build.gradle.kts api-gateway/
 COPY proto/build.gradle.kts proto/
+COPY e2e-tests/build.gradle.kts e2e-tests/
 COPY order-manager/build.gradle.kts order-manager/
 COPY order-manager/src order-manager/src
 RUN ./gradlew :order-manager:bootJar --no-daemon -x test -x checkstyleMain -x spotbugsMain -x spotlessCheck
