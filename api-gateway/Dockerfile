@@ -13,6 +13,7 @@ COPY execution-engine/build.gradle.kts execution-engine/
 COPY order-manager/build.gradle.kts order-manager/
 COPY post-trade/build.gradle.kts post-trade/
 COPY proto/build.gradle.kts proto/
+COPY e2e-tests/build.gradle.kts e2e-tests/
 
 # api-gateway sources
 COPY api-gateway/build.gradle.kts api-gateway/

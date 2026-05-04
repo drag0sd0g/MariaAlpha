@@ -8,4 +8,5 @@ include(
     "order-manager",
     "post-trade",
     "api-gateway",
+    "e2e-tests"
 )

@@ -10,6 +10,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./config/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
@@ -36,10 +37,10 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
     healthcheck:
       test: ["CMD", "/opt/kafka/bin/kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9094"]
-      interval: 10s
+      interval: 5s
       timeout: 10s
-      retries: 10
-      start_period: 30s
+      retries: 12
+      start_period: 15s
 
   kafka-init:
     image: apache/kafka:3.9.0
@@ -173,7 +174,7 @@ services:
       context: .
       dockerfile: market-data-gateway/Dockerfile
     image: mariaalpha/market-data-gateway:local
-    container_name: market-data-gateway
+#    container_name: market-data-gateway
     depends_on:
       postgres:
         condition: service_healthy
@@ -188,6 +189,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-mariaalpha}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mariaalpha}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-mariaalpha}
+      SPRING_LIQUIBASE_LIQUIBASE_SCHEMA: liq_mdg
       ALPACA_API_KEY_ID: ${ALPACA_API_KEY_ID:-}
       ALPACA_API_SECRET_KEY: ${ALPACA_API_SECRET_KEY:-}
       MANAGEMENT_PORT: 8081
@@ -197,17 +199,17 @@ services:
       - "50052:50052"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health/liveness"]
-      interval: 10s
+      interval: 5s
       timeout: 3s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 15s
 
   strategy-engine:
     build:
       context: .
       dockerfile: strategy-engine/Dockerfile
     image: mariaalpha/strategy-engine:local
-    container_name: strategy-engine
+#    container_name: strategy-engine
     depends_on:
       kafka:
         condition: service_healthy
@@ -223,10 +225,10 @@ services:
       - "8083:8083"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health/liveness"]
-      interval: 10s
+      interval: 5s
       timeout: 3s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 15s
 
   execution-engine:
     build:
@@ -253,7 +255,7 @@ services:
       context: .
       dockerfile: order-manager/Dockerfile
     image: mariaalpha/order-manager:local
-    container_name: order-manager
+#    container_name: order-manager
     depends_on:
       postgres:
         condition: service_healthy
@@ -267,23 +269,24 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-mariaalpha}
       POSTGRES_USER: ${POSTGRES_USER:-mariaalpha}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mariaalpha}
+      SPRING_LIQUIBASE_LIQUIBASE_SCHEMA: liq_om
       MANAGEMENT_PORT: 8087
     ports:
       - "8086:8086"
       - "8087:8087"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8087/actuator/health/liveness"]
-      interval: 10s
+      interval: 5s
       timeout: 3s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 15s
 
   post-trade:
     build:
       context: .
       dockerfile: post-trade/Dockerfile
     image: mariaalpha/post-trade:local
-    container_name: post-trade
+#    container_name: post-trade
     depends_on:
       postgres:
         condition: service_healthy
@@ -299,6 +302,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-mariaalpha}
       POSTGRES_USER: ${POSTGRES_USER:-mariaalpha}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mariaalpha}
+      SPRING_LIQUIBASE_LIQUIBASE_SCHEMA: liq_pt
       ORDER_MANAGER_BASE_URL: http://order-manager:8086
       MANAGEMENT_PORT: 8089
     ports:
@@ -306,17 +310,17 @@ services:
       - "8089:8089"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8089/actuator/health/liveness"]
-      interval: 10s
+      interval: 5s
       timeout: 3s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 15s
 
   api-gateway:
     build:
       context: .
       dockerfile: api-gateway/Dockerfile
     image: mariaalpha/api-gateway:local
-    container_name: api-gateway
+#    container_name: api-gateway
     depends_on:
       kafka:
         condition: service_healthy
@@ -351,10 +355,10 @@ services:
       - "8091:8091"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8091/actuator/health/liveness"]
-      interval: 10s
+      interval: 5s
       timeout: 3s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 15s
 
   # ui:
   #   build:

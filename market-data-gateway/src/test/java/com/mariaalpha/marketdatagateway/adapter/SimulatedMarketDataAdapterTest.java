@@ -31,7 +31,7 @@ class SimulatedMarketDataAdapterTest {
   }
 
   private SimulatedMarketDataAdapter createAdapter(String csvPath, double speed) {
-    var config = new SimulatedMarketDataConfig(csvPath, speed);
+    var config = new SimulatedMarketDataConfig(csvPath, speed, 0L);
     return new SimulatedMarketDataAdapter(config, resourceLoader);
   }
 

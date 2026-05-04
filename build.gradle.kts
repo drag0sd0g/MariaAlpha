@@ -34,7 +34,7 @@ subprojects {
         }
     }
 
-    if (name != "proto") {
+    if (name != "proto" && name != "e2e-tests") {
         apply(plugin = "checkstyle")
         apply(plugin = "com.github.spotbugs")
         apply(plugin = "jacoco")
@@ -56,7 +56,11 @@ subprojects {
                 if (project.hasProperty("includeTags")) {
                     includeTags(project.property("includeTags") as String)
                 } else {
-                    excludeTags("integration")
+                    // Both 'integration' (per-service Testcontainers) and 'e2e' (full-stack
+                    // ComposeContainer) are excluded from the default test task. They run via:
+                    //   ./gradlew test -PincludeTags=integration   (per-service)
+                    //   ./gradlew :e2e-tests:test -PincludeTags=e2e (full-stack)
+                    excludeTags("integration", "e2e")
                 }
             }
             finalizedBy(tasks.named("jacocoTestReport"))

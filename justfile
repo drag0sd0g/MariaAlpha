@@ -36,6 +36,10 @@ test-java:
 test-integration:
     ./gradlew test -PincludeTags=integration
 
+# Run end-to-end test (boots full docker-compose stack — slow, ~3-5 minutes)
+test-e2e:
+    ./gradlew :e2e-tests:test -PincludeTags=e2e --info
+
 # Run Python tests
 test-python:
     cd ml-signal-service && pytest

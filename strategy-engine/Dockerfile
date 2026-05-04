@@ -10,6 +10,7 @@ COPY post-trade/build.gradle.kts post-trade/
 COPY api-gateway/build.gradle.kts api-gateway/
 COPY proto/build.gradle.kts proto/build.gradle.kts
 COPY proto/src proto/src
+COPY e2e-tests/build.gradle.kts e2e-tests/
 COPY strategy-engine/build.gradle.kts strategy-engine/
 COPY strategy-engine/src strategy-engine/src
 RUN ./gradlew :strategy-engine:bootJar --no-daemon -x test -x checkstyleMain -x spotbugsMain -x spotlessCheck
