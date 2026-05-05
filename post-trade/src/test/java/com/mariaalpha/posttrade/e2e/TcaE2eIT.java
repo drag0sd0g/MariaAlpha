@@ -21,6 +21,7 @@ import com.mariaalpha.posttrade.model.Side;
 import com.mariaalpha.posttrade.repository.ArrivalSnapshotRepository;
 import com.mariaalpha.posttrade.repository.TcaResultRepository;
 import com.mariaalpha.posttrade.service.OrderManagerClient;
+import com.mariaalpha.posttrade.tca.MarketDataCache;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
@@ -28,17 +29,21 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.annotation.DirtiesContext.ClassMode;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -47,6 +52,7 @@ import org.testcontainers.utility.DockerImageName;
 
 @Tag("integration")
 @Testcontainers
+@DirtiesContext(classMode = ClassMode.AFTER_CLASS)
 @SpringBootTest(
     classes = Application.class,
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -58,17 +64,26 @@ import org.testcontainers.utility.DockerImageName;
 @ActiveProfiles("test")
 class TcaE2eIT {
 
-  @Container @ServiceConnection
+  @Container
   static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
 
-  @Container @ServiceConnection
+  @Container
   static KafkaContainer kafka =
       new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.5.1"));
+
+  @DynamicPropertySource
+  static void props(DynamicPropertyRegistry registry) {
+    registry.add("spring.datasource.url", postgres::getJdbcUrl);
+    registry.add("spring.datasource.username", postgres::getUsername);
+    registry.add("spring.datasource.password", postgres::getPassword);
+    registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
+  }
 
   @Autowired private KafkaTemplate<String, String> kafkaTemplate;
   @Autowired private TcaResultRepository tcaRepository;
   @Autowired private ArrivalSnapshotRepository arrivalRepository;
   @Autowired private ObjectMapper objectMapper;
+  @Autowired private MarketDataCache marketDataCache;
   @MockBean private OrderManagerClient orderManagerClient;
 
   @Test
@@ -89,6 +104,11 @@ class TcaE2eIT {
         "market-data.ticks",
         "AAPL",
         objectMapper.writeValueAsString(trade("AAPL", orderTs.plusSeconds(300), 180.04, 500)));
+
+    // MarketDataConsumer and OrderLifecycleConsumer run on separate listener threads — wait for
+    // all 3 ticks to land in the cache before publishing the lifecycle event so that
+    // ArrivalSnapshotService.captureIfAbsent() finds a tick and creates the arrival snapshot.
+    await().atMost(Duration.ofSeconds(10)).until(() -> marketDataCache.size("AAPL") >= 3);
 
     publish(
         "orders.lifecycle",
@@ -194,7 +214,7 @@ class TcaE2eIT {
   }
 
   private void publish(String topic, String key, String payload) throws Exception {
-    kafkaTemplate.send(topic, key, payload).get();
+    kafkaTemplate.send(topic, key, payload).get(10, TimeUnit.SECONDS);
   }
 
   private static MarketTickEvent trade(String symbol, Instant ts, double price, long size) {
