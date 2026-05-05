@@ -95,3 +95,10 @@ ui-lint:
 # UI: auto-fix formatting and lint violations
 ui-fix:
     cd ui && npm run lint:fix && npm run format
+
+# End-to-end smoke test against Alpaca paper trading (manual; requires real Alpaca creds in .env)
+smoke-alpaca:
+    @if [ -z "${ALPACA_API_KEY_ID:-}" ]; then echo "Set ALPACA_API_KEY_ID and ALPACA_API_SECRET_KEY in .env first"; exit 1; fi
+    MARKET_DATA_PROFILE=alpaca EXECUTION_PROFILE=alpaca docker compose up -d --build
+    @echo ""
+    @echo "Stack is starting. Wait ~90 s, then follow docs/runbooks/alpaca-smoke-test.md"

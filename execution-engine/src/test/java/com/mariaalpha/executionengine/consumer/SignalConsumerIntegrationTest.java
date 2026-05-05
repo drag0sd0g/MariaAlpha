@@ -7,6 +7,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.mariaalpha.executionengine.model.OrderSignal;
 import com.mariaalpha.executionengine.model.OrderType;
 import com.mariaalpha.executionengine.model.Side;
+import com.mariaalpha.executionengine.publisher.OrderEventPublisher;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -15,8 +16,11 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.annotation.DirtiesContext.ClassMode;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Container;
@@ -26,7 +30,10 @@ import org.testcontainers.kafka.KafkaContainer;
 @SpringBootTest
 @Testcontainers
 @Tag("integration")
+@DirtiesContext(classMode = ClassMode.AFTER_CLASS)
 class SignalConsumerIntegrationTest {
+
+  @MockBean OrderEventPublisher orderEventPublisher;
 
   @Container static KafkaContainer kafka = new KafkaContainer("apache/kafka:latest");
 

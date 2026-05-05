@@ -174,7 +174,6 @@ services:
       context: .
       dockerfile: market-data-gateway/Dockerfile
     image: mariaalpha/market-data-gateway:local
-#    container_name: market-data-gateway
     depends_on:
       postgres:
         condition: service_healthy
@@ -209,7 +208,6 @@ services:
       context: .
       dockerfile: strategy-engine/Dockerfile
     image: mariaalpha/strategy-engine:local
-#    container_name: strategy-engine
     depends_on:
       kafka:
         condition: service_healthy
@@ -239,7 +237,9 @@ services:
       - "8085:8085"
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9094
-      SPRING_PROFILES_ACTIVE: simulated
+      SPRING_PROFILES_ACTIVE: ${EXECUTION_PROFILE:-simulated}
+      ALPACA_API_KEY_ID: ${ALPACA_API_KEY_ID:-}
+      ALPACA_API_SECRET_KEY: ${ALPACA_API_SECRET_KEY:-}
     depends_on:
       kafka:
         condition: service_healthy
@@ -255,7 +255,6 @@ services:
       context: .
       dockerfile: order-manager/Dockerfile
     image: mariaalpha/order-manager:local
-#    container_name: order-manager
     depends_on:
       postgres:
         condition: service_healthy
@@ -286,7 +285,6 @@ services:
       context: .
       dockerfile: post-trade/Dockerfile
     image: mariaalpha/post-trade:local
-#    container_name: post-trade
     depends_on:
       postgres:
         condition: service_healthy
@@ -320,7 +318,6 @@ services:
       context: .
       dockerfile: api-gateway/Dockerfile
     image: mariaalpha/api-gateway:local
-#    container_name: api-gateway
     depends_on:
       kafka:
         condition: service_healthy
@@ -365,7 +362,6 @@ services:
   #     context: .
   #     dockerfile: ui/Dockerfile
   #   image: mariaalpha/ui:local
-  #   container_name: ui
   #   environment:
   #     # Bake the API key in at build time. For real deploys, replace with a runtime config-map.
   #     VITE_MARIAALPHA_API_KEY: ${MARIAALPHA_API_KEY:?must be set}
