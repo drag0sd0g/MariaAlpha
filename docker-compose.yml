@@ -357,19 +357,28 @@ services:
       retries: 10
       start_period: 15s
 
-  # ui:
-  #   build:
-  #     context: .
-  #     dockerfile: ui/Dockerfile
-  #   image: mariaalpha/ui:local
-  #   environment:
-  #     # Bake the API key in at build time. For real deploys, replace with a runtime config-map.
-  #     VITE_MARIAALPHA_API_KEY: ${MARIAALPHA_API_KEY:?must be set}
-  #   ports:
-  #     - "5173:80"
-  #   depends_on:
-  #     api-gateway:
-  #       condition: service_healthy
+  ui:
+    build:
+      context: .
+      dockerfile: ui/Dockerfile
+      args:
+        # The API key is baked into the JS bundle at build time; the image must be
+        # rebuilt when the key changes. For real deployments, prefer a runtime config-map pattern.
+        VITE_MARIAALPHA_API_KEY: ${MARIAALPHA_API_KEY:?MARIAALPHA_API_KEY must be set}
+        VITE_API_BASE_URL: ""
+    image: mariaalpha/ui:local
+    container_name: ui
+    ports:
+      - "5173:80"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost/ || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
 
 volumes:
   postgres-data:

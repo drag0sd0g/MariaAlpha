@@ -153,6 +153,11 @@ jobs:
         working-directory: ${{ steps.detect.outputs.dir }}
         run: npx tsc --noEmit
 
+      - name: Vitest unit tests
+        if: steps.detect.outputs.found == 'true'
+        working-directory: ${{ steps.detect.outputs.dir }}
+        run: npm test
+
   e2e:
     name: End-to-end (Docker Compose)
     needs: java

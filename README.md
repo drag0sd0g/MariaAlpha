@@ -4,6 +4,24 @@
 
 Full-stack algorithmic trading engine — see [Technical Design Document](docs/technical-design-document.md) for architecture and details.
 
+## What Phase 1 Delivers
+
+Phase 1 is complete. MariaAlpha ships as a working, end-to-end algorithmic trading engine with the following capabilities:
+
+- **Live market data ingestion** — simulated CSV replay (default) or Alpaca IEX WebSocket, with auto-reconnect and per-symbol in-memory order book
+- **VWAP execution strategy** enhanced by an ML signal — LightGBM classifier (15 technical indicators) called over gRPC with a Resilience4j circuit breaker; strategy hot-swap at runtime via REST
+- **Risk check chain** — five composable checks (max notional, max position, max portfolio exposure, max open orders, daily loss limit) with trading halt and resume
+- **Dual exchange routing** — simulated exchange (configurable fill latency + slippage) or Alpaca paper trading (REST + `trade_updates` WebSocket), switchable via `EXECUTION_PROFILE`
+- **Real-time position and P&L tracking** — mark-to-market unrealized P&L, portfolio aggregates, fill history, all persisted in PostgreSQL
+- **Transaction Cost Analysis** — slippage vs. arrival mid, implementation shortfall, VWAP benchmark deviation, and spread cost per completed order
+- **React UI** — portfolio dashboard, order entry with WebSocket live updates, daily P&L chart, served from nginx in Docker Compose
+- **Full observability** — Grafana LGTM stack (Alloy, Prometheus, Loki, Tempo, Grafana 11) with a provisioned Trading Pipeline dashboard covering all 7 services
+- **Production-grade CI** — lint, unit, integration, and end-to-end tests gating every pull request; CodeQL and Snyk security scans
+
+The Phase 1 acceptance test — `SimulatedHappyPathE2ETest` — boots the full 14-service Docker Compose stack and traverses the complete Tick-to-Trade pipeline on every CI run. See [`docs/phase-1-completion.md`](docs/phase-1-completion.md) for the full record of what was built.
+
+The roadmap for Phase 2 (Smart Order Router, TWAP/Momentum strategies, Helm/Kubernetes, Redis distributed cache, advanced order types, regime classifier, Playwright UI e2e tests) is in [§11 of the Technical Design Document](docs/technical-design-document.md#phase-2-full-desk-workflows--sor--rich-analytics).
+
 ## Prerequisites
 
 - [just](https://github.com/casey/just) — command runner used for all project tasks
@@ -14,13 +32,132 @@ Full-stack algorithmic trading engine — see [Technical Design Document](docs/t
 
 - [Docker](https://www.docker.com/products/docker-desktop/) — required for infrastructure services
 
-## Quick Start
+## Quickstart
+
+A clean-checkout walkthrough. Tested on macOS 14 (Apple Silicon) and Ubuntu 22.04
+with Docker Desktop ≥ 25.0 and 8 GB RAM allocated.
+
+### 1. Clone and configure
 
 ```bash
-cp .env.example .env      # configure database credentials
-just run                   # start all infrastructure services
-just                       # list available recipes
+git clone https://github.com/drag0sd0g/MariaAlpha.git
+cd MariaAlpha
+cp .env.example .env
+# .env defaults are fine for local dev. If you change MARIAALPHA_API_KEY, rebuild
+# the UI image: docker compose build ui && docker compose up -d ui
 ```
+
+### 2. Build everything
+
+```bash
+just build
+```
+
+This compiles every Java module, builds the React UI bundle, runs static checks
+(Spotless, Checkstyle, SpotBugs, ESLint, Prettier, ruff, mypy), and runs every unit
+and Testcontainers integration test except `e2e`. Expected runtime: ~5 minutes on a
+warm Gradle cache.
+
+### 3. Bring up the stack
+
+```bash
+just run
+```
+
+Runs `docker compose up -d` and starts 14 containers. First-time runs build all
+service images (~3 minutes); subsequent runs reuse the cache. Wait ~90 seconds after
+`just run` returns for every service to become healthy.
+
+### 4. Verify
+
+```bash
+just verify
+```
+
+Expected output:
+```
+Polling /actuator/health on every service...
+  ✓ market-data-gateway
+  ✓ strategy-engine
+  ✓ execution-engine
+  ✓ order-manager
+  ✓ post-trade
+  ✓ api-gateway
+  ✓ ml-signal-service
+  ✓ ui
+  ✓ grafana
+```
+
+### 5. Open the UI
+
+| URL | What |
+|---|---|
+| <http://localhost:5173/> | MariaAlpha UI — Dashboard + Order Entry |
+| <http://localhost:3001/> | Grafana (anonymous admin, no login) |
+| <http://localhost:9090/> | Prometheus |
+| <http://localhost:8080/actuator/health> | API Gateway aggregate health |
+
+### 6. Try the API
+
+Every API call requires the `X-API-Key` header. The default key is `local-dev-key`.
+
+```bash
+# List all available strategies.
+curl -fsS -H "X-API-Key: local-dev-key" \
+    http://localhost:8080/api/strategies
+
+# Bind VWAP to AAPL.
+curl -X PUT -H "X-API-Key: local-dev-key" \
+    -H "Content-Type: application/json" \
+    -d '{"strategyName":"VWAP"}' \
+    http://localhost:8080/api/strategies/AAPL
+
+# Configure VWAP — 100 shares spread evenly between 14:30 and 16:00 NY time.
+curl -X PUT -H "X-API-Key: local-dev-key" \
+    -H "Content-Type: application/json" \
+    -d '{
+          "targetQuantity": 100,
+          "side": "BUY",
+          "startTime": "14:30:00",
+          "endTime": "16:00:00",
+          "volumeProfile": [
+            {"startTime":"14:30:00","endTime":"16:00:00","volumeFraction":1.0}
+          ]
+        }' \
+    http://localhost:8080/api/strategies/VWAP/parameters
+
+# Place a manual LIMIT order.
+curl -X POST -H "X-API-Key: local-dev-key" \
+    -H "Content-Type: application/json" \
+    -d '{"symbol":"AAPL","side":"BUY","orderType":"LIMIT","quantity":10,"limitPrice":180.00}' \
+    http://localhost:8080/api/execution/orders
+
+# Read positions and portfolio summary.
+curl -fsS -H "X-API-Key: local-dev-key" http://localhost:8080/api/positions
+curl -fsS -H "X-API-Key: local-dev-key" http://localhost:8080/api/portfolio/summary
+```
+
+### 7. Tear down
+
+```bash
+just stop
+```
+
+To wipe all state (Postgres, Kafka logs, Grafana dashboards):
+```bash
+docker compose down -v
+```
+
+### Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `MARIAALPHA_API_KEY must be set` on `just run` | `.env` not copied | `cp .env.example .env` |
+| `port 5432 already in use` | local Postgres already running | stop it or change `POSTGRES_PORT_HOST` in `.env` |
+| `ui` container restarting | stale build args (e.g. API key changed) | `docker compose build --no-cache ui` |
+| UI loads but API calls return 401 | UI bundle built with a different key than the gateway expects | rebuild: `docker compose build ui && just run` |
+| `tradingHalted: true` immediately | daily-loss limit tripped from a prior run | `curl -X POST -H "X-API-Key: $KEY" http://localhost:8080/api/execution/resume` |
+| No data on UI dashboard | strategy-engine has no symbols routed yet | `PUT /api/strategies/AAPL` (see step 6) |
 
 ## Infrastructure Services
 
@@ -31,6 +168,7 @@ just                       # list available recipes
 | Prometheus | 9090 | Metrics storage, remote-write enabled |
 | Grafana | 3001 | Dashboards — anonymous admin access |
 | Alloy | 12345 | Telemetry collector UI; OTLP on 4317/4318 |
+| UI (nginx) | 5173 | Static SPA + reverse-proxy to api-gateway |
 
 Loki (logs) and Tempo (traces) run within the Docker network, reachable by Alloy and Grafana.
 
@@ -92,7 +230,7 @@ just ui-build               # static assets in ui/dist/
 cd ui && npm run preview    # serves dist/ on http://localhost:4173
 ```
 
-A nginx Dockerfile (`ui/Dockerfile`) is planned for issue 1.10.3 once the full-stack docker-compose flow is documented.
+For docker-compose deployments the UI runs as an nginx container exposed on port 5173 (see [docker-compose.yml](docker-compose.yml)). The image is built from [ui/Dockerfile](ui/Dockerfile).
 
 #### Manual order API surface
 

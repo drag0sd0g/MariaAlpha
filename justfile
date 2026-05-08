@@ -58,9 +58,31 @@ fix:
     ruff format .
     cd ml-signal-service && ruff check --fix src/ tests/ && ruff format src/ tests/
 
-# Build all Docker images
+# Build all Docker images (UI + every Java/Python service)
 docker-build:
-    @echo "Dockerfiles not yet created"
+    docker compose build
+
+# Bring up the full stack and verify each service is healthy
+verify:
+    @echo "Polling /actuator/health on every service..."
+    @for endpoint in \
+        "http://localhost:8081/actuator/health     market-data-gateway" \
+        "http://localhost:8083/actuator/health     strategy-engine" \
+        "http://localhost:8085/actuator/health     execution-engine" \
+        "http://localhost:8087/actuator/health     order-manager" \
+        "http://localhost:8089/actuator/health     post-trade" \
+        "http://localhost:8091/actuator/health     api-gateway" \
+        "http://localhost:8090/health              ml-signal-service" \
+        "http://localhost:5173/                    ui" \
+        "http://localhost:3001/api/health          grafana"; do \
+        url=$$(echo $$endpoint | awk '{print $$1}'); \
+        name=$$(echo $$endpoint | awk '{print $$2}'); \
+        if curl -fsS --max-time 3 "$$url" >/dev/null 2>&1; then \
+            echo "  ✓ $$name"; \
+        else \
+            echo "  ✗ $$name ($$url)"; \
+        fi; \
+    done
 
 # Generate gRPC stubs from proto definitions (Java + Python)
 proto:
