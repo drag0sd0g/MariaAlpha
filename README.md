@@ -43,8 +43,8 @@ with Docker Desktop ≥ 25.0 and 8 GB RAM allocated.
 git clone https://github.com/drag0sd0g/MariaAlpha.git
 cd MariaAlpha
 cp .env.example .env
-# .env defaults are fine for local dev. Do NOT change MARIAALPHA_API_KEY unless
-# you also update ui/.env.local — the UI bundle bakes it in at build time.
+# .env defaults are fine for local dev. If you change MARIAALPHA_API_KEY, rebuild
+# the UI image: docker compose build ui && docker compose up -d ui
 ```
 
 ### 2. Build everything
@@ -121,7 +121,7 @@ curl -X PUT -H "X-API-Key: local-dev-key" \
           "startTime": "14:30:00",
           "endTime": "16:00:00",
           "volumeProfile": [
-            {"startTimeUtc":"14:30:00","endTimeUtc":"16:00:00","volumePercent":1.0}
+            {"startTime":"14:30:00","endTime":"16:00:00","volumeFraction":1.0}
           ]
         }' \
     http://localhost:8080/api/strategies/VWAP/parameters
