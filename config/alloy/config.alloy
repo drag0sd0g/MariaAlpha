@@ -12,6 +12,31 @@ prometheus.scrape "prometheus" {
   scrape_interval = "15s"
 }
 
+// Java application services expose metrics at /actuator/prometheus on their management ports.
+prometheus.scrape "java_services" {
+  targets = [
+    {"__address__" = "market-data-gateway:8081", "service" = "market-data-gateway"},
+    {"__address__" = "strategy-engine:8083",     "service" = "strategy-engine"},
+    {"__address__" = "execution-engine:8085",    "service" = "execution-engine"},
+    {"__address__" = "order-manager:8087",       "service" = "order-manager"},
+    {"__address__" = "post-trade:8089",          "service" = "post-trade"},
+    {"__address__" = "api-gateway:8091",         "service" = "api-gateway"},
+  ]
+  metrics_path    = "/actuator/prometheus"
+  forward_to      = [prometheus.remote_write.default.receiver]
+  scrape_interval = "15s"
+}
+
+// Python ML service exposes Prometheus metrics at /metrics on port 8090.
+prometheus.scrape "ml_signal_service" {
+  targets = [
+    {"__address__" = "ml-signal-service:8090", "service" = "ml-signal-service"},
+  ]
+  metrics_path    = "/metrics"
+  forward_to      = [prometheus.remote_write.default.receiver]
+  scrape_interval = "15s"
+}
+
 prometheus.remote_write "default" {
   endpoint {
     url = "http://prometheus:9090/api/v1/write"

@@ -1153,9 +1153,11 @@ graph LR
 
 Each item below is scoped to be a single GitHub Issue with specific acceptance criteria. Issues are organized by milestone (phase) and labeled by component.
 
-### Phase 1: MVP (Happy Path)
+### Phase 1: MVP (Happy Path) ✅
 
-#### 1.1 Project Scaffolding & Infrastructure
+> **Status: complete.** All 47 issues (1.1.1 – 1.10.3) are merged to `main`. See [`docs/phase-1-completion.md`](phase-1-completion.md) for the full record.
+
+#### 1.1 Project Scaffolding & Infrastructure ✅
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
@@ -1169,7 +1171,7 @@ Each item below is scoped to be a single GitHub Issue with specific acceptance c
 | [1.1.8](https://github.com/drag0sd0g/MariaAlpha/issues/8) | Create Kafka topics init container | Docker Compose init service creates all topics from §5.4 with 1 partition and configured retention before any consumer starts. |
 | [1.1.9](https://github.com/drag0sd0g/MariaAlpha/issues/9) | Set up shared proto module and gRPC code generation | `proto/signal.proto` defined. Gradle task generates Java stubs. Python script generates Python stubs. Both compile successfully. |
 
-#### 1.2 Market Data Gateway
+#### 1.2 Market Data Gateway ✅
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
@@ -1181,7 +1183,7 @@ Each item below is scoped to be a single GitHub Issue with specific acceptance c
 | [1.2.6](https://github.com/drag0sd0g/MariaAlpha/issues/15) | Add Prometheus metrics and health/ready endpoints | Metrics from §8.2 exposed on `/actuator/prometheus`. Health endpoint checks Kafka and Alpaca connectivity. Ready endpoint confirms subscription is active. |
 | [1.2.7](https://github.com/drag0sd0g/MariaAlpha/issues/16) | Add WebSocket auto-reconnect with exponential backoff | On disconnect: retries with 1s, 2s, 4s, 8s, 16s delays. Max 5 attempts. Serves stale data with STALE flag during reconnect. Reconnect counter metric increments. |
 
-#### 1.3 Strategy Engine
+#### 1.3 Strategy Engine ✅
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
@@ -1192,7 +1194,7 @@ Each item below is scoped to be a single GitHub Issue with specific acceptance c
 | [1.3.5](https://github.com/drag0sd0g/MariaAlpha/issues/21) | Implement runtime strategy switching via REST API | `PUT /api/strategies/{symbol}` changes active strategy. No restart required. Strategy registry queried dynamically. |
 | [1.3.6](https://github.com/drag0sd0g/MariaAlpha/issues/22) | Add Prometheus metrics and health/ready endpoints | Strategy signals counter, evaluation duration histogram, ML call metrics per §8.2. |
 
-#### 1.4 ML Signal Service
+#### 1.4 ML Signal Service ✅
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
@@ -1203,7 +1205,7 @@ Each item below is scoped to be a single GitHub Issue with specific acceptance c
 | [1.4.5](https://github.com/drag0sd0g/MariaAlpha/issues/27) | Implement model hot-reload endpoint | `POST /v1/models/reload` loads new model artifacts from disk without restart. Currently loaded model version exposed as metric. |
 | [1.4.6](https://github.com/drag0sd0g/MariaAlpha/issues/28) | Train and bundle initial signal model | Python script trains LightGBM on Alpaca historical 1-min bars (freely available). Model artifact saved as `ml-models/signal_model.joblib`. Training script documented in README. |
 
-#### 1.5 Execution Engine
+#### 1.5 Execution Engine ✅
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
@@ -1216,7 +1218,7 @@ Each item below is scoped to be a single GitHub Issue with specific acceptance c
 | [1.5.7](https://github.com/drag0sd0g/MariaAlpha/issues/35) | Implement daily loss limit enforcement with trading halt | On breach: halt signal generation, cancel open orders, publish CRITICAL alert. Resume via `POST /api/strategies/resume` or next trading day. Integration test. |
 | [1.5.8](https://github.com/drag0sd0g/MariaAlpha/issues/36) | Add Resilience4j configuration for Alpaca API calls | Circuit breaker (threshold: 3, open: 60s), retry (3 attempts, exp backoff), timeout (5s), bulkhead (separate thread pools per §7.1). Verified under simulated failure conditions. |
 
-#### 1.6 Order Manager
+#### 1.6 Order Manager ✅
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
@@ -1226,13 +1228,13 @@ Each item below is scoped to be a single GitHub Issue with specific acceptance c
 | [1.6.4](https://github.com/drag0sd0g/MariaAlpha/issues/40) | Implement Kafka publishing of position updates | Position snapshots published to `positions.updates` on every fill. Includes all fields from position table + portfolio totals. Testcontainers integration test. |
 | [1.6.5](https://github.com/drag0sd0g/MariaAlpha/issues/41) | Add REST API for order and position queries | `GET /api/orders` (with filters), `GET /api/orders/{id}`, `GET /api/positions`, `GET /api/positions/{symbol}`, `GET /api/portfolio/summary`. OpenAPI spec auto-generated. |
 
-#### 1.7 Post-Trade
+#### 1.7 Post-Trade ✅
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
 | [1.7.1](https://github.com/drag0sd0g/MariaAlpha/issues/42) | Implement TCA computation | Computes slippage, implementation shortfall, VWAP benchmark, spread cost per completed order. Persisted to `tca_results`. Published to `analytics.tca`. Unit tests with known benchmarks. |
 
-#### 1.8 API Gateway
+#### 1.8 API Gateway ✅
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
@@ -1240,7 +1242,7 @@ Each item below is scoped to be a single GitHub Issue with specific acceptance c
 | [1.8.2](https://github.com/drag0sd0g/MariaAlpha/issues/44) | Implement API key authentication filter | `X-API-Key` header required. Keys loaded from environment variable. HTTP 401 on missing/invalid key. Key not logged. |
 | [1.8.3](https://github.com/drag0sd0g/MariaAlpha/issues/45) | Implement WebSocket proxy for real-time streams | WebSocket endpoints for market data, positions, orders. Proxied to respective backend services. Verified with `wscat`. |
 
-#### 1.9 React UI (MVP)
+#### 1.9 React UI (MVP) ✅
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |
@@ -1249,7 +1251,7 @@ Each item below is scoped to be a single GitHub Issue with specific acceptance c
 | [1.9.3](https://github.com/drag0sd0g/MariaAlpha/issues/48) | Implement Order Entry page | Order form (symbol, side, quantity, type, limit price). Submit via API Gateway. Active orders blotter with cancel button. Fill history table. WebSocket for real-time order status updates. |
 | [1.9.4](https://github.com/drag0sd0g/MariaAlpha/issues/49) | Implement WebSocket hook for real-time updates | `useWebSocket` hook connects to API Gateway WebSocket endpoints. Auto-reconnect with visual indicator. State updates trigger re-renders. |
 
-#### 1.10 End-to-End Integration
+#### 1.10 End-to-End Integration ✅
 
 | # | Issue Title | Acceptance Criteria |
 | --- | --- | --- |

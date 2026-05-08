@@ -14,6 +14,7 @@ dependencies {
     implementation(libs.grpc.netty.shaded)
     implementation(libs.guava)
     runtimeOnly("org.postgresql:postgresql")
+    runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.projectreactor:reactor-test")
     testImplementation(libs.testcontainers.kafka)

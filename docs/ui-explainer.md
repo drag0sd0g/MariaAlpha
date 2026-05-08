@@ -171,6 +171,229 @@ sidebar already so navigation is stable as they are built out.
 TypeScript is configured with `strict: true`, `exactOptionalPropertyTypes`,
 `noUncheckedIndexedAccess`, and `noImplicitOverride`. The `@` path alias resolves to `src/`.
 
+### Tech stack in depth
+
+This section gives backend engineers a working mental model for each library. It skips
+"what a component is" and focuses on the non-obvious design choices and the analogies that
+make the tech click for someone who thinks in services, not in DOM trees.
+
+---
+
+#### React 18
+
+React is a declarative view library. A component is a pure function `(props) → JSX`, where
+JSX is syntactic sugar for nested `React.createElement(...)` calls — the Vite/SWC plugin
+compiles it away before the browser sees it. The runtime re-invokes the function whenever
+its local state (via `useState`/`useReducer`) or subscribed external state changes, then
+diffs the result against the previous virtual DOM and applies the minimal set of real DOM
+mutations.
+
+The v18 upgrade that matters here is **concurrent rendering**: React can interrupt a
+low-priority render to handle a high-priority update (e.g., a user click while a large table
+re-renders). For MariaAlpha the practical effect is that the `DailyPnlChart` ring-buffer
+tick does not block the cancel button from responding.
+
+**Backend analogy**: a component is like a Thymeleaf/FreeMarker template, but the framework
+reruns it automatically when its inputs change rather than requiring you to call
+`model.addAttribute(...)` again. `useEffect` is the closest equivalent to Spring's
+`@EventListener` — it runs side effects (subscribe to WS, start a timer) in response to
+lifecycle events.
+
+---
+
+#### Vite 5
+
+Vite is both a **dev server** and a **production bundler**. They are separate modes with
+different behaviour:
+
+- **Dev mode** (`npm run dev`): serves source files as native ES modules — the browser
+  fetches each file individually over HTTP. There is no upfront bundle step, so cold start
+  is near-instant regardless of project size. HMR (Hot Module Replacement) re-executes only
+  the changed module and its importers, which is analogous to JRebel hot-swapping a single
+  class. The proxy configuration in `vite.config.ts` forwards `/api` and `/ws` to
+  `localhost:8080`, making CORS a non-issue — same reason you'd put Nginx in front of a
+  backend during development.
+
+- **Production mode** (`npm run build`): runs Rollup under the hood to bundle, tree-shake
+  (dead-code eliminate), and fingerprint assets. The output in `ui/dist/` is a handful of
+  hashed `.js` and `.css` files plus `index.html`. This is what the `ui/Dockerfile` copies
+  into the nginx image.
+
+The SWC compiler (Rust-based, replaces Babel) handles JSX and TypeScript transpilation.
+SWC does **not** typecheck — it just strips types. `tsc --noEmit` (run by `npm run build`
+before Rollup) is what actually catches type errors.
+
+---
+
+#### TailwindCSS 4
+
+Tailwind is a utility-first CSS framework: instead of writing `.position-table { color: red }`,
+you write `className="text-red-500"` directly on the element. The compiler scans source files
+for class names and emits only the CSS that is actually used — so the production stylesheet
+is typically a few KB.
+
+v4 (used here) moves configuration from `tailwind.config.js` to a CSS-first model: the
+theme lives in the root CSS file (`@theme {}` block), and the Vite plugin handles extraction.
+There is no separate config file to maintain.
+
+**Backend analogy**: it is the CSS equivalent of Lombok — verbose boilerplate replaced with
+concise annotations, at the cost of the HTML being harder to read in isolation.
+
+---
+
+#### Zustand 5
+
+Zustand is a minimal global state store. A store is defined as a plain function that returns
+an object of state and updater methods:
+
+```ts
+const usePositionStore = create<State>((set) => ({
+  positions: new Map(),
+  applyUpdate: (u) => set((s) => ({ positions: new Map(s.positions).set(u.symbol, u) })),
+}));
+```
+
+Components subscribe by calling the hook; they re-render only when the slice they select
+changes. Zustand 5 uses React's `useSyncExternalStore` internally, which prevents tearing
+under concurrent rendering.
+
+**Backend analogy**: a Zustand store is a thread-safe singleton service (think Spring's
+`@Service @Scope("singleton")`) that holds live in-memory state and exposes typed mutation
+methods. The three stores here (`positionStore`, `orderStore`, `connectionStore`) are
+effectively the UI's in-process cache for data arriving from REST snapshots and WebSocket
+streams — the same role a `ConcurrentHashMap` plays in a backend pub-sub consumer.
+
+The key difference from Redux (the older standard): there is no action/reducer/selector
+ceremony. Mutations are just method calls; there is no action type string dispatch loop.
+
+---
+
+#### React Router 6
+
+React Router implements **client-side routing** via the browser's History API. Clicking a
+`<Link to="/orders">` calls `history.pushState(...)` instead of triggering a full page load.
+The router matches the current URL against route definitions and renders the corresponding
+component.
+
+v6's `<Outlet />` pattern is the equivalent of Spring MVC's layout templates: `Layout.tsx`
+renders the sidebar and nav once; the matched child route fills the `<Outlet/>` slot. Route
+definitions live in `App.tsx` and are plain objects, not annotations.
+
+**Backend analogy**: routing is similar to Spring MVC's `@RequestMapping`, except resolution
+happens in the browser process rather than the server. The server (nginx in production) must
+return `index.html` for every path — hence the `try_files $uri /index.html` directive in
+`nginx.conf` — and the browser-side router takes over from there.
+
+---
+
+#### Recharts 2.13
+
+Recharts is a declarative chart library built on top of D3 (the low-level SVG/DOM
+manipulation library) and exposed as React components. You describe a chart structurally:
+
+```tsx
+<LineChart data={samples}>
+  <XAxis dataKey="t" />
+  <YAxis />
+  <Line type="monotone" dataKey="pnl" dot={false} />
+</LineChart>
+```
+
+`ResponsiveContainer` wraps any chart to make it fluid — it uses a `ResizeObserver` to
+re-render at the container's width. This is why the test setup needs a `ResizeObserver`
+polyfill: jsdom does not implement it.
+
+The `DailyPnlChart` deliberately avoids storing the ring buffer in React state. Instead it
+uses a `useRef` (a mutable box that does not trigger re-renders on write) and samples
+`usePositionStore.getState()` from a `setInterval`, only calling `setState` once per second
+to redraw the chart. This is the same pattern as using a background thread to aggregate
+metrics before publishing to a gauge.
+
+---
+
+#### Vitest 2.1
+
+Vitest is a unit test runner that runs inside the same Vite pipeline as the application,
+meaning the same TypeScript, path aliases, and environment variable handling apply in tests
+without extra configuration. The API is intentionally Jest-compatible (`describe`, `it`,
+`expect`, `vi.fn()`), so most Jest documentation translates directly.
+
+Tests run in Node.js (via `jsdom` for DOM simulation), not in a real browser. This makes
+them fast (no Chrome spawn overhead) but means browser-only APIs (like `ResizeObserver`,
+`WebSocket`) must be polyfilled or mocked.
+
+**Backend analogy**: Vitest is JUnit. `jsdom` is the test container that simulates the
+browser runtime, analogous to how a Spring Boot test context simulates the application
+container.
+
+---
+
+#### MSW 2.6 (Mock Service Worker)
+
+MSW intercepts `fetch` (and `XMLHttpRequest`) calls at the network layer — not by mocking
+the `fetch` function on `window`, but by installing a Service Worker in the browser (in
+browser mode) or patching Node's HTTP internals (in test mode via `msw/node`).
+
+The interception is transparent to application code: `api.ts` calls `fetch("/api/portfolio/summary")`
+exactly as it would against a real server; MSW intercepts the request, matches it against
+registered handlers, and returns the mocked response. No application code changes are
+needed to enable or disable mocking.
+
+**Backend analogy**: MSW is WireMock. The handler definition style (`http.get("/api/...",
+resolver)`) mirrors WireMock's stub DSL. Individual tests override the default handlers for
+specific scenarios (empty list, server error) the same way WireMock allows per-test stub
+overrides.
+
+---
+
+#### @testing-library/react 16
+
+Testing Library provides query utilities (`getByRole`, `getByText`, `findByLabelText`) and
+a `render` function that mounts a component into a minimal DOM and returns those queries.
+
+The core philosophy is to query elements the same way a user would find them — by visible
+label, role, or text — rather than by CSS class or component internals. This makes tests
+resilient to implementation refactors: renaming a CSS class or splitting a component does
+not break the test as long as the rendered output looks the same.
+
+**Backend analogy**: this is the equivalent of writing an `@SpringBootTest` that sends an
+HTTP request and asserts the response body, rather than wiring up the service layer directly
+and asserting against internal state. Both approaches test the unit from the outside; the
+distinction is how much infrastructure is involved.
+
+---
+
+#### Build pipeline end to end
+
+For backend engineers curious how `npm run build` → `ui/dist/` → Docker image → browser
+request fits together:
+
+```
+TypeScript source (src/)
+    │
+    ▼ tsc --noEmit        (type errors only; no output)
+    ▼ Vite / SWC          (transpile JSX+TS → JS, strip types)
+    ▼ Rollup              (tree-shake, code-split, minify)
+    ▼
+ui/dist/
+    ├── index.html        (entry point; references hashed bundles)
+    ├── assets/index-[hash].js    (application bundle)
+    └── assets/index-[hash].css   (Tailwind output)
+    │
+    ▼ COPY into nginx image (ui/Dockerfile stage 2)
+    ▼
+nginx (container, port 5173)
+    ├── GET /              → serves index.html (+ Cache-Control: no-cache)
+    ├── GET /assets/*      → serves hashed bundles (Cache-Control: immutable, 1y)
+    ├── GET /api/*         → proxy_pass http://api-gateway:8080
+    └── GET /ws/*          → proxy_pass (WebSocket upgrade) http://api-gateway:8080
+```
+
+The hash in bundle filenames is a content hash of the file — identical to how Maven/Gradle
+produces deterministic artifact checksums. Because the hash changes with content, browsers
+can cache bundles indefinitely (`immutable`) while `index.html` (unhashed) is always
+revalidated.
+
 ### Directory structure
 
 ```

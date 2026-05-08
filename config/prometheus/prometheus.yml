@@ -1,10 +1,13 @@
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
+
+# Application metrics are scraped by Grafana Alloy (config/alloy/config.alloy) and
+# remote-written into Prometheus. Prometheus does not directly scrape app services to
+# avoid metric duplication. Only Prometheus's own self-monitoring lives here.
 scrape_configs:
-  - job_name: 'api-gateway'
-    metrics_path: /actuator/prometheus
+  - job_name: 'prometheus'
     static_configs:
-        - targets: [ 'host.docker.internal:8091' ]
-          labels:
-            service: api-gateway
+      - targets: ['localhost:9090']
+        labels:
+          service: prometheus

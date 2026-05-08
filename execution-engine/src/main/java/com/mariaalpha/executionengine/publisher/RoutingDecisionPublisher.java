@@ -28,7 +28,7 @@ public class RoutingDecisionPublisher {
   public void publish(RoutingDecision decision) {
     try {
       var decisionAsJson = objectMapper.writeValueAsString(decision);
-      kafkaTemplate.send(config.ordersLifecycleTopic(), decision.orderId(), decisionAsJson);
+      kafkaTemplate.send(config.routingDecisionsTopic(), decision.orderId(), decisionAsJson);
       LOG.debug("Published routing decision: {} -> {}", decision.orderId(), decision.venue());
     } catch (JsonProcessingException e) {
       LOG.error(
