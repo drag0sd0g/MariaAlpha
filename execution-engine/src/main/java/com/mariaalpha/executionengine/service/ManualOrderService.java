@@ -45,7 +45,7 @@ public class ManualOrderService {
             Instant.now());
 
     var order = executionService.submitOrder(new Order(signal));
-    return new SubmitOrderResponse(order.getOrderId(), order.getStatus(), Instant.now());
+    return new SubmitOrderResponse(order.getOrderId(), order.getStatus(), signal.timestamp());
   }
 
   public boolean cancel(String orderId) {

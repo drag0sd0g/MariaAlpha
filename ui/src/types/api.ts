@@ -84,7 +84,7 @@ export interface SubmitOrderRequest {
 export interface SubmitOrderResponse {
   orderId: string;
   status: OrderStatus;
-  acceptedAt: string;
+  submittedAt: string;
 }
 
 // WS payload types — match Java records in market-data-gateway / order-manager / execution-engine.

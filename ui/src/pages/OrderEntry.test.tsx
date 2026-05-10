@@ -18,7 +18,7 @@ describe("OrderEntry", () => {
         expect(body.quantity).toBe(100);
         expect(body.limitPrice).toBe(178.5);
         return HttpResponse.json(
-          { orderId: "abc", status: "SUBMITTED", acceptedAt: "2026-05-02T10:00:00Z" },
+          { orderId: "abc", status: "SUBMITTED", submittedAt: "2026-05-02T10:00:00Z" },
           { status: 202 },
         );
       }),
