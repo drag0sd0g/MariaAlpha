@@ -38,8 +38,7 @@ typically ~90 seconds.
 
 Verify the gateway:
 ```bash
-curl -fsS -H "X-API-Key: $MARIAALPHA_API_KEY" \
-    http://localhost:8080/actuator/health/readiness
+curl -fsS http://localhost:8091/actuator/health/readiness
 # {"status":"UP"}
 ```
 
@@ -69,11 +68,9 @@ Save it for Step 6.
 
 ### 5. Place a marketable LIMIT order
 ```bash
-# First, peek at the current AAPL bid/ask via the gateway to choose a marketable price:
-curl -fsS -H "X-API-Key: $MARIAALPHA_API_KEY" \
-    http://localhost:8080/api/market-data/quote/AAPL
-
-# Then place a BUY LIMIT at or above the current ask:
+# market-data-gateway exposes no REST quote endpoint; check the current AAPL price
+# on https://finance.yahoo.com/quote/AAPL or Alpaca's paper dashboard, then place a
+# BUY LIMIT well above the current ask to guarantee an immediate fill:
 curl -X POST -H "X-API-Key: $MARIAALPHA_API_KEY" \
     -H "Content-Type: application/json" \
     -d '{
@@ -81,7 +78,7 @@ curl -X POST -H "X-API-Key: $MARIAALPHA_API_KEY" \
           "side": "BUY",
           "orderType": "LIMIT",
           "quantity": 1,
-          "limitPrice": <ask + 0.05>
+          "limitPrice": 9999.00
         }' \
     http://localhost:8080/api/execution/orders
 ```
@@ -93,8 +90,9 @@ curl -X POST -H "X-API-Key: $MARIAALPHA_API_KEY" \
 # Allow ~5 s for the round trip.
 
 sleep 10
+ORDER_ID=<paste-orderId-from-step-5-response>
 curl -fsS -H "X-API-Key: $MARIAALPHA_API_KEY" \
-    http://localhost:8080/api/orders/<orderId> | jq
+    http://localhost:8080/api/orders/$ORDER_ID | jq
 # Expected: status == "FILLED", fills array non-empty.
 
 curl -fsS -H "X-API-Key: $MARIAALPHA_API_KEY" \
@@ -108,8 +106,9 @@ curl -fsS -H "X-API-Key: $MARIAALPHA_API_KEY" \
 
 ### 7. Cancel the resting order from Step 4
 ```bash
+RESTING_ORDER_ID=<paste-orderId-from-step-4-response>
 curl -X DELETE -H "X-API-Key: $MARIAALPHA_API_KEY" \
-    http://localhost:8080/api/execution/orders/<resting-orderId>
+    http://localhost:8080/api/execution/orders/$RESTING_ORDER_ID
 # 204 No Content
 ```
 
