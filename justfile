@@ -76,12 +76,12 @@ verify:
             echo "  ✗ $name ($url)"
         fi
     }
-    check market-data-gateway  http://localhost:8081/actuator/health
-    check strategy-engine       http://localhost:8083/actuator/health
-    check execution-engine      http://localhost:8085/actuator/health
-    check order-manager         http://localhost:8087/actuator/health
-    check post-trade            http://localhost:8089/actuator/health
-    check api-gateway           http://localhost:8091/actuator/health
+    check market-data-gateway  http://localhost:8081/actuator/health/liveness
+    check strategy-engine       http://localhost:8083/actuator/health/liveness
+    check execution-engine      http://localhost:8085/actuator/health/liveness
+    check order-manager         http://localhost:8087/actuator/health/liveness
+    check post-trade            http://localhost:8089/actuator/health/liveness
+    check api-gateway           http://localhost:8091/actuator/health/liveness
     check ml-signal-service     http://localhost:8090/health
     check ui                    http://localhost:5173/
     check grafana               http://localhost:3001/api/health

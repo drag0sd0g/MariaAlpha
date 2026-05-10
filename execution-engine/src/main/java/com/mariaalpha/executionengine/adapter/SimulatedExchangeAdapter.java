@@ -9,6 +9,7 @@ import com.mariaalpha.executionengine.model.OrderAck;
 import com.mariaalpha.executionengine.model.OrderType;
 import com.mariaalpha.executionengine.model.Side;
 import com.mariaalpha.executionengine.service.MarketStateTracker;
+import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -74,6 +75,7 @@ public class SimulatedExchangeAdapter implements ExchangeAdapter {
     this.reportCallback = callback;
   }
 
+  @PostConstruct
   @Override
   public void start() {
     LOG.info(

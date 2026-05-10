@@ -3,6 +3,12 @@ spring:
     import: optional:file:./config/symbols.yml
 
 market-data:
+  symbols:
+    - AAPL
+    - MSFT
+    - GOOGL
+    - AMZN
+    - TSLA
   alpaca:
     websocket-url: wss://stream.data.alpaca.markets/v2/iex
     base-url: https://data.alpaca.markets
