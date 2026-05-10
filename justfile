@@ -1,3 +1,5 @@
+set dotenv-load
+
 # List all available recipes
 default:
     @just --list
@@ -64,25 +66,25 @@ docker-build:
 
 # Bring up the full stack and verify each service is healthy
 verify:
-    @echo "Polling /actuator/health on every service..."
-    @for endpoint in \
-        "http://localhost:8081/actuator/health     market-data-gateway" \
-        "http://localhost:8083/actuator/health     strategy-engine" \
-        "http://localhost:8085/actuator/health     execution-engine" \
-        "http://localhost:8087/actuator/health     order-manager" \
-        "http://localhost:8089/actuator/health     post-trade" \
-        "http://localhost:8091/actuator/health     api-gateway" \
-        "http://localhost:8090/health              ml-signal-service" \
-        "http://localhost:5173/                    ui" \
-        "http://localhost:3001/api/health          grafana"; do \
-        url=$$(echo $$endpoint | awk '{print $$1}'); \
-        name=$$(echo $$endpoint | awk '{print $$2}'); \
-        if curl -fsS --max-time 3 "$$url" >/dev/null 2>&1; then \
-            echo "  ✓ $$name"; \
-        else \
-            echo "  ✗ $$name ($$url)"; \
-        fi; \
-    done
+    #!/usr/bin/env bash
+    echo "Polling /actuator/health on every service..."
+    check() {
+        local name=$1 url=$2
+        if curl -fsS --max-time 3 "$url" >/dev/null 2>&1; then
+            echo "  ✓ $name"
+        else
+            echo "  ✗ $name ($url)"
+        fi
+    }
+    check market-data-gateway  http://localhost:8081/actuator/health/liveness
+    check strategy-engine       http://localhost:8083/actuator/health/liveness
+    check execution-engine      http://localhost:8085/actuator/health/liveness
+    check order-manager         http://localhost:8087/actuator/health/liveness
+    check post-trade            http://localhost:8089/actuator/health/liveness
+    check api-gateway           http://localhost:8091/actuator/health/liveness
+    check ml-signal-service     http://localhost:8090/health
+    check ui                    http://localhost:5173/
+    check grafana               http://localhost:3001/api/health
 
 # Generate gRPC stubs from proto definitions (Java + Python)
 proto:

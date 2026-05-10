@@ -5,6 +5,7 @@ import com.mariaalpha.executionengine.config.AlpacaConfig;
 import com.mariaalpha.executionengine.model.ExecutionInstruction;
 import com.mariaalpha.executionengine.model.ExecutionReport;
 import com.mariaalpha.executionengine.model.OrderAck;
+import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -114,6 +115,7 @@ public class AlpacaExchangeAdapter implements ExchangeAdapter {
     this.reportCallback = callback;
   }
 
+  @PostConstruct
   @Override
   public void start() {
     // Connect to Alpaca trade updates
