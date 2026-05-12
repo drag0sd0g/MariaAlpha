@@ -8,9 +8,11 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import okhttp3.Response;
 import okhttp3.WebSocket;
 import okhttp3.WebSocketListener;
+import okio.ByteString;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -22,17 +24,17 @@ public class AlpacaWebSocketListener extends WebSocketListener {
 
   private final AlpacaConfig config;
   private final ObjectMapper objectMapper;
-  private final Consumer<ExecutionReport> reportCallback;
+  private final Supplier<Consumer<ExecutionReport>> reportCallbackSupplier;
   private final AtomicBoolean connected;
 
   public AlpacaWebSocketListener(
       AlpacaConfig config,
       ObjectMapper objectMapper,
-      Consumer<ExecutionReport> reportCallback,
+      Supplier<Consumer<ExecutionReport>> reportCallbackSupplier,
       AtomicBoolean connected) {
     this.config = config;
     this.objectMapper = objectMapper;
-    this.reportCallback = reportCallback;
+    this.reportCallbackSupplier = reportCallbackSupplier;
     this.connected = connected;
   }
 
@@ -41,23 +43,46 @@ public class AlpacaWebSocketListener extends WebSocketListener {
     connected.set(true);
     var authMsg =
         String.format(
-            "{\"action\":\"auth\",\"key\":\"%s\",\"secret\":\"%s\"}",
+            "{\"action\":\"authenticate\",\"data\":{\"key_id\":\"%s\",\"secret_key\":\"%s\"}}",
             config.apiKey(), config.apiSecret());
     webSocket.send(authMsg);
     webSocket.send("{\"action\":\"listen\",\"data\":{\"streams\":[\"trade_updates\"]}}");
-    LOG.info("Alpaca WebSocket connected - subscribed to trade_updates stream");
+    LOG.info("Alpaca WebSocket connected - sent auth + listen for trade_updates");
   }
 
   @Override
   public void onMessage(@NotNull WebSocket webSocket, @NotNull String text) {
+    LOG.info("Alpaca WebSocket text frame: {}", text);
+    parseAndDispatch(text);
+  }
+
+  @Override
+  public void onMessage(@NotNull WebSocket webSocket, @NotNull ByteString bytes) {
     try {
-      var root = objectMapper.readTree(text);
-      var stream = root.path("stream").asText();
-      if ("trade_updates".equals(stream)) {
-        handleTradeUpdate(root.path("data"));
-      }
+      var node = objectMapper.readTree(bytes.toByteArray());
+      LOG.info("Alpaca WebSocket binary frame (msgpack/json): {}", node);
+      dispatch(node);
     } catch (Exception e) {
-      LOG.warn("Failed to parse WebSocket message: {}", e.getMessage(), e);
+      LOG.warn(
+          "Alpaca WebSocket binary frame parse failed (len={}, hex={}): {}",
+          bytes.size(),
+          bytes.hex().substring(0, Math.min(bytes.hex().length(), 80)),
+          e.getMessage());
+    }
+  }
+
+  private void parseAndDispatch(String text) {
+    try {
+      dispatch(objectMapper.readTree(text));
+    } catch (Exception e) {
+      LOG.warn("Failed to parse WebSocket text message: {}", e.getMessage(), e);
+    }
+  }
+
+  private void dispatch(JsonNode root) {
+    var stream = root.path("stream").asText();
+    if ("trade_updates".equals(stream)) {
+      handleTradeUpdate(root.path("data"));
     }
   }
 
@@ -73,8 +98,11 @@ public class AlpacaWebSocketListener extends WebSocketListener {
                   - tradeUpdate.get("order").get("filled_qty").asInt(),
               "ALPACA",
               Instant.parse(tradeUpdate.get("timestamp").asText()));
-      if (reportCallback != null) {
-        reportCallback.accept(executionReport);
+      Consumer<ExecutionReport> cb = reportCallbackSupplier.get();
+      if (cb != null) {
+        cb.accept(executionReport);
+      } else {
+        LOG.warn("Dropping fill — reportCallback not yet wired");
       }
     }
   }

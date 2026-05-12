@@ -12,6 +12,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -46,18 +47,19 @@ public class AlpacaExchangeAdapter implements ExchangeAdapter {
   @Override
   public OrderAck submitOrder(ExecutionInstruction instruction) {
     var order = instruction.order();
-    var body =
-        Map.of(
-            "symbol", order.getSymbol(),
-            "qty", String.valueOf(order.getQuantity()),
-            "side", order.getSide().name().toLowerCase(),
-            "type", order.getOrderType().getName(),
-            "time_in_force", instruction.timeInForce(),
-            "limit_price",
-                order.getLimitPrice() != null ? order.getLimitPrice().toPlainString() : null,
-            "stop_price",
-                order.getStopPrice() != null ? order.getStopPrice().toPlainString() : null,
-            "client_order_id", order.getOrderId());
+    Map<String, String> body = new HashMap<>();
+    body.put("symbol", order.getSymbol());
+    body.put("qty", String.valueOf(order.getQuantity()));
+    body.put("side", order.getSide().name().toLowerCase());
+    body.put("type", order.getOrderType().getName());
+    body.put("time_in_force", instruction.timeInForce());
+    body.put("client_order_id", order.getOrderId());
+    if (order.getLimitPrice() != null) {
+      body.put("limit_price", order.getLimitPrice().toPlainString());
+    }
+    if (order.getStopPrice() != null) {
+      body.put("stop_price", order.getStopPrice().toPlainString());
+    }
 
     try {
       var json = objectMapper.writeValueAsString(body);
@@ -118,11 +120,11 @@ public class AlpacaExchangeAdapter implements ExchangeAdapter {
   @PostConstruct
   @Override
   public void start() {
-    // Connect to Alpaca trade updates
     var request = new Request.Builder().url(config.websocketUrl()).build();
     this.webSocket =
         wsClient.newWebSocket(
-            request, new AlpacaWebSocketListener(config, objectMapper, reportCallback, connected));
+            request,
+            new AlpacaWebSocketListener(config, objectMapper, () -> reportCallback, connected));
   }
 
   @PreDestroy
