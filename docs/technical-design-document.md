@@ -1355,3 +1355,38 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 | [4.8.1](https://github.com/drag0sd0g/MariaAlpha/issues/113) | Implement ML-based adaptive SOR | Execution Engine |
 | [4.9.1](https://github.com/drag0sd0g/MariaAlpha/issues/114) | Evaluate Apache Flink for complex event processing | Infrastructure |
 
+### Future Considerations (unscheduled)
+
+Items below are deliberately **unscheduled** — they're recorded here so the rationale and trade-offs aren't lost, but the decision to take them on is deferred until either a concrete need or a phase boundary makes the cost/benefit clear.
+
+#### LMAX Disruptor refactor for in-process hot paths
+
+The current architecture relies on Spring `@KafkaListener` (one thread per partition), `ConcurrentHashMap`, `ThreadPoolBulkhead`, and Project Reactor for in-process event handling. End-to-end p99 latency today is gated by inter-service Kafka hops (~1–10 ms each), the ML gRPC call (up to 100 ms timeout), the Alpaca REST call, and Postgres writes — *not* by in-process queueing. So adopting the LMAX Disruptor pattern would not move NFR-2 today.
+
+A Disruptor-based refactor becomes worthwhile once features appear that are bound by **in-process throughput** rather than network I/O:
+
+- **Backtesting engine** (4.1.1) — millions of historical ticks replayed through the full pipeline in a single process; no Kafka, no DB hot path.
+- **Internal crossing engine** (2.1.2) — an in-process matching engine is the canonical single-writer Disruptor use case.
+- **Program / basket trading engine** (3.4.1) and **FIX gateway** (3.4.3) — high in-process fan-out per parent order.
+- **Tokyo full-depth market data** (3.3.x) — if it materially exceeds NFR-3's 10k ticks/s budget per gateway instance.
+
+The natural insertion point is **after Phase 3 and before Phase 4** — early Phase-3 features generate the throughput where the gain becomes visible, and Phase-4 backtesting/ML retraining would then build on a Disruptor-backed core. Taking it on earlier (during Phase 2) would conflate the SOR/risk work with a separate skill and is not justified by current load. Taking it on later (after Phase 4) means re-platforming a backtester that was built on the older foundation.
+
+Three ambition levels worth keeping in mind:
+
+| Level | Scope | Effort | Outcome |
+|---|---|---|---|
+| **A** | One new module (e.g. internal crossing engine) implemented Disruptor-internal, Kafka at the boundaries. | ~1 week | A contained, demonstrable component. Touches nothing else. |
+| **B** | `execution-engine` in-process pipeline (signal-in → audit → validate → risk → SOR → submit; fills → lifecycle → publish) refactored to a Disruptor ring with pooled events. Kafka stays at the edges. Persistence in `order-manager` stays as-is. | ~3–4 weeks | LMAX-style architectural fingerprint without the inter-service rip. Resilience4j bulkheads removed on the in-process path; mutable pooled event slots replace per-event allocation. Benchmarks become a deliverable. |
+| **C** | Consolidate `execution-engine` + `order-manager` into one event-sourced "business-logic core" running on a single Disruptor pipeline (LMAX original). Postgres becomes a journal sink; state is in-memory and rebuilt by replay. Aeron/Chronicle Queue replaces Kafka for core transport. | ~8–12 weeks | Maximally HFT-realistic but reverses the §5.1 microservice choice for the trading core. |
+
+**Default recommendation when this is picked up: Level B, scheduled as a dedicated milestone between Phase 3 and Phase 4.** Level A remains the right scope-limited pilot if it ends up bundled into 2.1.2's internal crossing engine. Level C is documented for completeness but should not be considered without an explicit product-level decision to abandon the microservice boundary between execution and order management.
+
+Friction points that any of the above will have to address:
+
+- `@KafkaListener` and `@Transactional` flows are blocking by design — bridge code is needed at the ring boundaries.
+- JDBC inside a Disruptor handler stalls the ring; persistence must stay outside the hot path (Level B) or be replaced by event sourcing (Level C).
+- Project Reactor in `market-data-gateway` (`OrderBookManager` / `Sinks.Many`) does not compose with Disruptor — pick one model per service.
+- Resilience4j `ThreadPoolBulkhead` is the pattern Disruptor replaces; it would be retired from the in-process path and retained only for outbound HTTP boundaries.
+- Without pinned cores / low-jitter hosts (i.e. on a noisy K8s pod), Disruptor's measurable gain shrinks substantially — the deployment target affects ROI.
+
