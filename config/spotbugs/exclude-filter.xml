@@ -177,6 +177,39 @@
         <Class name="com.mariaalpha.executionengine.controller.ExecutionController"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
+    <!-- Smart Order Router (issue 2.1.1) -->
+    <Match>
+        <Class name="com.mariaalpha.executionengine.model.RoutingDecision"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.config.SorConfig"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.router.scorer.ScoringContext"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.router.VenueScoreBreakdown"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.router.VenueRegistry"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.router.ScoredSmartOrderRouter"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.controller.RoutingController"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.controller.dto.RoutingPreviewResponse"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
     <Match>
         <Class name="com.mariaalpha.ordermanager.service.OrderPersistenceService"/>
         <Bug pattern="EI_EXPOSE_REP2"/>

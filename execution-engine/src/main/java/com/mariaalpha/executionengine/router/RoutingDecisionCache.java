@@ -17,10 +17,10 @@ public class RoutingDecisionCache {
     var max = Math.max(1, config.decisionCacheSize());
     this.cache =
         Collections.synchronizedMap(
-            new LinkedHashMap<>(max, 0.75f, true) {
+            new LinkedHashMap<String, RoutingDecision>(max, 0.75f, true) {
               @Override
               protected boolean removeEldestEntry(Map.Entry<String, RoutingDecision> eldest) {
-                return size() > max;
+                return super.size() > max;
               }
             });
   }

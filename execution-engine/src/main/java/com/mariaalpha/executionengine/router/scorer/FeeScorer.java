@@ -26,7 +26,7 @@ public class FeeScorer implements VenueScoreCriterion {
     if (order.getOrderType() == OrderType.MARKET || order.getOrderType() == OrderType.STOP) {
       return true;
     }
-    if (order.getOrderType() == OrderType.LIMIT
+    if (order.getOrderType() != OrderType.LIMIT
         || order.getLimitPrice() == null
         || marketState == null) {
       return false;

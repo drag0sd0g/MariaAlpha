@@ -32,7 +32,7 @@ class RoutingDecisionCacheTest {
     var cache = cacheOfSize(2);
     cache.put(decision("o-1"));
     cache.put(decision("o-2"));
-    cache.get("o-1"); // touch
+    assertThat(cache.get("o-1")).isPresent(); // touch
     cache.put(decision("o-3"));
     assertThat(cache.get("o-1")).isPresent();
     assertThat(cache.get("o-2")).isEmpty();

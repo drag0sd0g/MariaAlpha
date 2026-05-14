@@ -5,6 +5,7 @@ import static org.awaitility.Awaitility.await;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.mariaalpha.executionengine.config.SorConfig;
 import com.mariaalpha.executionengine.metrics.ExecutionMetrics;
 import com.mariaalpha.executionengine.model.MarketState;
@@ -51,7 +52,8 @@ class ScoredRouterKafkaIntegrationTest {
 
   private static KafkaTemplate<String, String> producerTemplate;
   private static KafkaConsumer<String, String> consumer;
-  private static final ObjectMapper MAPPER = new ObjectMapper();
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper().registerModule(new JavaTimeModule());
 
   @BeforeAll
   static void setUpKafka() {
@@ -69,13 +71,18 @@ class ScoredRouterKafkaIntegrationTest {
     consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
     consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+    // Refresh topic metadata aggressively so we discover routing.decisions soon after the
+    // producer auto-creates it on first send (default metadata.max.age.ms is 5 min).
+    consumerProps.put(ConsumerConfig.METADATA_MAX_AGE_CONFIG, 1000);
     consumer = new KafkaConsumer<>(consumerProps);
     consumer.subscribe(java.util.List.of("routing.decisions"));
   }
 
   @AfterAll
   static void tearDown() {
-    if (consumer != null) consumer.close();
+    if (consumer != null) {
+      consumer.close();
+    }
   }
 
   @Test
@@ -149,7 +156,9 @@ class ScoredRouterKafkaIntegrationTest {
         .until(
             () -> {
               ConsumerRecords<String, String> recs = consumer.poll(Duration.ofMillis(500));
-              if (recs.isEmpty()) return false;
+              if (recs.isEmpty()) {
+                return false;
+              }
               ref.set(recs.iterator().next());
               return true;
             });
