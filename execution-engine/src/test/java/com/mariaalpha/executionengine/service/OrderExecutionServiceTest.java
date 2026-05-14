@@ -59,7 +59,13 @@ class OrderExecutionServiceTest {
 
     when(dailyLossMonitor.isTradingHalted()).thenReturn(false);
     when(router.route(any()))
-        .thenReturn(new RoutingDecision("order-1", "PRIMARY", "DirectRouter", Instant.now()));
+        .thenAnswer(
+            inv -> {
+              Order o = inv.getArgument(0);
+              o.setVenue("PRIMARY");
+              return RoutingDecision.legacy(
+                  o.getOrderId(), "PRIMARY", "DirectRouter", Instant.now());
+            });
 
     service =
         new OrderExecutionService(

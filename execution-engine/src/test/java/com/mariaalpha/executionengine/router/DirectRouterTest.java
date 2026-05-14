@@ -27,11 +27,14 @@ class DirectRouterTest {
   }
 
   @Test
-  void routeReturnsDecision() {
+  void routeReturnsLegacyDecision() {
     var order = createOrder();
     var decision = router.route(order);
     assertThat(decision.venue()).isEqualTo("PRIMARY");
     assertThat(decision.orderId()).isEqualTo(order.getOrderId());
+    assertThat(decision.candidateScores()).isNull();
+    assertThat(decision.weights()).isNull();
+    assertThat(decision.marketSnapshot()).isNull();
   }
 
   @Test
@@ -39,6 +42,13 @@ class DirectRouterTest {
     var order = createOrder();
     router.route(order);
     verify(publisher).publish(any(RoutingDecision.class));
+  }
+
+  @Test
+  void routeSetsOrderVenue() {
+    var order = createOrder();
+    router.route(order);
+    assertThat(order.getVenue()).isEqualTo("PRIMARY");
   }
 
   private Order createOrder() {

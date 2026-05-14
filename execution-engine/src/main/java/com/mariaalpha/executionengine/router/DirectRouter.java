@@ -27,6 +27,7 @@ public class DirectRouter implements SmartOrderRouter {
             VENUE,
             "DirectRouter: pass-through to primary exchange adapter",
             Instant.now());
+    order.setVenue(VENUE);
     publisher.publish(decision);
     return decision;
   }

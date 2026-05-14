@@ -727,9 +727,25 @@ Future checks: Sector Exposure (Phase 2), Beta Exposure (Phase 2), ADV Sizing (P
 
 Both `MarketDataAdapter` and `ExchangeAdapter` are pluggable via Spring profiles (`spring.profiles.active: alpaca | simulated | ibkr`). Each adapter implementation is annotated with `@Profile("simulated")` / `@Profile("alpaca")` etc., and profile-specific configuration is externalized via `@ConfigurationProperties` records and corresponding `application-{profile}.yml` files (e.g., `application-simulated.yml` defines `market-data.simulated.csv-path` and `market-data.simulated.speed-multiplier`). Adding a new exchange requires implementing two interfaces — no changes to upstream services.
 
-#### 5.3.5 Smart Order Router (Phase 2)
+#### 5.3.5 Smart Order Router
 
-MVP uses `DirectRouter` (pass-through). Phase 2 SOR considers: price improvement, liquidity, latency, fees, information leakage, and internalization opportunities across lit, dark, and internal crossing venues.
+`SmartOrderRouter` is a single-method interface (`route(Order) → RoutingDecision`) called between
+the risk-check chain and the exchange adapter. Two implementations ship today, selected by
+`execution-engine.sor.mode`:
+
+- **`DirectRouter`** (`mode=direct`) — pass-through to the configured exchange adapter. Phase-1
+  fallback retained for one-flag rollback.
+- **`ScoredSmartOrderRouter`** (`mode=scored`, default) — weighted multi-criteria scoring across
+  configured venues. Five `VenueScoreCriterion` beans (PriceImprovement, Liquidity, Latency, Fees,
+  InformationLeakage) each return a score in [0,1]; the weighted sum picks one venue per order.
+  Each decision is persisted to Kafka topic `routing.decisions` with the full per-venue breakdown
+  and the market snapshot used. The router exposes `/api/routing/{venues,score,decisions/{orderId}}`
+  endpoints documented via springdoc.
+
+Three venue types are modelled (`LIT`, `DARK`, `INTERNAL`). The MVP profile registers a single LIT
+venue (`SIMULATED` or `ALPACA`); issue 2.1.2 introduces simulated dark and internal venue
+**adapters** and a `VenueAdapterRegistry` that submits each routed child order to the right
+adapter. ML-based adaptive scoring is deferred to Phase 4 (issue 4.8.1).
 
 #### 5.3.6 Electronic Trading API (Phase 3)
 

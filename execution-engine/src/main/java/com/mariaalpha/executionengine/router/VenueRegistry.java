@@ -17,13 +17,13 @@ public class VenueRegistry {
   private final SorConfig config;
   private final List<Venue> venues;
 
-  public VenueRegistry(SorConfig config, List<Venue> venues) {
+  public VenueRegistry(SorConfig config) {
     this.config = config;
     this.venues = config.venues() == null ? List.of() : List.copyOf(config.venues());
   }
 
   @PostConstruct
-  void validate() {
+  public void validate() {
     var weights = config.weights();
     if (weights == null) {
       throw new IllegalStateException("execution-engine.sor.weights is required");

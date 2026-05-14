@@ -105,7 +105,7 @@ public class OrderExecutionService {
       return;
     }
 
-    // 3. Route
+    // 3. SOR. Sets order.venue as a side effect; the chosen venue propagates through OrderSnapshot.
     var routingDecision = router.route(order);
 
     // 4. Build execution instruction and submit
