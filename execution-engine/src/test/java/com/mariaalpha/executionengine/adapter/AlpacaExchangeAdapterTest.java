@@ -44,7 +44,8 @@ class AlpacaExchangeAdapterTest {
   void webSocketListenerParsesTradeUpdate() {
     var callback = new AtomicReference<ExecutionReport>();
     var connected = new AtomicBoolean(false);
-    var listener = new AlpacaWebSocketListener(config, objectMapper, callback::set, connected);
+    var listener =
+        new AlpacaWebSocketListener(config, objectMapper, () -> callback::set, connected);
 
     // Simulate onOpen
     var mockWs = mock(okhttp3.WebSocket.class);
@@ -80,7 +81,7 @@ class AlpacaExchangeAdapterTest {
   @Test
   void webSocketDisconnectSetsUnhealthy() {
     var connected = new AtomicBoolean(true);
-    var listener = new AlpacaWebSocketListener(config, objectMapper, r -> {}, connected);
+    var listener = new AlpacaWebSocketListener(config, objectMapper, () -> r -> {}, connected);
     var mockWs = mock(okhttp3.WebSocket.class);
 
     listener.onClosed(mockWs, 1000, "normal");
@@ -90,7 +91,7 @@ class AlpacaExchangeAdapterTest {
   @Test
   void webSocketFailureSetsUnhealthy() {
     var connected = new AtomicBoolean(true);
-    var listener = new AlpacaWebSocketListener(config, objectMapper, r -> {}, connected);
+    var listener = new AlpacaWebSocketListener(config, objectMapper, () -> r -> {}, connected);
     var mockWs = mock(okhttp3.WebSocket.class);
 
     listener.onFailure(mockWs, new RuntimeException("connection lost"), null);

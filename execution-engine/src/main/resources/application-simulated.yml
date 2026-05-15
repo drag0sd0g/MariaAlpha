@@ -2,5 +2,37 @@ execution-engine:
   simulated:
     fill-latency-ms: 50
     slippage-bps: 2
-    partial-fill-ratio: 1.0  # 1.0 = always full fill
+    partial-fill-ratio: 1.0
     venue: SIMULATED
+  sor:
+    venues:
+      - name: SIMULATED
+        type: LIT
+        avg-latency-ms: 50
+        taker-fee-bps: 0
+        maker-rebate-bps: 0
+        leakage-score: 1.0
+        top-of-book-size: 10000
+        fill-rate: 1.0
+        adapter-bean: primary
+        enabled: true
+      - name: DARK_POOL_A
+        type: DARK
+        avg-latency-ms: 30
+        taker-fee-bps: 1
+        maker-rebate-bps: 0
+        leakage-score: 0.20
+        top-of-book-size: 0
+        fill-rate: 0.40
+        adapter-bean: dark-pool-a
+        enabled: true
+      - name: INTERNAL_CROSS
+        type: INTERNAL
+        avg-latency-ms: 1
+        taker-fee-bps: 0
+        maker-rebate-bps: 0
+        leakage-score: 0.0
+        top-of-book-size: 0
+        fill-rate: 0.60
+        adapter-bean: internal-cross
+        enabled: true

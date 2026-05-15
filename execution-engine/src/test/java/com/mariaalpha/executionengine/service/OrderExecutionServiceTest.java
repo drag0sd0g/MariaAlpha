@@ -4,12 +4,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.mariaalpha.executionengine.adapter.ExchangeAdapter;
+import com.mariaalpha.executionengine.adapter.VenueAdapter;
+import com.mariaalpha.executionengine.adapter.VenueAdapterRegistry;
 import com.mariaalpha.executionengine.handler.MarketOrderHandler;
 import com.mariaalpha.executionengine.handler.OrderTypeHandlerRegistry;
 import com.mariaalpha.executionengine.lifecycle.OrderLifecycleManager;
@@ -28,6 +30,7 @@ import com.mariaalpha.executionengine.model.Side;
 import com.mariaalpha.executionengine.risk.DailyLossMonitor;
 import com.mariaalpha.executionengine.risk.RiskCheckChain;
 import com.mariaalpha.executionengine.router.SmartOrderRouter;
+import com.mariaalpha.executionengine.router.VenueType;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Optional;
@@ -39,7 +42,8 @@ class OrderExecutionServiceTest {
   private OrderTypeHandlerRegistry handlerRegistry;
   private RiskCheckChain riskCheckChain;
   private SmartOrderRouter router;
-  private ExchangeAdapter exchangeAdapter;
+  private VenueAdapterRegistry venueAdapters;
+  private VenueAdapter primaryVenueAdapter;
   private OrderLifecycleManager lifecycleManager;
   private MarketStateTracker marketStateTracker;
   private DailyLossMonitor dailyLossMonitor;
@@ -51,26 +55,39 @@ class OrderExecutionServiceTest {
     handlerRegistry = mock(OrderTypeHandlerRegistry.class);
     riskCheckChain = mock(RiskCheckChain.class);
     router = mock(SmartOrderRouter.class);
-    exchangeAdapter = mock(ExchangeAdapter.class);
+    venueAdapters = mock(VenueAdapterRegistry.class);
+    primaryVenueAdapter = mock(VenueAdapter.class);
     lifecycleManager = mock(OrderLifecycleManager.class);
     marketStateTracker = mock(MarketStateTracker.class);
     dailyLossMonitor = mock(DailyLossMonitor.class);
     metrics = mock(ExecutionMetrics.class);
 
+    when(primaryVenueAdapter.venueName()).thenReturn("PRIMARY");
+    when(primaryVenueAdapter.venueType()).thenReturn(VenueType.LIT);
+    when(venueAdapters.get("PRIMARY")).thenReturn(Optional.of(primaryVenueAdapter));
+    when(venueAdapters.adapters()).thenReturn(java.util.List.of(primaryVenueAdapter));
+
     when(dailyLossMonitor.isTradingHalted()).thenReturn(false);
     when(router.route(any()))
-        .thenReturn(new RoutingDecision("order-1", "PRIMARY", "DirectRouter", Instant.now()));
+        .thenAnswer(
+            inv -> {
+              Order o = inv.getArgument(0);
+              o.setVenue("PRIMARY");
+              return RoutingDecision.legacy(
+                  o.getOrderId(), "PRIMARY", "DirectRouter", Instant.now());
+            });
 
     service =
         new OrderExecutionService(
             handlerRegistry,
             riskCheckChain,
             router,
-            exchangeAdapter,
+            venueAdapters,
             lifecycleManager,
             marketStateTracker,
             dailyLossMonitor,
             metrics);
+    service.registerCallbacks();
   }
 
   @Test
@@ -86,7 +103,7 @@ class OrderExecutionServiceTest {
                 new BigDecimal("150"),
                 Instant.now()));
     when(riskCheckChain.evaluate(any())).thenReturn(RiskCheckResult.pass("ALL"));
-    when(exchangeAdapter.submitOrder(any()))
+    when(primaryVenueAdapter.submitOrder(any()))
         .thenReturn(new OrderAck("order-1", "SIM-abc", true, ""));
 
     var signal =
@@ -95,7 +112,7 @@ class OrderExecutionServiceTest {
 
     verify(lifecycleManager).registerOrder(any());
     verify(lifecycleManager).transition(any(), eq(OrderStatus.SUBMITTED), isNull(), isNull());
-    verify(exchangeAdapter).submitOrder(any());
+    verify(primaryVenueAdapter).submitOrder(any());
   }
 
   @Test
@@ -106,7 +123,7 @@ class OrderExecutionServiceTest {
         new OrderSignal("AAPL", Side.BUY, 100, OrderType.MARKET, null, null, "VWAP", Instant.now());
     service.executeSignal(signal);
 
-    verify(exchangeAdapter, never()).submitOrder(any());
+    verify(primaryVenueAdapter, never()).submitOrder(any());
     verify(metrics).recordRejection("TradingHalted");
   }
 
@@ -134,7 +151,7 @@ class OrderExecutionServiceTest {
 
     verify(lifecycleManager)
         .transition(any(), eq(OrderStatus.REJECTED), isNull(), contains("No market data"));
-    verify(exchangeAdapter, never()).submitOrder(any());
+    verify(primaryVenueAdapter, never()).submitOrder(any());
   }
 
   @Test
@@ -158,7 +175,7 @@ class OrderExecutionServiceTest {
 
     verify(lifecycleManager)
         .transition(any(), eq(OrderStatus.REJECTED), isNull(), eq("Exceeds $100K"));
-    verify(exchangeAdapter, never()).submitOrder(any());
+    verify(primaryVenueAdapter, never()).submitOrder(any());
   }
 
   @Test
@@ -174,7 +191,7 @@ class OrderExecutionServiceTest {
                 new BigDecimal("150"),
                 Instant.now()));
     when(riskCheckChain.evaluate(any())).thenReturn(RiskCheckResult.pass("ALL"));
-    when(exchangeAdapter.submitOrder(any()))
+    when(primaryVenueAdapter.submitOrder(any()))
         .thenReturn(new OrderAck("order-1", "", false, "Insufficient buying power"));
 
     var signal =
@@ -220,6 +237,36 @@ class OrderExecutionServiceTest {
     verify(lifecycleManager)
         .transition(
             eq(order.getOrderId()), eq(OrderStatus.PARTIALLY_FILLED), any(Fill.class), isNull());
+  }
+
+  @Test
+  void rejectsWhenNoAdapterForChosenVenue() {
+    var handler = new MarketOrderHandler();
+    when(handlerRegistry.getHandler(OrderType.MARKET)).thenReturn(Optional.of(handler));
+    when(marketStateTracker.getMarketState("AAPL"))
+        .thenReturn(
+            new MarketState(
+                "AAPL",
+                new BigDecimal("149"),
+                new BigDecimal("151"),
+                new BigDecimal("150"),
+                Instant.now()));
+    when(riskCheckChain.evaluate(any())).thenReturn(RiskCheckResult.pass("ALL"));
+    doAnswer(
+            inv -> {
+              Order o = inv.getArgument(0);
+              o.setVenue("MISSING");
+              return RoutingDecision.legacy(o.getOrderId(), "MISSING", "scored", Instant.now());
+            })
+        .when(router)
+        .route(any());
+    when(venueAdapters.get("MISSING")).thenReturn(Optional.empty());
+
+    service.executeSignal(
+        new OrderSignal(
+            "AAPL", Side.BUY, 100, OrderType.MARKET, null, null, "VWAP", Instant.now()));
+
+    verify(metrics).recordRejection("NoVenueAdapter");
   }
 
   private static String contains(String substring) {

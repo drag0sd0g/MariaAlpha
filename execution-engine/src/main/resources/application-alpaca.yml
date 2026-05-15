@@ -6,3 +6,15 @@ execution-engine:
     data-url: ${ALPACA_DATA_URL:https://data.alpaca.markets}
     websocket-url: ${ALPACA_WS_URL:wss://paper-api.alpaca.markets/stream}
     venue: ALPACA
+  sor:
+    venues:
+      - name: ALPACA
+        type: LIT
+        avg-latency-ms: 100
+        taker-fee-bps: 0
+        maker-rebate-bps: 0
+        leakage-score: 1.0
+        top-of-book-size: 5000
+        fill-rate: 0.90
+        adapter-bean: primary
+        enabled: true

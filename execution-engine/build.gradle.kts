@@ -10,6 +10,9 @@ dependencies {
     implementation(libs.spring.boot.starter.actuator)
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 
+    // OpenAPI 3 — Phase 2 (issue 2.1.1)
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
+
     // Resilience4j
     implementation(libs.resilience4j.circuitbreaker)
     implementation(libs.resilience4j.retry)

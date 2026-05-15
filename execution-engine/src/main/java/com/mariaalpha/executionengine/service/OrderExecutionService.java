@@ -1,6 +1,6 @@
 package com.mariaalpha.executionengine.service;
 
-import com.mariaalpha.executionengine.adapter.ExchangeAdapter;
+import com.mariaalpha.executionengine.adapter.VenueAdapterRegistry;
 import com.mariaalpha.executionengine.handler.OrderTypeHandlerRegistry;
 import com.mariaalpha.executionengine.lifecycle.OrderLifecycleManager;
 import com.mariaalpha.executionengine.metrics.ExecutionMetrics;
@@ -12,6 +12,7 @@ import com.mariaalpha.executionengine.model.OrderStatus;
 import com.mariaalpha.executionengine.risk.DailyLossMonitor;
 import com.mariaalpha.executionengine.risk.RiskCheckChain;
 import com.mariaalpha.executionengine.router.SmartOrderRouter;
+import jakarta.annotation.PostConstruct;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +26,7 @@ public class OrderExecutionService {
   private final OrderTypeHandlerRegistry handlerRegistry;
   private final RiskCheckChain riskCheckChain;
   private final SmartOrderRouter router;
-  private final ExchangeAdapter exchangeAdapter;
+  private final VenueAdapterRegistry venueAdapters;
   private final OrderLifecycleManager lifecycleManager;
   private final MarketStateTracker marketStateTracker;
   private final DailyLossMonitor dailyLossMonitor;
@@ -35,7 +36,7 @@ public class OrderExecutionService {
       OrderTypeHandlerRegistry handlerRegistry,
       RiskCheckChain riskCheckChain,
       SmartOrderRouter router,
-      ExchangeAdapter exchangeAdapter,
+      VenueAdapterRegistry venueAdapters,
       OrderLifecycleManager lifecycleManager,
       MarketStateTracker marketStateTracker,
       DailyLossMonitor dailyLossMonitor,
@@ -43,24 +44,22 @@ public class OrderExecutionService {
     this.handlerRegistry = handlerRegistry;
     this.riskCheckChain = riskCheckChain;
     this.router = router;
-    this.exchangeAdapter = exchangeAdapter;
+    this.venueAdapters = venueAdapters;
     this.lifecycleManager = lifecycleManager;
     this.marketStateTracker = marketStateTracker;
     this.dailyLossMonitor = dailyLossMonitor;
     this.metrics = metrics;
+  }
 
-    // Register fill callback so exchange adapter pushes fills to us
-    this.exchangeAdapter.onExecutionReport(this::onExecutionReport);
+  @PostConstruct
+  void registerCallbacks() {
+    venueAdapters.adapters().forEach(a -> a.onExecutionReport(this::onExecutionReport));
   }
 
   public void executeSignal(OrderSignal signal) {
     processOrder(new Order(signal));
   }
 
-  /**
-   * Submits an order created externally (e.g. manual order entry) and returns it so the caller can
-   * read the assigned orderId.
-   */
   public Order submitOrder(Order order) {
     processOrder(order);
     return order;
@@ -69,7 +68,6 @@ public class OrderExecutionService {
   private void processOrder(Order order) {
     long startTime = System.currentTimeMillis();
 
-    // 0. Check trading halt
     if (dailyLossMonitor.isTradingHalted()) {
       LOG.warn("Signal rejected - trading halted. Symbol: {}", order.getSymbol());
       metrics.recordRejection("TradingHalted");
@@ -78,7 +76,6 @@ public class OrderExecutionService {
 
     lifecycleManager.registerOrder(order);
 
-    // 1. Validate via order type handler
     var handler = handlerRegistry.getHandler(order.getOrderType()).orElse(null);
     if (handler == null) {
       lifecycleManager.transition(
@@ -96,7 +93,6 @@ public class OrderExecutionService {
       return;
     }
 
-    // 2. Risk check chain
     var riskResult = riskCheckChain.evaluate(order);
     if (!riskResult.passed()) {
       lifecycleManager.transition(
@@ -105,19 +101,28 @@ public class OrderExecutionService {
       return;
     }
 
-    // 3. Route
     var routingDecision = router.route(order);
+    var adapter = venueAdapters.get(routingDecision.venue()).orElse(null);
+    if (adapter == null) {
+      lifecycleManager.transition(
+          order.getOrderId(),
+          OrderStatus.REJECTED,
+          null,
+          "No adapter for venue " + routingDecision.venue());
+      metrics.recordRejection("NoVenueAdapter");
+      return;
+    }
 
-    // 4. Build execution instruction and submit
     var execInstruction = handler.toExecutionInstruction(order);
-    var orderAck = exchangeAdapter.submitOrder(execInstruction);
+    var orderAck = adapter.submitOrder(execInstruction);
     if (orderAck.accepted()) {
       order.setExchangeOrderId(orderAck.exchangeOrderId());
       lifecycleManager.transition(order.getOrderId(), OrderStatus.SUBMITTED, null, null);
+      metrics.recordVenueSubmit(adapter.venueName(), adapter.venueType().name());
       LOG.info(
           "Order {} submitted to {} - exchangeId: {}",
           order.getOrderId(),
-          routingDecision.venue(),
+          adapter.venueName(),
           orderAck.exchangeOrderId());
     } else {
       lifecycleManager.transition(
@@ -128,7 +133,6 @@ public class OrderExecutionService {
     metrics.recordOrderLatency(System.currentTimeMillis() - startTime);
   }
 
-  /** Called by the exchange adapter when a fill arrives. */
   public void onExecutionReport(ExecutionReport report) {
     var order = lifecycleManager.findByExchangeOrderId(report.exchangeOrderId());
     if (order == null) {
@@ -151,7 +155,11 @@ public class OrderExecutionService {
         report.remainingQuantity() == 0 ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED;
     lifecycleManager.transition(order.getOrderId(), newStatus, fill, null);
 
-    // Update daily p&l
+    venueAdapters.adapters().stream()
+        .filter(a -> a.venueName().equals(report.venue()))
+        .findFirst()
+        .ifPresent(a -> metrics.recordVenueFill(a.venueName(), a.venueType().name()));
+
     dailyLossMonitor.onFill(fill, order.getAvgFillPrice(), order.getSymbol());
   }
 }

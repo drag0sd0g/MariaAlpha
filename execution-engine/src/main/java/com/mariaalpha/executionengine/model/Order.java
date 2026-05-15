@@ -25,6 +25,7 @@ public class Order {
   private volatile String exchangeOrderId;
   private volatile int filledQuantity;
   private volatile BigDecimal avgFillPrice;
+  private volatile String venue;
 
   public Order(OrderSignal signal) {
     this.orderId = UUID.randomUUID().toString();
@@ -110,6 +111,14 @@ public class Order {
     return List.copyOf(fills);
   }
 
+  public String getVenue() {
+    return venue;
+  }
+
+  public void setVenue(String venue) {
+    this.venue = venue;
+  }
+
   public OrderSnapshot toSnapshot() {
     return new OrderSnapshot(
         orderId,
@@ -123,14 +132,14 @@ public class Order {
         strategyName,
         filledQuantity,
         avgFillPrice,
-        exchangeOrderId);
+        exchangeOrderId,
+        venue);
   }
 
   public synchronized void addFill(Fill fill) {
     fills.add(fill);
-    int newFilledQuantity = getFilledQuantity() + fill.fillQuantity();
-    // Recompute weighted average fill price
-    BigDecimal totalCost =
+    var newFilledQuantity = getFilledQuantity() + fill.fillQuantity();
+    var totalCost =
         avgFillPrice
             .multiply(BigDecimal.valueOf(filledQuantity))
             .add(fill.fillPrice().multiply(BigDecimal.valueOf(fill.fillQuantity())));

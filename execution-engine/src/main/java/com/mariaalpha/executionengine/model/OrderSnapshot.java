@@ -14,4 +14,5 @@ public record OrderSnapshot(
     String strategyName,
     int filledQuantity,
     BigDecimal avgFillPrice,
-    String exchangeOrderId) {}
+    String exchangeOrderId,
+    String venue) {}

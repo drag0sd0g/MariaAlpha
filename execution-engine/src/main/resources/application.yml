@@ -29,11 +29,78 @@ execution-engine:
     routing-decisions-topic: routing.decisions
     risk-alerts-topic: analytics.risk-alerts
   risk:
-    max-order-notional: 100000       # $100,000
-    max-position-per-symbol: 500000  # $500,000 notional
-    max-portfolio-exposure: 2000000  # $2,000,000 gross
+    max-order-notional: 100000
+    max-position-per-symbol: 500000
+    max-portfolio-exposure: 2000000
     max-open-orders: 50
-    max-daily-loss: 25000            # $25,000
+    max-daily-loss: 25000
+  sor:
+    mode: ${EXECUTION_ENGINE_SOR_MODE:scored}
+    max-latency-ms: 200
+    max-fee-bps: 10
+    max-price-improvement-bps: 5
+    decision-cache-size: 1000
+    weights:
+      price-improvement: 0.25
+      liquidity: 0.25
+      latency: 0.10
+      fees: 0.15
+      information-leakage: 0.25
+    venues:
+      - name: PRIMARY
+        type: LIT
+        avg-latency-ms: 50
+        taker-fee-bps: 3
+        maker-rebate-bps: 2
+        leakage-score: 1.0
+        top-of-book-size: 10000
+        fill-rate: 0.95
+        adapter-bean: primary
+        enabled: true
+      - name: DARK_POOL_A
+        type: DARK
+        avg-latency-ms: 30
+        taker-fee-bps: 1
+        maker-rebate-bps: 0
+        leakage-score: 0.20
+        top-of-book-size: 0
+        fill-rate: 0.40
+        adapter-bean: dark-pool-a
+        enabled: false
+      - name: INTERNAL_CROSS
+        type: INTERNAL
+        avg-latency-ms: 1
+        taker-fee-bps: 0
+        maker-rebate-bps: 0
+        leakage-score: 0.0
+        top-of-book-size: 0
+        fill-rate: 0.60
+        adapter-bean: internal-cross
+        enabled: false
+  dark-pool:
+    venue: DARK_POOL_A
+    tick-interval-ms: 100
+    match-probability-per-tick: 0.10
+    min-spread-bps: 1
+    fill-latency-ms: 30
+    partial-fill-ratio: 0.5
+    max-pending: 1000
+    seed: -1 # -1 = unseeded (production)
+  internal-crossing:
+    venue: INTERNAL_CROSS
+    cross-probability-on-submit: 0.6
+    tick-interval-ms: 50
+    match-probability-per-tick: 0.30
+    fill-latency-ms: 1
+    max-pending: 1000
+    seed: -1
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui
+  show-actuator: false
 
 management:
   server:
@@ -62,6 +129,8 @@ management:
       percentiles-histogram:
         mariaalpha.execution.order.latency.ms: true
         mariaalpha.execution.risk.check.duration.ms: true
+        mariaalpha.execution.sor.scoring.duration.ms: true
       percentiles:
         mariaalpha.execution.order.latency.ms: 0.5,0.95,0.99
         mariaalpha.execution.risk.check.duration.ms: 0.5,0.95,0.99
+        mariaalpha.execution.sor.scoring.duration.ms: 0.5,0.95,0.99
