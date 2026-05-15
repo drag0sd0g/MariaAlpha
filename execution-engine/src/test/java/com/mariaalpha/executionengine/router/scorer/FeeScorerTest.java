@@ -61,6 +61,79 @@ class FeeScorerTest {
     assertThat(scorer.score(ctx)).isEqualTo(1.0);
   }
 
+  @Test
+  void stopOrderIsAggressive() {
+    var order =
+        new Order(
+            new OrderSignal(
+                "AAPL",
+                Side.BUY,
+                100,
+                OrderType.STOP,
+                null,
+                new BigDecimal("180.00"),
+                "TEST",
+                Instant.now()));
+    assertThat(FeeScorer.isAggressive(order, marketState())).isTrue();
+  }
+
+  @Test
+  void limitWithoutPriceIsPassive() {
+    var order =
+        new Order(
+            new OrderSignal(
+                "AAPL", Side.BUY, 100, OrderType.LIMIT, null, null, "T", Instant.now()));
+    assertThat(FeeScorer.isAggressive(order, marketState())).isFalse();
+  }
+
+  @Test
+  void limitWithoutMarketIsPassive() {
+    var order =
+        new Order(
+            new OrderSignal(
+                "AAPL",
+                Side.BUY,
+                100,
+                OrderType.LIMIT,
+                new BigDecimal("178.60"),
+                null,
+                "T",
+                Instant.now()));
+    assertThat(FeeScorer.isAggressive(order, null)).isFalse();
+  }
+
+  @Test
+  void sellLimitCrossingBidIsAggressive() {
+    var order =
+        new Order(
+            new OrderSignal(
+                "AAPL",
+                Side.SELL,
+                100,
+                OrderType.LIMIT,
+                new BigDecimal("178.40"),
+                null,
+                "T",
+                Instant.now()));
+    assertThat(FeeScorer.isAggressive(order, marketState())).isTrue();
+  }
+
+  @Test
+  void sellLimitAboveBidIsPassive() {
+    var order =
+        new Order(
+            new OrderSignal(
+                "AAPL",
+                Side.SELL,
+                100,
+                OrderType.LIMIT,
+                new BigDecimal("178.80"),
+                null,
+                "T",
+                Instant.now()));
+    assertThat(FeeScorer.isAggressive(order, marketState())).isFalse();
+  }
+
   private ScoringContext ctxMarket(int taker, int rebate) {
     return ctx(OrderType.MARKET, null, taker, rebate, marketState());
   }

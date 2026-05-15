@@ -42,6 +42,23 @@ class InformationLeakageScorerTest {
     assertThat(scorer.score(ctx(0.0))).isCloseTo(1.0, within(1e-9));
   }
 
+  @Test
+  void exposesCriterionName() {
+    assertThat(scorer.name()).isEqualTo("InformationLeakage");
+  }
+
+  @Test
+  void clampsBelowZero() {
+    // Misconfigured venue with negative leakage → clamp to 0 → score 1.0
+    assertThat(scorer.score(ctx(-0.5))).isCloseTo(1.0, within(1e-9));
+  }
+
+  @Test
+  void clampsAboveOne() {
+    // Misconfigured venue with >1 leakage → clamp to 1 → score 0.0
+    assertThat(scorer.score(ctx(1.5))).isCloseTo(0.0, within(1e-9));
+  }
+
   private ScoringContext ctx(double leakage) {
     var order =
         new Order(

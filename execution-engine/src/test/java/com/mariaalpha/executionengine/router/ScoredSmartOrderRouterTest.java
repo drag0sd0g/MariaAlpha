@@ -11,6 +11,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.mariaalpha.executionengine.adapter.VenueAdapterRegistry;
 import com.mariaalpha.executionengine.config.SorConfig;
 import com.mariaalpha.executionengine.metrics.ExecutionMetrics;
 import com.mariaalpha.executionengine.model.MarketState;
@@ -23,8 +24,10 @@ import com.mariaalpha.executionengine.publisher.RoutingDecisionPublisher;
 import com.mariaalpha.executionengine.service.MarketStateTracker;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -37,6 +40,8 @@ class ScoredSmartOrderRouterTest {
   private RoutingDecisionCache cache;
   private MarketStateTracker tracker;
   private ExecutionMetrics metrics;
+  private VenueAdapterRegistry venueAdapters;
+  private Set<String> healthyVenues;
 
   @BeforeEach
   void setUp() {
@@ -44,6 +49,9 @@ class ScoredSmartOrderRouterTest {
     cache = mock(RoutingDecisionCache.class);
     tracker = mock(MarketStateTracker.class);
     metrics = mock(ExecutionMetrics.class);
+    venueAdapters = mock(VenueAdapterRegistry.class);
+    healthyVenues = new HashSet<>();
+    when(venueAdapters.healthyNames()).thenAnswer(inv -> new HashSet<>(healthyVenues));
   }
 
   @Test
@@ -120,7 +128,7 @@ class ScoredSmartOrderRouterTest {
     var decision = router.route(order());
 
     assertThat(decision.venue()).isEqualTo("PRIMARY");
-    assertThat(decision.reason()).contains("No enabled venues");
+    assertThat(decision.reason()).contains("No enabled");
     assertThat(decision.selectedVenueType()).isNull();
     assertThat(decision.candidateScores()).isEmpty();
     verify(metrics, never()).recordSorRouting(anyString(), anyString());
@@ -133,6 +141,23 @@ class ScoredSmartOrderRouterTest {
     var decision = router.route(order());
 
     assertThat(decision.venue()).isEqualTo("UNKNOWN");
+  }
+
+  @Test
+  void excludesUnhealthyVenuesFromScoring() {
+    var lit = venue("PRIMARY", VenueType.LIT, true);
+    var dark = venue("DARK_POOL_A", VenueType.DARK, true);
+    var scorer = stubScorer(Map.of("PRIMARY", 0.4, "DARK_POOL_A", 0.8));
+    var router = router(List.of(lit, dark), scorer);
+    // Mark DARK_POOL_A as unhealthy: drop it from the healthy set
+    healthyVenues.remove("DARK_POOL_A");
+    when(tracker.getMarketState(anyString())).thenReturn(market());
+
+    var decision = router.route(order());
+
+    assertThat(decision.venue()).isEqualTo("PRIMARY");
+    assertThat(decision.candidateScores()).hasSize(1);
+    assertThat(decision.candidateScores().get(0).venue()).isEqualTo("PRIMARY");
   }
 
   @Test
@@ -167,7 +192,10 @@ class ScoredSmartOrderRouterTest {
   private ScoredSmartOrderRouter router(List<Venue> venues, VenueScorer scorer) {
     var config = new SorConfig("scored", 200, 10, 5, 1000, WEIGHTS, venues);
     var registry = new VenueRegistry(config);
-    return new ScoredSmartOrderRouter(registry, scorer, publisher, cache, tracker, metrics, config);
+    healthyVenues.clear();
+    venues.forEach(v -> healthyVenues.add(v.name()));
+    return new ScoredSmartOrderRouter(
+        registry, scorer, publisher, cache, tracker, metrics, config, venueAdapters);
   }
 
   private static VenueScorer stubScorer(Map<String, Double> venueToScore) {

@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mariaalpha.executionengine.adapter.VenueAdapter;
+import com.mariaalpha.executionengine.adapter.VenueAdapterRegistry;
 import com.mariaalpha.executionengine.config.SorConfig;
 import com.mariaalpha.executionengine.controller.dto.RoutingPreviewRequest;
 import com.mariaalpha.executionengine.model.OrderType;
@@ -37,6 +39,7 @@ class RoutingControllerTest {
   private VenueScorer scorer;
   private RoutingDecisionCache cache;
   private MarketStateTracker tracker;
+  private VenueAdapterRegistry venueAdapters;
   private MockMvc mvc;
   private final ObjectMapper mapper = new ObjectMapper();
 
@@ -49,8 +52,10 @@ class RoutingControllerTest {
     scorer = mock(VenueScorer.class);
     cache = mock(RoutingDecisionCache.class);
     tracker = mock(MarketStateTracker.class);
+    venueAdapters = mock(VenueAdapterRegistry.class);
     mvc =
-        MockMvcBuilders.standaloneSetup(new RoutingController(registry, scorer, cache, tracker))
+        MockMvcBuilders.standaloneSetup(
+                new RoutingController(registry, scorer, cache, tracker, venueAdapters))
             .build();
   }
 
@@ -97,5 +102,26 @@ class RoutingControllerTest {
     var json = "{\"side\":\"BUY\",\"orderType\":\"MARKET\",\"quantity\":100}";
     mvc.perform(post("/api/routing/score").contentType(MediaType.APPLICATION_JSON).content(json))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void venueHealthFoundUp() throws Exception {
+    var adapter = mock(VenueAdapter.class);
+    when(adapter.venueName()).thenReturn("PRIMARY");
+    when(adapter.venueType()).thenReturn(VenueType.LIT);
+    when(adapter.isHealthy()).thenReturn(true);
+    when(venueAdapters.get("PRIMARY")).thenReturn(Optional.of(adapter));
+
+    mvc.perform(get("/api/routing/venues/PRIMARY/health"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.venue").value("PRIMARY"))
+        .andExpect(jsonPath("$.type").value("LIT"))
+        .andExpect(jsonPath("$.status").value("UP"));
+  }
+
+  @Test
+  void venueHealthNotFound() throws Exception {
+    when(venueAdapters.get("MISSING")).thenReturn(Optional.empty());
+    mvc.perform(get("/api/routing/venues/MISSING/health")).andExpect(status().isNotFound());
   }
 }

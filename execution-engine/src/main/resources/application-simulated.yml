@@ -16,3 +16,23 @@ execution-engine:
         fill-rate: 1.0
         adapter-bean: primary
         enabled: true
+      - name: DARK_POOL_A
+        type: DARK
+        avg-latency-ms: 30
+        taker-fee-bps: 1
+        maker-rebate-bps: 0
+        leakage-score: 0.20
+        top-of-book-size: 0
+        fill-rate: 0.40
+        adapter-bean: dark-pool-a
+        enabled: true
+      - name: INTERNAL_CROSS
+        type: INTERNAL
+        avg-latency-ms: 1
+        taker-fee-bps: 0
+        maker-rebate-bps: 0
+        leakage-score: 0.0
+        top-of-book-size: 0
+        fill-rate: 0.60
+        adapter-bean: internal-cross
+        enabled: true

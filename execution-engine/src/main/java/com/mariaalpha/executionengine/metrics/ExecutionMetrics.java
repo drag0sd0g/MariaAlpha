@@ -69,6 +69,22 @@ public class ExecutionMetrics {
         .record(score);
   }
 
+  public void recordVenueSubmit(String venue, String venueType) {
+    Counter.builder("mariaalpha.execution.venue.submit.total")
+        .tag("venue", venue)
+        .tag("venue_type", venueType)
+        .register(registry)
+        .increment();
+  }
+
+  public void recordVenueFill(String venue, String venueType) {
+    Counter.builder("mariaalpha.execution.venue.fills.total")
+        .tag("venue", venue)
+        .tag("venue_type", venueType)
+        .register(registry)
+        .increment();
+  }
+
   private void incrementCounter(String counterName, String tagName, String tagValue) {
     Counter.builder(counterName).tag(tagName, tagValue).register(registry).increment();
   }

@@ -2,6 +2,7 @@ package com.mariaalpha.executionengine.controller;
 
 import static java.util.Comparator.comparingDouble;
 
+import com.mariaalpha.executionengine.adapter.VenueAdapterRegistry;
 import com.mariaalpha.executionengine.controller.dto.RoutingPreviewRequest;
 import com.mariaalpha.executionengine.controller.dto.RoutingPreviewResponse;
 import com.mariaalpha.executionengine.controller.dto.VenueResponse;
@@ -17,6 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,16 +36,19 @@ public class RoutingController {
   private final VenueScorer scorer;
   private final RoutingDecisionCache cache;
   private final MarketStateTracker marketStateTracker;
+  private final VenueAdapterRegistry venueAdapters;
 
   public RoutingController(
       VenueRegistry registry,
       VenueScorer scorer,
       RoutingDecisionCache cache,
-      MarketStateTracker marketStateTracker) {
+      MarketStateTracker marketStateTracker,
+      VenueAdapterRegistry venueAdapters) {
     this.registry = registry;
     this.scorer = scorer;
     this.cache = cache;
     this.marketStateTracker = marketStateTracker;
+    this.venueAdapters = venueAdapters;
   }
 
   @Operation(
@@ -88,6 +93,21 @@ public class RoutingController {
     return cache
         .get(orderId)
         .<ResponseEntity<?>>map(ResponseEntity::ok)
+        .orElseGet(() -> ResponseEntity.notFound().build());
+  }
+
+  @Operation(summary = "Per-venue adapter health (UP/DOWN + venue/type)")
+  @GetMapping("/venues/{name}/health")
+  public ResponseEntity<Map<String, Object>> venueHealth(@PathVariable String name) {
+    return venueAdapters
+        .get(name)
+        .map(
+            adapter ->
+                ResponseEntity.ok(
+                    Map.<String, Object>of(
+                        "venue", adapter.venueName(),
+                        "type", adapter.venueType().name(),
+                        "status", adapter.isHealthy() ? "UP" : "DOWN")))
         .orElseGet(() -> ResponseEntity.notFound().build());
   }
 }

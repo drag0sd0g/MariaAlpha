@@ -1,5 +1,6 @@
 package com.mariaalpha.executionengine.router;
 
+import com.mariaalpha.executionengine.adapter.VenueAdapterRegistry;
 import com.mariaalpha.executionengine.config.SorConfig;
 import com.mariaalpha.executionengine.metrics.ExecutionMetrics;
 import com.mariaalpha.executionengine.model.MarketState;
@@ -33,6 +34,7 @@ public class ScoredSmartOrderRouter implements SmartOrderRouter {
   private final MarketStateTracker marketStateTracker;
   private final ExecutionMetrics metrics;
   private final SorConfig config;
+  private final VenueAdapterRegistry venueAdapters;
 
   public ScoredSmartOrderRouter(
       VenueRegistry registry,
@@ -41,7 +43,8 @@ public class ScoredSmartOrderRouter implements SmartOrderRouter {
       RoutingDecisionCache cache,
       MarketStateTracker marketStateTracker,
       ExecutionMetrics metrics,
-      SorConfig config) {
+      SorConfig config,
+      VenueAdapterRegistry venueAdapters) {
     this.registry = registry;
     this.scorer = scorer;
     this.publisher = publisher;
@@ -49,21 +52,23 @@ public class ScoredSmartOrderRouter implements SmartOrderRouter {
     this.marketStateTracker = marketStateTracker;
     this.metrics = metrics;
     this.config = config;
+    this.venueAdapters = venueAdapters;
   }
 
   @Override
   public RoutingDecision route(Order order) {
-    var start = System.nanoTime();
-    var enabled = registry.enabled();
+    long start = System.nanoTime();
     var market = marketStateTracker.getMarketState(order.getSymbol());
+    var healthy = venueAdapters.healthyNames();
+    var routable = registry.enabled().stream().filter(v -> healthy.contains(v.name())).toList();
 
-    if (enabled.isEmpty()) {
+    if (routable.isEmpty()) {
       var fallback = registry.all().stream().findFirst().map(Venue::name).orElse("UNKNOWN");
       var decision =
           new RoutingDecision(
               order.getOrderId(),
               fallback,
-              "No enabled venues; falling back to first registered",
+              "No enabled+healthy venues; falling back to first registered",
               Instant.now(),
               order.getSymbol(),
               order.getSide(),
@@ -79,13 +84,15 @@ public class ScoredSmartOrderRouter implements SmartOrderRouter {
       return decision;
     }
 
-    var breakdowns = enabled.stream().map(v -> scorer.score(order, v, market)).toList();
+    var breakdowns = routable.stream().map(v -> scorer.score(order, v, market)).toList();
     breakdowns.forEach(
         b -> metrics.recordSorCandidateScore(b.venue(), b.type().name(), b.weightedScore()));
+
     var chosen =
         breakdowns.stream()
             .max(Comparator.comparingDouble(VenueScoreBreakdown::weightedScore))
             .orElseThrow();
+
     order.setVenue(chosen.venue());
 
     var decision =
@@ -124,12 +131,12 @@ public class ScoredSmartOrderRouter implements SmartOrderRouter {
         decision.selectedVenueType());
   }
 
-  private RoutingDecision.MarketSnapshot snapshot(MarketState marketState) {
-    if (marketState == null || marketState.bidPrice() == null || marketState.askPrice() == null) {
+  private RoutingDecision.MarketSnapshot snapshot(MarketState m) {
+    if (m == null || m.bidPrice() == null || m.askPrice() == null) {
       return null;
     }
-    var bid = marketState.bidPrice();
-    var ask = marketState.askPrice();
+    var bid = m.bidPrice();
+    var ask = m.askPrice();
     if (bid.signum() <= 0 || ask.signum() <= 0 || ask.compareTo(bid) <= 0) {
       return new RoutingDecision.MarketSnapshot(bid, ask, null, null);
     }

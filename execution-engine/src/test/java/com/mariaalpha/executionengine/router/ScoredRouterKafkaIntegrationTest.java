@@ -6,6 +6,8 @@ import static org.awaitility.Awaitility.await;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.mariaalpha.executionengine.adapter.VenueAdapter;
+import com.mariaalpha.executionengine.adapter.VenueAdapterRegistry;
 import com.mariaalpha.executionengine.config.SorConfig;
 import com.mariaalpha.executionengine.metrics.ExecutionMetrics;
 import com.mariaalpha.executionengine.model.MarketState;
@@ -125,8 +127,15 @@ class ScoredRouterKafkaIntegrationTest {
             Instant.now()));
     var metrics = new ExecutionMetrics(new SimpleMeterRegistry());
 
+    var venueAdapters =
+        new VenueAdapterRegistry(
+            List.of(
+                stubAdapter("PRIMARY", VenueType.LIT),
+                stubAdapter("DARK_POOL_A", VenueType.DARK),
+                stubAdapter("INTERNAL_CROSS", VenueType.INTERNAL)));
     var router =
-        new ScoredSmartOrderRouter(registry, scorer, publisher, cache, tracker, metrics, config);
+        new ScoredSmartOrderRouter(
+            registry, scorer, publisher, cache, tracker, metrics, config, venueAdapters);
 
     var order =
         new Order(
@@ -147,6 +156,47 @@ class ScoredRouterKafkaIntegrationTest {
     for (JsonNode cs : node.get("candidateScores")) {
       assertThat(cs.get("criteria").size()).isEqualTo(5);
     }
+  }
+
+  private static VenueAdapter stubAdapter(String name, VenueType type) {
+    return new VenueAdapter() {
+      @Override
+      public String venueName() {
+        return name;
+      }
+
+      @Override
+      public VenueType venueType() {
+        return type;
+      }
+
+      @Override
+      public com.mariaalpha.executionengine.model.OrderAck submitOrder(
+          com.mariaalpha.executionengine.model.ExecutionInstruction instruction) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public com.mariaalpha.executionengine.model.OrderAck cancelOrder(String exchangeOrderId) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public void onExecutionReport(
+          java.util.function.Consumer<com.mariaalpha.executionengine.model.ExecutionReport>
+              callback) {}
+
+      @Override
+      public void start() {}
+
+      @Override
+      public void shutdown() {}
+
+      @Override
+      public boolean isHealthy() {
+        return true;
+      }
+    };
   }
 
   private ConsumerRecord<String, String> poll() {
