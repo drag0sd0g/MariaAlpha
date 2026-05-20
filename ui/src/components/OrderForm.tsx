@@ -1,10 +1,12 @@
 import { useState } from "react";
-import type { OrderType, Side, SubmitOrderRequest } from "@/types/api";
+import type { OrderType, Side, SubmitOrderRequest, TimeInForce } from "@/types/api";
 import { api } from "@/lib/api";
 
 interface Props {
   onSubmitted: () => void;
 }
+
+const ORDER_TYPES: OrderType[] = ["MARKET", "LIMIT", "STOP", "IOC", "FOK", "GTC", "ICEBERG"];
 
 export default function OrderForm({ onSubmitted }: Props) {
   const [symbol, setSymbol] = useState("");
@@ -13,20 +15,40 @@ export default function OrderForm({ onSubmitted }: Props) {
   const [quantity, setQuantity] = useState("100");
   const [limitPrice, setLimitPrice] = useState("");
   const [stopPrice, setStopPrice] = useState("");
+  const [displayQuantity, setDisplayQuantity] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const needsLimit = orderType === "LIMIT";
+  const needsLimit =
+    orderType === "LIMIT" ||
+    orderType === "IOC" ||
+    orderType === "FOK" ||
+    orderType === "GTC" ||
+    orderType === "ICEBERG";
   const needsStop = orderType === "STOP";
+  const needsDisplay = orderType === "ICEBERG";
+  const intrinsicTif: TimeInForce | undefined =
+    orderType === "IOC"
+      ? "IOC"
+      : orderType === "FOK"
+        ? "FOK"
+        : orderType === "GTC"
+          ? "GTC"
+          : undefined;
 
   const validate = (): SubmitOrderRequest | string => {
     if (!symbol.trim()) return "Symbol is required";
     const q = Number(quantity);
     if (!Number.isFinite(q) || q < 1) return "Quantity must be a positive integer";
     const lp = limitPrice ? Number(limitPrice) : undefined;
-    if (needsLimit && (!lp || lp <= 0)) return "LIMIT orders need a price > 0";
+    if (needsLimit && (!lp || lp <= 0)) return `${orderType} orders need a limit price > 0`;
     const sp = stopPrice ? Number(stopPrice) : undefined;
     if (needsStop && (!sp || sp <= 0)) return "STOP orders need a stop price > 0";
+    const dq = displayQuantity ? Number(displayQuantity) : undefined;
+    if (needsDisplay) {
+      if (!dq || dq <= 0) return "ICEBERG orders need a display quantity > 0";
+      if (dq >= q) return "displayQuantity must be strictly less than quantity";
+    }
     return {
       symbol: symbol.toUpperCase().trim(),
       side,
@@ -34,6 +56,8 @@ export default function OrderForm({ onSubmitted }: Props) {
       quantity: q,
       ...(lp !== undefined ? { limitPrice: lp } : {}),
       ...(sp !== undefined ? { stopPrice: sp } : {}),
+      ...(dq !== undefined ? { displayQuantity: dq } : {}),
+      ...(intrinsicTif !== undefined ? { tif: intrinsicTif } : {}),
     };
   };
 
@@ -51,6 +75,7 @@ export default function OrderForm({ onSubmitted }: Props) {
       setQuantity("100");
       setLimitPrice("");
       setStopPrice("");
+      setDisplayQuantity("");
       onSubmitted();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Order submission failed");
@@ -97,9 +122,9 @@ export default function OrderForm({ onSubmitted }: Props) {
             }}
             className="w-full border rounded px-2 py-1"
           >
-            <option>MARKET</option>
-            <option>LIMIT</option>
-            <option>STOP</option>
+            {ORDER_TYPES.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
           </select>
         </Field>
         <Field label="Quantity">
@@ -142,7 +167,26 @@ export default function OrderForm({ onSubmitted }: Props) {
             />
           </Field>
         )}
+        {needsDisplay && (
+          <Field label="Display Quantity">
+            <input
+              aria-label="Display Quantity"
+              type="number"
+              min={1}
+              value={displayQuantity}
+              onChange={(e) => {
+                setDisplayQuantity(e.target.value);
+              }}
+              className="w-full border rounded px-2 py-1 num"
+            />
+          </Field>
+        )}
       </div>
+      {intrinsicTif && (
+        <div className="text-xs text-slate-500">
+          Time-in-force: {intrinsicTif} (intrinsic to {orderType})
+        </div>
+      )}
       <button
         type="submit"
         disabled={submitting}

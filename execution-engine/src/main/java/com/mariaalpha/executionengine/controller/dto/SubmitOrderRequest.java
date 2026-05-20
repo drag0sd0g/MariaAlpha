@@ -1,13 +1,16 @@
 package com.mariaalpha.executionengine.controller.dto;
 
+import com.mariaalpha.executionengine.controller.validation.ValidSubmitOrderRequest;
 import com.mariaalpha.executionengine.model.OrderType;
 import com.mariaalpha.executionengine.model.Side;
+import com.mariaalpha.executionengine.model.TimeInForce;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
+@ValidSubmitOrderRequest
 public record SubmitOrderRequest(
     @NotBlank String symbol,
     @NotNull Side side,
@@ -15,4 +18,6 @@ public record SubmitOrderRequest(
     @Min(1) int quantity,
     @DecimalMin("0.01") BigDecimal limitPrice,
     @DecimalMin("0.01") BigDecimal stopPrice,
+    @Min(1) Integer displayQuantity,
+    TimeInForce tif,
     String clientOrderId) {}

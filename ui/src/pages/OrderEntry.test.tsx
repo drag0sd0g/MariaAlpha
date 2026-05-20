@@ -53,6 +53,6 @@ describe("OrderEntry", () => {
 
     await user.type(screen.getByLabelText(/symbol/i), "AAPL");
     await user.click(screen.getByRole("button", { name: /submit/i }));
-    expect(await screen.findByText(/LIMIT orders need a price/i)).toBeInTheDocument();
+    expect(await screen.findByText(/LIMIT orders need a limit price/i)).toBeInTheDocument();
   });
 });

@@ -3,7 +3,11 @@ package com.mariaalpha.executionengine.model;
 public enum OrderType {
   MARKET("market"),
   LIMIT("limit"),
-  STOP("stop");
+  STOP("stop"),
+  IOC("ioc"),
+  FOK("fok"),
+  GTC("gtc"),
+  ICEBERG("iceberg");
 
   private final String name;
 

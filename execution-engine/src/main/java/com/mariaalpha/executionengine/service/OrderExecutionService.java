@@ -2,6 +2,7 @@ package com.mariaalpha.executionengine.service;
 
 import com.mariaalpha.executionengine.adapter.VenueAdapterRegistry;
 import com.mariaalpha.executionengine.handler.OrderTypeHandlerRegistry;
+import com.mariaalpha.executionengine.lifecycle.IllegalStateTransitionException;
 import com.mariaalpha.executionengine.lifecycle.OrderLifecycleManager;
 import com.mariaalpha.executionengine.metrics.ExecutionMetrics;
 import com.mariaalpha.executionengine.model.ExecutionReport;
@@ -137,6 +138,28 @@ public class OrderExecutionService {
     var order = lifecycleManager.findByExchangeOrderId(report.exchangeOrderId());
     if (order == null) {
       LOG.warn("Received fill for unknown order: {}", report.exchangeOrderId());
+      return;
+    }
+
+    // Zero-quantity terminal event: IOC residual cancel, FOK kill, or generic exchange cancel.
+    if (report.fillQuantity() == 0 && report.remainingQuantity() == 0) {
+      var reason = report.reason() != null ? report.reason() : "exchange-cancel";
+      try {
+        lifecycleManager.transition(order.getOrderId(), OrderStatus.CANCELLED, null, reason);
+      } catch (IllegalStateTransitionException e) {
+        // Already terminal (FILLED on prior partial, etc.) — log and continue.
+        LOG.debug(
+            "Skipping cancel transition for order {} ({})", order.getOrderId(), e.getMessage());
+        return;
+      }
+      switch (reason) {
+        case "ioc-residual-cancel" ->
+            metrics.recordIocResidualCancelled(order.getSymbol(), order.getSide().name());
+        case "fok-killed" -> metrics.recordFokKilled(order.getSymbol(), order.getSide().name());
+        default -> {
+          /* generic cancel — no dedicated counter */
+        }
+      }
       return;
     }
 
