@@ -9,9 +9,7 @@ describe("OrderForm — IOC / FOK", () => {
   it("exposes IOC and FOK in the order-type dropdown", () => {
     render(<OrderForm onSubmitted={vi.fn()} />);
     const dropdown = screen.getByLabelText(/order type/i);
-    const options = Array.from((dropdown as HTMLSelectElement).options).map(
-      (o) => o.value,
-    );
+    const options = Array.from((dropdown as HTMLSelectElement).options).map((o) => o.value);
     expect(options).toEqual(
       expect.arrayContaining(["MARKET", "LIMIT", "STOP", "IOC", "FOK", "GTC", "ICEBERG"]),
     );
