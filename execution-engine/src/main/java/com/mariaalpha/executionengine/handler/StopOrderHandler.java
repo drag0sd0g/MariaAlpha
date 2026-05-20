@@ -5,6 +5,7 @@ import com.mariaalpha.executionengine.model.MarketState;
 import com.mariaalpha.executionengine.model.Order;
 import com.mariaalpha.executionengine.model.OrderType;
 import com.mariaalpha.executionengine.model.Side;
+import com.mariaalpha.executionengine.model.TimeInForce;
 import com.mariaalpha.executionengine.model.ValidationResult;
 import java.math.BigDecimal;
 import org.springframework.stereotype.Component;
@@ -43,6 +44,6 @@ public class StopOrderHandler implements OrderTypeHandler {
 
   @Override
   public ExecutionInstruction toExecutionInstruction(Order order) {
-    return new ExecutionInstruction(order, "day", null);
+    return new ExecutionInstruction(order, TimeInForce.DAY, null);
   }
 }

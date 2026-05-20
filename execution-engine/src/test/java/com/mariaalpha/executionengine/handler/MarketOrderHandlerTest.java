@@ -7,6 +7,7 @@ import com.mariaalpha.executionengine.model.Order;
 import com.mariaalpha.executionengine.model.OrderSignal;
 import com.mariaalpha.executionengine.model.OrderType;
 import com.mariaalpha.executionengine.model.Side;
+import com.mariaalpha.executionengine.model.TimeInForce;
 import java.math.BigDecimal;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,7 +55,7 @@ class MarketOrderHandlerTest {
   void toExecutionInstructionSetsDay() {
     var order = createOrder(100, OrderType.MARKET, null, null);
     var instruction = handler.toExecutionInstruction(order);
-    assertThat(instruction.timeInForce()).isEqualTo("day");
+    assertThat(instruction.timeInForce()).isEqualTo(TimeInForce.DAY);
     assertThat(instruction.adjustedLimitPrice()).isNull();
   }
 

@@ -37,7 +37,15 @@ class ManualOrderServiceTest {
   void submit_buildsInstructionWithStrategyManual() {
     var request =
         new SubmitOrderRequest(
-            "AAPL", Side.BUY, OrderType.LIMIT, 100, new BigDecimal("178.50"), null, null);
+            "AAPL",
+            Side.BUY,
+            OrderType.LIMIT,
+            100,
+            new BigDecimal("178.50"),
+            null,
+            null,
+            null,
+            null);
 
     var response = service.submit(request);
 
@@ -50,7 +58,9 @@ class ManualOrderServiceTest {
 
   @Test
   void submit_generatesClientOrderIdWhenAbsent() {
-    var request = new SubmitOrderRequest("AAPL", Side.BUY, OrderType.MARKET, 10, null, null, null);
+    var request =
+        new SubmitOrderRequest(
+            "AAPL", Side.BUY, OrderType.MARKET, 10, null, null, null, null, null);
 
     service.submit(request);
 
@@ -62,7 +72,7 @@ class ManualOrderServiceTest {
   void submit_preservesProvidedClientOrderId() {
     var request =
         new SubmitOrderRequest(
-            "TSLA", Side.SELL, OrderType.MARKET, 50, null, null, "my-client-id-123");
+            "TSLA", Side.SELL, OrderType.MARKET, 50, null, null, null, null, "my-client-id-123");
 
     service.submit(request);
 

@@ -31,7 +31,11 @@ class AlpacaExchangeAdapterTest {
             "https://data.alpaca.markets",
             "wss://paper-api.alpaca.markets/stream",
             "ALPACA");
-    adapter = new AlpacaExchangeAdapter(config, objectMapper);
+    adapter =
+        new AlpacaExchangeAdapter(
+            config,
+            objectMapper,
+            new com.mariaalpha.executionengine.handler.AlpacaOrderTypeMapper());
   }
 
   @Test

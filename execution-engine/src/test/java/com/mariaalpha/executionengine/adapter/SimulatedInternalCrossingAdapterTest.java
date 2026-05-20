@@ -11,6 +11,7 @@ import com.mariaalpha.executionengine.model.Order;
 import com.mariaalpha.executionengine.model.OrderSignal;
 import com.mariaalpha.executionengine.model.OrderType;
 import com.mariaalpha.executionengine.model.Side;
+import com.mariaalpha.executionengine.model.TimeInForce;
 import com.mariaalpha.executionengine.router.VenueType;
 import com.mariaalpha.executionengine.service.MarketStateTracker;
 import java.math.BigDecimal;
@@ -131,6 +132,6 @@ class SimulatedInternalCrossingAdapterTest {
         new Order(
             new OrderSignal(
                 "AAPL", Side.BUY, qty, OrderType.MARKET, null, null, "T", Instant.now()));
-    return new ExecutionInstruction(order, "day", null);
+    return new ExecutionInstruction(order, TimeInForce.DAY, null);
   }
 }
