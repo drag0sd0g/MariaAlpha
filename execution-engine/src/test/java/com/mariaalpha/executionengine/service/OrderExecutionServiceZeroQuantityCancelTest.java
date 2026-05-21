@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.mariaalpha.executionengine.adapter.VenueAdapterRegistry;
 import com.mariaalpha.executionengine.handler.OrderTypeHandlerRegistry;
+import com.mariaalpha.executionengine.iceberg.IcebergCoordinator;
 import com.mariaalpha.executionengine.lifecycle.IllegalStateTransitionException;
 import com.mariaalpha.executionengine.lifecycle.OrderLifecycleManager;
 import com.mariaalpha.executionengine.metrics.ExecutionMetrics;
@@ -56,7 +57,8 @@ class OrderExecutionServiceZeroQuantityCancelTest {
             lifecycleManager,
             mock(MarketStateTracker.class),
             dailyLossMonitor,
-            metrics);
+            metrics,
+            mock(IcebergCoordinator.class));
 
     order =
         new Order(

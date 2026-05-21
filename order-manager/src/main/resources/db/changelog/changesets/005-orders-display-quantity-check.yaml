@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: order-manager-005-orders-display-quantity-check
+      author: mariaalpha
+      changes:
+        - sql:
+            sql: >
+              ALTER TABLE orders
+              ADD CONSTRAINT ck_orders_display_quantity
+              CHECK (display_quantity IS NULL OR (display_quantity > 0 AND display_quantity < quantity));
+      rollback:
+        - sql:
+            sql: ALTER TABLE orders DROP CONSTRAINT IF EXISTS ck_orders_display_quantity;

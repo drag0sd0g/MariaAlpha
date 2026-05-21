@@ -84,6 +84,16 @@ export interface SubmitOrderRequest {
   clientOrderId?: string;
 }
 
+export interface IcebergProgress {
+  parentOrderId: string;
+  totalQuantity: number;
+  displayQuantity: number;
+  submittedQuantity: number;
+  filledQuantity: number;
+  slicesSubmitted: number;
+  activeChildOrderId?: string;
+}
+
 export interface SubmitOrderResponse {
   orderId: string;
   status: OrderStatus;

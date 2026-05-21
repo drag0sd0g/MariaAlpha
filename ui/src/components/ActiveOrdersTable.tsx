@@ -2,6 +2,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useOrderStore } from "@/stores/orderStore";
 import { api } from "@/lib/api";
 import { fmtMoney, fmtQty } from "@/lib/format";
+import IcebergProgressBadge from "@/components/IcebergProgressBadge";
 
 const ACTIVE_STATUSES = new Set(["NEW", "SUBMITTED", "PARTIALLY_FILLED"]);
 
@@ -59,7 +60,12 @@ export default function ActiveOrdersTable() {
                 {o.side}
               </td>
               <td className="px-4 py-2 text-right num">{fmtQty(o.quantity)}</td>
-              <td className="px-4 py-2">{o.orderType}</td>
+              <td className="px-4 py-2">
+                <div className="flex items-center gap-2">
+                  <span>{o.orderType}</span>
+                  {o.orderType === "ICEBERG" && <IcebergProgressBadge parentOrderId={o.orderId} />}
+                </div>
+              </td>
               <td className="px-4 py-2 text-right num">{fmtMoney(o.limitPrice)}</td>
               <td className="px-4 py-2">
                 <StatusPill status={o.status} />

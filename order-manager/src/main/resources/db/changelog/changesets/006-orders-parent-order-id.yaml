@@ -1,0 +1,24 @@
+databaseChangeLog:
+  - changeSet:
+      id: order-manager-006-orders-parent-order-id
+      author: mariaalpha
+      changes:
+        - addColumn:
+            tableName: orders
+            columns:
+              - column:
+                  name: parent_order_id
+                  type: uuid
+        - createIndex:
+            indexName: idx_orders_parent_order_id
+            tableName: orders
+            columns:
+              - column:
+                  name: parent_order_id
+      rollback:
+        - dropIndex:
+            indexName: idx_orders_parent_order_id
+            tableName: orders
+        - dropColumn:
+            tableName: orders
+            columnName: parent_order_id

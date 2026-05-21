@@ -11,3 +11,9 @@ databaseChangeLog:
   - include:
       file: changesets/004-create-portfolio-snapshots.yaml
       relativeToChangelogFile: true
+  - include:
+      file: changesets/005-orders-display-quantity-check.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/006-orders-parent-order-id.yaml
+      relativeToChangelogFile: true

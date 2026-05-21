@@ -69,6 +69,9 @@ public class OrderEntity {
   @Column(name = "display_quantity", precision = 18, scale = 8)
   private BigDecimal displayQuantity;
 
+  @Column(name = "parent_order_id")
+  private UUID parentOrderId;
+
   @Column(name = "arrival_mid_price", precision = 18, scale = 8)
   private BigDecimal arrivalMidPrice;
 
@@ -215,6 +218,14 @@ public class OrderEntity {
 
   public void setDisplayQuantity(BigDecimal displayQuantity) {
     this.displayQuantity = displayQuantity;
+  }
+
+  public UUID getParentOrderId() {
+    return parentOrderId;
+  }
+
+  public void setParentOrderId(UUID parentOrderId) {
+    this.parentOrderId = parentOrderId;
   }
 
   public BigDecimal getArrivalMidPrice() {

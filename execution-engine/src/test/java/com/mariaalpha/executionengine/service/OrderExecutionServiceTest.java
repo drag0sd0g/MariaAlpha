@@ -14,6 +14,7 @@ import com.mariaalpha.executionengine.adapter.VenueAdapter;
 import com.mariaalpha.executionengine.adapter.VenueAdapterRegistry;
 import com.mariaalpha.executionengine.handler.MarketOrderHandler;
 import com.mariaalpha.executionengine.handler.OrderTypeHandlerRegistry;
+import com.mariaalpha.executionengine.iceberg.IcebergCoordinator;
 import com.mariaalpha.executionengine.lifecycle.OrderLifecycleManager;
 import com.mariaalpha.executionengine.metrics.ExecutionMetrics;
 import com.mariaalpha.executionengine.model.ExecutionReport;
@@ -48,6 +49,7 @@ class OrderExecutionServiceTest {
   private MarketStateTracker marketStateTracker;
   private DailyLossMonitor dailyLossMonitor;
   private ExecutionMetrics metrics;
+  private IcebergCoordinator icebergCoordinator;
   private OrderExecutionService service;
 
   @BeforeEach
@@ -61,6 +63,7 @@ class OrderExecutionServiceTest {
     marketStateTracker = mock(MarketStateTracker.class);
     dailyLossMonitor = mock(DailyLossMonitor.class);
     metrics = mock(ExecutionMetrics.class);
+    icebergCoordinator = mock(IcebergCoordinator.class);
 
     when(primaryVenueAdapter.venueName()).thenReturn("PRIMARY");
     when(primaryVenueAdapter.venueType()).thenReturn(VenueType.LIT);
@@ -86,7 +89,8 @@ class OrderExecutionServiceTest {
             lifecycleManager,
             marketStateTracker,
             dailyLossMonitor,
-            metrics);
+            metrics,
+            icebergCoordinator);
     service.registerCallbacks();
   }
 
