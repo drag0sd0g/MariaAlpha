@@ -359,4 +359,17 @@
         <Class name="com.mariaalpha.apigateway.websocket.WebSocketProperties"/>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
     </Match>
+    <!-- Iceberg parent/child slicing (issue 2.1.4) -->
+    <Match>
+        <Class name="com.mariaalpha.executionengine.iceberg.IcebergCoordinator"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.iceberg.IcebergMetrics"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.controller.IcebergController"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
 </FindBugsFilter>

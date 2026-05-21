@@ -40,8 +40,10 @@ through the execution pipeline during development.
 
 | Story | Why it matters |
 |-------|----------------|
-| As a manual trader, I want to submit MARKET, LIMIT, and STOP orders from the browser so that I can enter positions without using the API directly. | Direct REST calls require API key management and JSON construction; a form with validation is faster and safer for ad-hoc use. |
-| As a manual trader, I want client-side validation (symbol required, positive quantity, limit price required for LIMIT orders) so that common mistakes are caught before the network round-trip. | Validation errors from the server surface as generic text; a specific field-level message is faster to act on. |
+| As a manual trader, I want to submit any of the seven supported order types (MARKET, LIMIT, STOP, IOC, FOK, GTC, ICEBERG) from the browser so that I can enter positions without using the API directly. | Direct REST calls require API key management and JSON construction; a form with validation is faster and safer for ad-hoc use. |
+| As a manual trader, I want client-side validation (symbol required, positive quantity, limit price required for LIMIT/IOC/FOK/GTC/ICEBERG, displayQuantity required and < quantity for ICEBERG) so that common mistakes are caught before the network round-trip. | Validation errors from the server surface as generic text; a specific field-level message is faster to act on. |
+| As a manual trader, I want the form to render the intrinsic time-in-force (IOC/FOK/GTC) and a `displayQuantity` input when ICEBERG is selected so that I don't need to guess which fields apply to which type. | Conditional fields prevent invalid submissions and make the type semantics visible without referring to the OpenAPI spec. |
+| As an operator, I want to see the iceberg slice progress for active ICEBERG parents (filled / total + percentage badge in the Active Orders table) so that I can tell at a glance how much of a sliced order has executed. | Iceberg parents have hidden state — only one child is on the wire at a time — so an explicit progress indicator is the only way to surface fill progress without drilling into individual children. |
 | As an operator, I want to see all active orders (NEW, SUBMITTED, PARTIALLY_FILLED) in a live table so that I know what is working in the market. | Active orders carry open risk; knowing their status without polling the server means the operator always sees the latest state. |
 | As an operator, I want to cancel an order from the browser so that I can exit a position or correct an error without using curl or a separate tool. | Quick cancellation is operationally critical; a one-click action from the same screen where the order appears removes friction. |
 | As an operator, I want to see fill history (up to 50 most recent fills) so that I can verify execution quality and that fills are flowing through the pipeline. | Fill history is the proof that the execution engine processed orders correctly and that the simulated/live exchange reported back. |
@@ -99,13 +101,16 @@ Combines order submission with live order monitoring on one screen.
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Submit Order                                               │  ← OrderForm
-│  Symbol [AAPL] Side [BUY▼] Type [LIMIT▼] Qty [100]        │
-│  Limit Price [___]                                          │
+│  Symbol [AAPL] Side [BUY▼] Type [ICEBERG▼] Qty [10000]     │
+│  Limit Price [150.00] Display Quantity [1000]               │
+│  Time-in-force: GTC (intrinsic to GTC)   ← shown for        │
+│                                            IOC/FOK/GTC      │
 │  [Submit]                                                   │
 ├─────────────────────────────────────────────────────────────┤
 │  Active Orders                                              │  ← ActiveOrdersTable
-│  TIME   │ SYMBOL │ SIDE  │ QTY │ TYPE  │ STATUS │ [Cancel] │
-│  ...    │ AAPL   │ BUY   │ 100 │ LIMIT │ NEW    │ Cancel   │
+│  TIME │ SYMBOL │ SIDE │ QTY  │ TYPE  badge          │ ...  │
+│  ...  │ AAPL   │ BUY  │ 10K  │ ICEBERG [2,500/10K] │ ...  │
+│                                ↑ IcebergProgressBadge       │
 ├─────────────────────────────────────────────────────────────┤
 │  Recent Fills                                               │  ← FillHistoryTable
 │  TIME   │ SYMBOL │ SIDE │ QTY │ PRICE │ VENUE             │
@@ -117,16 +122,33 @@ Combines order submission with live order monitoring on one screen.
 - `WS /ws/orders` → `OrderEvent` stream (drives live order status updates)
 - `GET /api/orders/{id}` → `Order` with fills (fetched per order ID to populate fill history; no dedicated fills endpoint)
 - `POST /api/execution/orders` → submit new order
-- `DELETE /api/execution/orders/{id}` → cancel order
+- `DELETE /api/execution/orders/{id}` → cancel order (ICEBERG parent cancel cascades to the active child on the server side)
+- `GET /api/execution/orders/{parentId}/iceberg-progress` → live slice progress for an ICEBERG parent (polled at 1.5 s by `IcebergProgressBadge`; 404 once the parent is FILLED/CANCELLED)
 
-**OrderForm** is fully controlled. The limit price field conditionally renders only when order type
-is LIMIT; stop price only for STOP. Client-side validation runs before any fetch. On success the
-form clears quantity/price fields but keeps symbol and side to allow rapid follow-on orders.
+**OrderForm** is fully controlled. All seven order types are in the type dropdown. The conditional
+field set is:
+
+- **Limit Price** — rendered for LIMIT, IOC, FOK, GTC, ICEBERG
+- **Stop Price** — rendered for STOP
+- **Display Quantity** — rendered for ICEBERG only (must be ≥ 1 and strictly < quantity)
+- **Intrinsic TIF hint** — a small grey label "Time-in-force: IOC/FOK/GTC (intrinsic to X)" shown for IOC/FOK/GTC, so the user doesn't have to guess what TIF the server will apply
+
+Client-side validation runs before any fetch (matching the server-side `@ValidSubmitOrderRequest`
+cross-field rules in execution-engine). On success the form clears quantity/price/displayQuantity
+fields but keeps symbol and side to allow rapid follow-on orders.
 
 **ActiveOrdersTable** filters the order store to statuses `NEW | SUBMITTED | PARTIALLY_FILLED` and
 sorts newest-first. The Cancel button fires a DELETE request; the order's status update arrives
 shortly after via the `WS /ws/orders` feed, removing it from the active table automatically without
 any manual refresh.
+
+For rows whose `orderType === "ICEBERG"`, the Type cell renders an `IcebergProgressBadge` next to
+the label. The badge polls `/api/execution/orders/{parentId}/iceberg-progress` at 1.5 s, shows
+`filledQuantity / totalQuantity` formatted with thousands separators plus a `(%)` percentage, and
+exposes slice count + active-child orderId in its `title` tooltip. It silently disappears (renders
+`null`) once the endpoint returns 404 — which happens as soon as the parent reaches a terminal
+state and the execution-engine registry cleans up. Child orders surface in the regular order
+stream as LIMIT rows with `strategy=ICEBERG-CHILD` and `parentOrderId` set.
 
 **FillHistoryTable** derives its data indirectly: it watches the set of known order IDs, then
 fetches each `/api/orders/{id}` in parallel with `Promise.allSettled` (tolerating individual 404s)
@@ -409,8 +431,12 @@ ui/src/
 │   ├── SummaryCards.tsx     # 4-metric portfolio header
 │   ├── DailyPnlChart.tsx    # 1Hz P&L line chart (ring buffer)
 │   ├── PositionsTable.tsx   # Open positions, sorted by size
-│   ├── OrderForm.tsx        # MARKET/LIMIT/STOP order entry form
-│   ├── ActiveOrdersTable.tsx# Live active orders with cancel
+│   ├── OrderForm.tsx        # 7-type order entry form (MARKET/LIMIT/STOP/IOC/FOK/GTC/ICEBERG)
+│   ├── OrderForm.IocFok.test.tsx  # Vitest — IOC/FOK form behaviour
+│   ├── OrderForm.Iceberg.test.tsx # Vitest — GTC + ICEBERG form behaviour
+│   ├── ActiveOrdersTable.tsx# Live active orders with cancel; renders IcebergProgressBadge for ICEBERG rows
+│   ├── IcebergProgressBadge.tsx       # Polled progress badge for ICEBERG parents
+│   ├── IcebergProgressBadge.test.tsx  # Vitest
 │   ├── FillHistoryTable.tsx # Recent fills fetched from order detail
 │   └── ComingSoon.tsx       # Placeholder for Phase 2 screens
 ├── hooks/
@@ -421,10 +447,11 @@ ui/src/
 │   └── orderStore.ts        # orderId → Order map
 ├── lib/
 │   ├── api.ts               # fetch wrapper; injects X-API-Key header
+│   ├── api.icebergProgress.ts  # fetchIcebergProgress(parentId) → IcebergProgress
 │   ├── format.ts            # fmtMoney, fmtQty, fmtBps, fmtPnl
 │   └── wsUrl.ts             # Builds ws:// URLs; handles Vite proxy vs. direct
 ├── types/
-│   └── api.ts               # TypeScript types mirroring Java DTOs
+│   └── api.ts               # TypeScript types mirroring Java DTOs (incl. IcebergProgress, TimeInForce)
 └── test/
     ├── setup.ts             # MSW start/stop, ResizeObserver polyfill, env stubs
     └── mockServer.ts        # Default MSW request handlers
@@ -453,6 +480,7 @@ All REST calls go through `api()` in [src/lib/api.ts](../ui/src/lib/api.ts). The
 | GET | `/api/orders/{id}` | FillHistoryTable | `Order` (with `fills[]`) |
 | POST | `/api/execution/orders` | OrderForm | `SubmitOrderResponse` |
 | DELETE | `/api/execution/orders/{id}` | ActiveOrdersTable | 204 no body |
+| GET | `/api/execution/orders/{parentId}/iceberg-progress` | IcebergProgressBadge | `IcebergProgress` (404 once parent terminal) |
 
 The `VITE_API_BASE_URL` variable is optional. When omitted (local dev), paths are relative and the
 Vite dev server proxy forwards `/api` and `/ws` to `http://localhost:8080`. In production builds,

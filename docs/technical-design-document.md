@@ -331,7 +331,7 @@ sequenceDiagram
 | FR-19 | The Execution Engine SHALL accept order signals from the Strategy Engine and submit them to the configured exchange adapter (Alpaca or simulated). |
 | FR-20 | The system SHALL implement an Alpaca exchange adapter using Alpaca's REST API (`POST /v2/orders`) for order submission and the WebSocket trade updates stream for fill notifications. |
 | FR-21 | The system SHALL implement a simulated exchange adapter with a basic price-time priority matching engine that fills orders against the current market data, simulating realistic latency and partial fills. |
-| FR-22 | The Execution Engine SHALL support order types: MARKET, LIMIT, and STOP in the MVP. Order type handling SHALL be implemented via an `OrderTypeHandler` interface with a registry, so that additional types (IOC, FOK, GTC, Iceberg, Pegged) can be added by implementing the interface and registering the handler — without modifying existing order processing logic. |
+| FR-22 | The Execution Engine SHALL support order types: MARKET, LIMIT, and STOP in the MVP, plus IOC, FOK, GTC, Iceberg from Phase 2 (issues 2.1.3, 2.1.4). Order type handling SHALL be implemented via an `OrderTypeHandler` interface with a registry, so that additional types (e.g. Pegged in Phase 3) can be added by implementing the interface and registering the handler — without modifying existing order processing logic. Iceberg is implemented via a dedicated `IcebergCoordinator` (sibling of the handler registry) that slices a parent into LIMIT children, rather than as a stateless handler. ✅ Implemented through 2.1.4. |
 | FR-23 | The Execution Engine SHALL maintain the full order lifecycle state machine: NEW → SUBMITTED → PARTIALLY_FILLED → FILLED / CANCELLED / REJECTED, with all state transitions published to the `orders.lifecycle` Kafka topic. |
 | FR-24 | The Execution Engine SHALL enforce pre-trade risk checks before submitting any order via a composable `RiskCheck` chain. MVP checks include: maximum order notional value, maximum position size per symbol, and maximum total portfolio exposure. The chain is configured via `config/risk-limits.yml` and designed so that additional checks (sector exposure limits, beta limits, intraday VaR, ADV-relative sizing) can be added by implementing the `RiskCheck` interface and appending to the chain — without modifying existing checks. |
 
@@ -701,12 +701,44 @@ classDiagram
         +validate(Order, MarketState) ValidationResult
         +toExecutionInstruction(Order) ExecutionInstruction
     }
+    class ExecutionInstruction {
+        <<record>>
+        Order order
+        TimeInForce timeInForce
+        BigDecimal adjustedLimitPrice
+        Integer displayQuantity
+    }
+    class TimeInForce {
+        <<enum>>
+        DAY
+        IOC
+        FOK
+        GTC
+        +wireValue() String
+    }
+    class IcebergCoordinator {
+        <<@Component>>
+        +onParentSubmit(Order) boolean
+        +onChildFillIfApplicable(Order, ExecutionReport)
+        +onParentCancelRequested(Order)
+    }
     OrderTypeHandler <|.. MarketOrderHandler
     OrderTypeHandler <|.. LimitOrderHandler
     OrderTypeHandler <|.. StopOrderHandler
+    OrderTypeHandler <|.. IocOrderHandler
+    OrderTypeHandler <|.. FokOrderHandler
+    OrderTypeHandler <|.. GtcOrderHandler
+    OrderTypeHandler <|.. IcebergOrderHandler
+    OrderTypeHandler ..> ExecutionInstruction
+    ExecutionInstruction o-- TimeInForce
+    IcebergCoordinator ..> OrderTypeHandler : delegates to LimitOrderHandler for children
 ```
 
-Future order types: IOC (Phase 2), FOK (Phase 2), GTC (Phase 2), Iceberg (Phase 2), Pegged (Phase 3).
+Status: all seven handlers landed in Phase 2 (MARKET/LIMIT/STOP in MVP; IOC/FOK in issue 2.1.3; GTC/Iceberg in issue 2.1.4). Pegged remains Phase 3.
+
+The `AlpacaOrderTypeMapper` collapses IOC/FOK/GTC into Alpaca's `type=limit` with the appropriate `time_in_force` wire value; ICEBERG never reaches the Alpaca adapter directly because the `IcebergCoordinator` slices it into LIMIT children that flow through the regular path.
+
+The `IcebergCoordinator` is intentionally *not* an `OrderTypeHandler`. The handler interface returns a single `ExecutionInstruction` per call; iceberg parents need to issue many child orders over time, react to fills, and own their own state. The coordinator's `onParentSubmit` is invoked from `OrderExecutionService.processOrder` after validation + risk checks (before the normal venue dispatch); `onChildFillIfApplicable` is invoked from `onExecutionReport` after the regular fill processing. The coordinator's collaborators are `ParentChildOrderRegistry` (in-memory linkage + per-parent `IcebergProgress`), `IcebergSliceFactory` (constructs child LIMIT `Order` instances with `parentOrderId` set and `strategyName="ICEBERG-CHILD"`), and `IcebergMetrics`. A REST endpoint `GET /api/execution/orders/{parentId}/iceberg-progress` exposes live slice progress for the UI.
 
 #### 5.3.3 Composable Risk Check Chain
 
@@ -788,7 +820,8 @@ erDiagram
         decimal avg_fill_price
         varchar exchange_order_id
         varchar venue
-        decimal display_quantity
+        decimal display_quantity "CHECK > 0 AND < quantity"
+        uuid parent_order_id "FK orders.order_id, ICEBERG children only"
         decimal arrival_mid_price
         timestamptz created_at
         timestamptz updated_at
@@ -864,7 +897,7 @@ erDiagram
 
 > **Table ownership:** Each service owns its tables exclusively — no cross-service foreign keys. `order-manager` owns `orders`, `fills`, `positions`, `portfolio_snapshots`. `post-trade` owns `reconciliation_breaks`, `tca_results`. `market-data-gateway` owns `market_data_daily`. Cross-service references (e.g. `order_id` in post-trade tables) are stored as UUIDs without FK constraints; consistency is maintained via Kafka events.
 
-> **Note:** `venue` and `display_quantity` on orders, `venue` on fills, `sector` and `beta` on positions are nullable Phase 2 columns unused in the MVP.
+> **Note:** `venue` on orders, `venue` on fills, `sector` and `beta` on positions are nullable Phase 2 columns. `venue` was activated by issue 2.1.1 (SOR); `sector`/`beta` remain Phase 2 placeholders. `display_quantity` and `parent_order_id` on orders are activated by issue 2.1.4 — `display_quantity` is required for ICEBERG parents (gated by migration `005-orders-display-quantity-check.yaml`, CHECK constraint `display_quantity IS NULL OR (display_quantity > 0 AND display_quantity < quantity)`); `parent_order_id` (migration `006-orders-parent-order-id.yaml`) is populated on every ICEBERG child row and indexed for `findByParentOrderId` queries.
 
 #### Kafka Topics
 
@@ -1281,10 +1314,10 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 
 | # | Issue Title | Component |
 | --- | --- | --- |
-| [2.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/53) | Implement full Smart Order Router with venue scoring | Execution Engine |
-| [2.1.2](https://github.com/drag0sd0g/MariaAlpha/issues/54) | Implement simulated dark pool and internal crossing venues | Execution Engine |
-| [2.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/55) | Implement IOC and FOK order type handlers | Execution Engine |
-| [2.1.4](https://github.com/drag0sd0g/MariaAlpha/issues/56) | Implement GTC and Iceberg order type handlers | Execution Engine |
+| [2.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/53) ✅ | Implement full Smart Order Router with venue scoring | Execution Engine |
+| [2.1.2](https://github.com/drag0sd0g/MariaAlpha/issues/54) ✅ | Implement simulated dark pool and internal crossing venues | Execution Engine |
+| [2.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/55) ✅ | Implement IOC and FOK order type handlers | Execution Engine |
+| [2.1.4](https://github.com/drag0sd0g/MariaAlpha/issues/56) ✅ | Implement GTC and Iceberg order type handlers | Execution Engine |
 | [2.1.5](https://github.com/drag0sd0g/MariaAlpha/issues/57) | Implement TWAP strategy | Strategy Engine |
 | [2.1.6](https://github.com/drag0sd0g/MariaAlpha/issues/58) | Implement Momentum/Trend-following strategy | Strategy Engine |
 | [2.1.7](https://github.com/drag0sd0g/MariaAlpha/issues/59) | Implement Implementation Shortfall algorithm | Strategy Engine |

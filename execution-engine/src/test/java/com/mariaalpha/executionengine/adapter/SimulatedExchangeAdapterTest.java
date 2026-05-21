@@ -11,6 +11,7 @@ import com.mariaalpha.executionengine.model.Order;
 import com.mariaalpha.executionengine.model.OrderSignal;
 import com.mariaalpha.executionengine.model.OrderType;
 import com.mariaalpha.executionengine.model.Side;
+import com.mariaalpha.executionengine.model.TimeInForce;
 import com.mariaalpha.executionengine.service.MarketStateTracker;
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -51,7 +52,7 @@ class SimulatedExchangeAdapterTest {
   @Test
   void marketOrderFillsImmediately() {
     var order = createOrder(OrderType.MARKET, null, null, Side.BUY);
-    var instruction = new ExecutionInstruction(order, "day", null);
+    var instruction = new ExecutionInstruction(order, TimeInForce.DAY, null);
     var ack = adapter.submitOrder(instruction);
 
     assertThat(ack.accepted()).isTrue();
@@ -65,7 +66,7 @@ class SimulatedExchangeAdapterTest {
   @Test
   void limitOrderFillsWhenPriceMet() {
     var order = createOrder(OrderType.LIMIT, new BigDecimal("151.00"), null, Side.BUY);
-    var instruction = new ExecutionInstruction(order, "day", new BigDecimal("151.00"));
+    var instruction = new ExecutionInstruction(order, TimeInForce.DAY, new BigDecimal("151.00"));
     var ack = adapter.submitOrder(instruction);
 
     assertThat(ack.accepted()).isTrue();
@@ -77,7 +78,7 @@ class SimulatedExchangeAdapterTest {
   @Test
   void limitOrderPendsWhenPriceNotMet() throws InterruptedException {
     var order = createOrder(OrderType.LIMIT, new BigDecimal("148.00"), null, Side.BUY);
-    var instruction = new ExecutionInstruction(order, "day", new BigDecimal("148.00"));
+    var instruction = new ExecutionInstruction(order, TimeInForce.DAY, new BigDecimal("148.00"));
     adapter.submitOrder(instruction);
 
     Thread.sleep(200);
@@ -87,7 +88,7 @@ class SimulatedExchangeAdapterTest {
   @Test
   void stopOrderWaitsForTrigger() throws InterruptedException {
     var order = createOrder(OrderType.STOP, null, new BigDecimal("152.00"), Side.BUY);
-    var instruction = new ExecutionInstruction(order, "day", null);
+    var instruction = new ExecutionInstruction(order, TimeInForce.DAY, null);
     adapter.submitOrder(instruction);
 
     Thread.sleep(200);
@@ -110,7 +111,7 @@ class SimulatedExchangeAdapterTest {
   @Test
   void cancelRemovesPendingOrder() {
     var order = createOrder(OrderType.LIMIT, new BigDecimal("140.00"), null, Side.BUY);
-    var instruction = new ExecutionInstruction(order, "day", new BigDecimal("140.00"));
+    var instruction = new ExecutionInstruction(order, TimeInForce.DAY, new BigDecimal("140.00"));
     var ack = adapter.submitOrder(instruction);
 
     var cancelAck = adapter.cancelOrder(ack.exchangeOrderId());
@@ -121,7 +122,7 @@ class SimulatedExchangeAdapterTest {
   @Test
   void slippageApplied() {
     var order = createOrder(OrderType.MARKET, null, null, Side.BUY);
-    var instruction = new ExecutionInstruction(order, "day", null);
+    var instruction = new ExecutionInstruction(order, TimeInForce.DAY, null);
     adapter.submitOrder(instruction);
 
     await()

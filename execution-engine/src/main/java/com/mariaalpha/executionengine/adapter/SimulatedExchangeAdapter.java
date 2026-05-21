@@ -8,6 +8,7 @@ import com.mariaalpha.executionengine.model.Order;
 import com.mariaalpha.executionengine.model.OrderAck;
 import com.mariaalpha.executionengine.model.OrderType;
 import com.mariaalpha.executionengine.model.Side;
+import com.mariaalpha.executionengine.model.TimeInForce;
 import com.mariaalpha.executionengine.service.MarketStateTracker;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -54,8 +55,19 @@ public class SimulatedExchangeAdapter implements ExchangeAdapter {
 
     switch (order.getOrderType()) {
       case MARKET -> scheduleFill(exchangeId, order, marketState, config.fillLatencyMs());
-      case LIMIT -> handleLimitOrder(exchangeId, order, marketState);
+      case LIMIT, GTC -> handleLimitOrder(exchangeId, order, marketState);
       case STOP -> pendingOrders.put(exchangeId, instruction); // wait for trigger
+      case IOC -> handleIocOrder(exchangeId, order, marketState);
+      case FOK -> handleFokOrder(exchangeId, order, marketState);
+      case ICEBERG -> {
+        // Iceberg parents never reach the adapter directly — IcebergCoordinator intercepts
+        // upstream of submitOrder. If we somehow land here, the order is rejected.
+        return new OrderAck(
+            order.getOrderId(),
+            "",
+            false,
+            "ICEBERG orders must be sliced by IcebergCoordinator, not submitted directly");
+      }
     }
 
     return new OrderAck(order.getOrderId(), exchangeId, true, "");
@@ -189,8 +201,54 @@ public class SimulatedExchangeAdapter implements ExchangeAdapter {
     if (canFill) {
       scheduleFill(exchangeId, order, marketState, config.fillLatencyMs());
     } else {
-      pendingOrders.put(exchangeId, new ExecutionInstruction(order, "day", order.getLimitPrice()));
+      pendingOrders.put(
+          exchangeId, new ExecutionInstruction(order, TimeInForce.DAY, order.getLimitPrice()));
       LOG.debug("LIMIT order {} resting - price not yet reached", exchangeId);
     }
+  }
+
+  private void handleIocOrder(String exchangeId, Order order, MarketState marketState) {
+    boolean marketable = isMarketable(order, marketState);
+    if (!marketable) {
+      emitCancelReport(exchangeId, "ioc-residual-cancel");
+      return;
+    }
+    // MVP simulator: infinite top-of-book — assume the limit fills fully against the
+    // current bid/ask snapshot. Depth-aware partials are deferred to issue 2.1.10.
+    scheduleFill(exchangeId, order, marketState, config.fillLatencyMs());
+    // No residual to cancel in this approximation; depth-aware variant will emit
+    // a delayed "ioc-residual-cancel" for any unfilled portion.
+  }
+
+  private void handleFokOrder(String exchangeId, Order order, MarketState marketState) {
+    boolean marketable = isMarketable(order, marketState);
+    if (!marketable) {
+      emitCancelReport(exchangeId, "fok-killed");
+      return;
+    }
+    scheduleFill(exchangeId, order, marketState, config.fillLatencyMs());
+  }
+
+  private boolean isMarketable(Order order, MarketState marketState) {
+    if (marketState == null) {
+      return false;
+    }
+    return switch (order.getSide()) {
+      case BUY -> order.getLimitPrice().compareTo(marketState.askPrice()) >= 0;
+      case SELL -> order.getLimitPrice().compareTo(marketState.bidPrice()) <= 0;
+    };
+  }
+
+  private void emitCancelReport(String exchangeId, String reason) {
+    scheduler.schedule(
+        () -> {
+          if (reportCallback != null) {
+            reportCallback.accept(
+                new ExecutionReport(
+                    exchangeId, BigDecimal.ZERO, 0, 0, config.venue(), Instant.now(), reason));
+          }
+        },
+        config.fillLatencyMs(),
+        TimeUnit.MILLISECONDS);
   }
 }

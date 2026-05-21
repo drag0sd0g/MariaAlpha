@@ -27,6 +27,8 @@ public record OrderResponse(
     BigDecimal avgFillPrice,
     String exchangeOrderId,
     String venue,
+    BigDecimal displayQuantity,
+    UUID parentOrderId,
     Instant createdAt,
     Instant updatedAt,
     List<FillResponse> fills) {
@@ -36,24 +38,7 @@ public record OrderResponse(
   }
 
   public static OrderResponse of(OrderEntity order) {
-    return new OrderResponse(
-        order.getOrderId(),
-        order.getClientOrderId(),
-        order.getSymbol(),
-        order.getSide(),
-        order.getOrderType(),
-        order.getQuantity(),
-        order.getLimitPrice(),
-        order.getStopPrice(),
-        order.getStatus(),
-        order.getStrategy(),
-        order.getFilledQuantity(),
-        order.getAvgFillPrice(),
-        order.getExchangeOrderId(),
-        order.getVenue(),
-        order.getCreatedAt(),
-        order.getUpdatedAt(),
-        null);
+    return of(order, null);
   }
 
   public static OrderResponse of(OrderEntity order, List<FillResponse> fills) {
@@ -72,6 +57,8 @@ public record OrderResponse(
         order.getAvgFillPrice(),
         order.getExchangeOrderId(),
         order.getVenue(),
+        order.getDisplayQuantity(),
+        order.getParentOrderId(),
         order.getCreatedAt(),
         order.getUpdatedAt(),
         fills);

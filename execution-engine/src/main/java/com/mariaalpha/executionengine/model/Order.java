@@ -22,6 +22,9 @@ public class Order {
   private final Instant createdAt;
   private final AtomicReference<OrderStatus> status;
   private final List<Fill> fills;
+  private final Integer displayQuantity;
+  private final TimeInForce tif;
+  private final String parentOrderId;
   private volatile String exchangeOrderId;
   private volatile int filledQuantity;
   private volatile BigDecimal avgFillPrice;
@@ -41,6 +44,9 @@ public class Order {
     this.fills = new ArrayList<>();
     this.filledQuantity = 0;
     this.avgFillPrice = BigDecimal.ZERO;
+    this.displayQuantity = signal.displayQuantity();
+    this.tif = signal.tif();
+    this.parentOrderId = signal.parentOrderId();
   }
 
   public String getOrderId() {
@@ -119,6 +125,18 @@ public class Order {
     this.venue = venue;
   }
 
+  public Integer getDisplayQuantity() {
+    return displayQuantity;
+  }
+
+  public TimeInForce getTif() {
+    return tif;
+  }
+
+  public String getParentOrderId() {
+    return parentOrderId;
+  }
+
   public OrderSnapshot toSnapshot() {
     return new OrderSnapshot(
         orderId,
@@ -133,7 +151,10 @@ public class Order {
         filledQuantity,
         avgFillPrice,
         exchangeOrderId,
-        venue);
+        venue,
+        displayQuantity,
+        tif,
+        parentOrderId);
   }
 
   public synchronized void addFill(Fill fill) {

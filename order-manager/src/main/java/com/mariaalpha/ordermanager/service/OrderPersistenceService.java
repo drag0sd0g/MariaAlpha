@@ -97,6 +97,12 @@ public class OrderPersistenceService {
     order.setOrderType(snapshot.orderType());
     order.setQuantity(BigDecimal.valueOf(snapshot.quantity()));
     order.setStrategy(snapshot.strategyName());
+    if (snapshot.displayQuantity() != null) {
+      order.setDisplayQuantity(BigDecimal.valueOf(snapshot.displayQuantity()));
+    }
+    if (snapshot.parentOrderId() != null) {
+      order.setParentOrderId(UUID.fromString(snapshot.parentOrderId()));
+    }
     return order;
   }
 

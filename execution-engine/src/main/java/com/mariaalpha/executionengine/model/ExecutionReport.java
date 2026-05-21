@@ -9,4 +9,16 @@ public record ExecutionReport(
     int fillQuantity,
     int remainingQuantity,
     String venue,
-    Instant timestamp) {}
+    Instant timestamp,
+    String reason) {
+
+  public ExecutionReport(
+      String exchangeOrderId,
+      BigDecimal fillPrice,
+      int fillQuantity,
+      int remainingQuantity,
+      String venue,
+      Instant timestamp) {
+    this(exchangeOrderId, fillPrice, fillQuantity, remainingQuantity, venue, timestamp, null);
+  }
+}

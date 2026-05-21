@@ -2,6 +2,7 @@ package com.mariaalpha.executionengine.adapter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mariaalpha.executionengine.config.AlpacaConfig;
+import com.mariaalpha.executionengine.handler.AlpacaOrderTypeMapper;
 import com.mariaalpha.executionengine.model.ExecutionInstruction;
 import com.mariaalpha.executionengine.model.ExecutionReport;
 import com.mariaalpha.executionengine.model.OrderAck;
@@ -18,6 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -31,15 +33,18 @@ public class AlpacaExchangeAdapter implements ExchangeAdapter {
 
   private final AlpacaConfig config;
   private final ObjectMapper objectMapper;
+  private final AlpacaOrderTypeMapper typeMapper;
   private final HttpClient httpClient;
   private final OkHttpClient wsClient; // lightweight websocket client
   private final AtomicBoolean connected = new AtomicBoolean(false);
   private volatile Consumer<ExecutionReport> reportCallback;
-  private volatile okhttp3.WebSocket webSocket;
+  private volatile WebSocket webSocket;
 
-  public AlpacaExchangeAdapter(AlpacaConfig config, ObjectMapper objectMapper) {
+  public AlpacaExchangeAdapter(
+      AlpacaConfig config, ObjectMapper objectMapper, AlpacaOrderTypeMapper typeMapper) {
     this.config = config;
     this.objectMapper = objectMapper;
+    this.typeMapper = typeMapper;
     this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     this.wsClient = new OkHttpClient.Builder().readTimeout(Duration.ofSeconds(30)).build();
   }
@@ -51,10 +56,12 @@ public class AlpacaExchangeAdapter implements ExchangeAdapter {
     body.put("symbol", order.getSymbol());
     body.put("qty", String.valueOf(order.getQuantity()));
     body.put("side", order.getSide().name().toLowerCase());
-    body.put("type", order.getOrderType().getName());
-    body.put("time_in_force", instruction.timeInForce());
+    body.put("type", typeMapper.wireType(order.getOrderType()));
+    body.put("time_in_force", typeMapper.wireTif(instruction));
     body.put("client_order_id", order.getOrderId());
-    if (order.getLimitPrice() != null) {
+    if (instruction.adjustedLimitPrice() != null) {
+      body.put("limit_price", instruction.adjustedLimitPrice().toPlainString());
+    } else if (order.getLimitPrice() != null) {
       body.put("limit_price", order.getLimitPrice().toPlainString());
     }
     if (order.getStopPrice() != null) {

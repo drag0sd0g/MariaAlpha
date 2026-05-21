@@ -1,7 +1,8 @@
 // REST response types — match Java DTOs in order-manager and post-trade.
 
 export type Side = "BUY" | "SELL";
-export type OrderType = "MARKET" | "LIMIT" | "STOP";
+export type OrderType = "MARKET" | "LIMIT" | "STOP" | "IOC" | "FOK" | "GTC" | "ICEBERG";
+export type TimeInForce = "DAY" | "IOC" | "FOK" | "GTC";
 export type OrderStatus =
   | "NEW"
   | "SUBMITTED"
@@ -35,16 +36,17 @@ export interface Position {
   updatedAt: string;
 }
 
-// OrderResponse.java (without fills in list endpoint, with fills on /api/orders/{id})
 export interface Order {
-  orderId: string; // UUID
+  orderId: string;
   clientOrderId?: string;
+  parentOrderId?: string;
   symbol: string;
   side: Side;
   orderType: OrderType;
   quantity: number;
   limitPrice?: number;
   stopPrice?: number;
+  displayQuantity?: number;
   status: OrderStatus;
   strategy?: string;
   filledQuantity?: number;
@@ -70,7 +72,6 @@ export interface Fill {
   filledAt: string;
 }
 
-// SubmitOrderRequest / SubmitOrderResponse — see execution-engine ManualOrderService.
 export interface SubmitOrderRequest {
   symbol: string;
   side: Side;
@@ -78,7 +79,19 @@ export interface SubmitOrderRequest {
   quantity: number;
   limitPrice?: number;
   stopPrice?: number;
+  displayQuantity?: number; // ICEBERG only
+  tif?: TimeInForce;
   clientOrderId?: string;
+}
+
+export interface IcebergProgress {
+  parentOrderId: string;
+  totalQuantity: number;
+  displayQuantity: number;
+  submittedQuantity: number;
+  filledQuantity: number;
+  slicesSubmitted: number;
+  activeChildOrderId?: string;
 }
 
 export interface SubmitOrderResponse {

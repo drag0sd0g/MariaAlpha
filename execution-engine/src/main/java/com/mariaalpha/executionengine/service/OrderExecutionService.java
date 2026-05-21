@@ -2,6 +2,8 @@ package com.mariaalpha.executionengine.service;
 
 import com.mariaalpha.executionengine.adapter.VenueAdapterRegistry;
 import com.mariaalpha.executionengine.handler.OrderTypeHandlerRegistry;
+import com.mariaalpha.executionengine.iceberg.IcebergCoordinator;
+import com.mariaalpha.executionengine.lifecycle.IllegalStateTransitionException;
 import com.mariaalpha.executionengine.lifecycle.OrderLifecycleManager;
 import com.mariaalpha.executionengine.metrics.ExecutionMetrics;
 import com.mariaalpha.executionengine.model.ExecutionReport;
@@ -9,6 +11,7 @@ import com.mariaalpha.executionengine.model.Fill;
 import com.mariaalpha.executionengine.model.Order;
 import com.mariaalpha.executionengine.model.OrderSignal;
 import com.mariaalpha.executionengine.model.OrderStatus;
+import com.mariaalpha.executionengine.model.OrderType;
 import com.mariaalpha.executionengine.risk.DailyLossMonitor;
 import com.mariaalpha.executionengine.risk.RiskCheckChain;
 import com.mariaalpha.executionengine.router.SmartOrderRouter;
@@ -31,6 +34,7 @@ public class OrderExecutionService {
   private final MarketStateTracker marketStateTracker;
   private final DailyLossMonitor dailyLossMonitor;
   private final ExecutionMetrics metrics;
+  private final IcebergCoordinator icebergCoordinator;
 
   public OrderExecutionService(
       OrderTypeHandlerRegistry handlerRegistry,
@@ -40,7 +44,8 @@ public class OrderExecutionService {
       OrderLifecycleManager lifecycleManager,
       MarketStateTracker marketStateTracker,
       DailyLossMonitor dailyLossMonitor,
-      ExecutionMetrics metrics) {
+      ExecutionMetrics metrics,
+      IcebergCoordinator icebergCoordinator) {
     this.handlerRegistry = handlerRegistry;
     this.riskCheckChain = riskCheckChain;
     this.router = router;
@@ -49,6 +54,7 @@ public class OrderExecutionService {
     this.marketStateTracker = marketStateTracker;
     this.dailyLossMonitor = dailyLossMonitor;
     this.metrics = metrics;
+    this.icebergCoordinator = icebergCoordinator;
   }
 
   @PostConstruct
@@ -101,6 +107,33 @@ public class OrderExecutionService {
       return;
     }
 
+    if (order.getOrderType() == OrderType.ICEBERG) {
+      if (icebergCoordinator == null) {
+        lifecycleManager.transition(
+            order.getOrderId(),
+            OrderStatus.REJECTED,
+            null,
+            "ICEBERG not supported (coordinator unavailable)");
+        metrics.recordRejection("IcebergUnavailable");
+        return;
+      }
+      boolean firstSliceAccepted = icebergCoordinator.onParentSubmit(order);
+      if (!firstSliceAccepted) {
+        try {
+          lifecycleManager.transition(
+              order.getOrderId(), OrderStatus.REJECTED, null, "First iceberg slice rejected");
+        } catch (IllegalStateTransitionException e) {
+          LOG.debug(
+              "Iceberg parent {} already in terminal state: {}",
+              order.getOrderId(),
+              e.getMessage());
+        }
+        metrics.recordRejection("IcebergFirstSliceRejected");
+      }
+      metrics.recordOrderLatency(System.currentTimeMillis() - startTime);
+      return;
+    }
+
     var routingDecision = router.route(order);
     var adapter = venueAdapters.get(routingDecision.venue()).orElse(null);
     if (adapter == null) {
@@ -140,6 +173,28 @@ public class OrderExecutionService {
       return;
     }
 
+    // Zero-quantity terminal event: IOC residual cancel, FOK kill, or generic exchange cancel.
+    if (report.fillQuantity() == 0 && report.remainingQuantity() == 0) {
+      var reason = report.reason() != null ? report.reason() : "exchange-cancel";
+      try {
+        lifecycleManager.transition(order.getOrderId(), OrderStatus.CANCELLED, null, reason);
+      } catch (IllegalStateTransitionException e) {
+        // Already terminal (FILLED on prior partial, etc.) — log and continue.
+        LOG.debug(
+            "Skipping cancel transition for order {} ({})", order.getOrderId(), e.getMessage());
+        return;
+      }
+      switch (reason) {
+        case "ioc-residual-cancel" ->
+            metrics.recordIocResidualCancelled(order.getSymbol(), order.getSide().name());
+        case "fok-killed" -> metrics.recordFokKilled(order.getSymbol(), order.getSide().name());
+        default -> {
+          /* generic cancel — no dedicated counter */
+        }
+      }
+      return;
+    }
+
     var fill =
         new Fill(
             UUID.randomUUID().toString(),
@@ -161,5 +216,9 @@ public class OrderExecutionService {
         .ifPresent(a -> metrics.recordVenueFill(a.venueName(), a.venueType().name()));
 
     dailyLossMonitor.onFill(fill, order.getAvgFillPrice(), order.getSymbol());
+
+    if (icebergCoordinator != null) {
+      icebergCoordinator.onChildFillIfApplicable(order, report);
+    }
   }
 }

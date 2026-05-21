@@ -17,4 +17,41 @@ public record OrderSnapshotEvent(
     int filledQuantity,
     BigDecimal avgFillPrice,
     String exchangeOrderId,
-    String venue) {}
+    String venue,
+    Integer displayQuantity,
+    String tif,
+    String parentOrderId) {
+
+  public OrderSnapshotEvent(
+      String orderId,
+      String clientOrderId,
+      String symbol,
+      Side side,
+      int quantity,
+      OrderType orderType,
+      BigDecimal limitPrice,
+      BigDecimal stopPrice,
+      String strategyName,
+      int filledQuantity,
+      BigDecimal avgFillPrice,
+      String exchangeOrderId,
+      String venue) {
+    this(
+        orderId,
+        clientOrderId,
+        symbol,
+        side,
+        quantity,
+        orderType,
+        limitPrice,
+        stopPrice,
+        strategyName,
+        filledQuantity,
+        avgFillPrice,
+        exchangeOrderId,
+        venue,
+        null,
+        null,
+        null);
+  }
+}

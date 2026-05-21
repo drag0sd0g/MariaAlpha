@@ -44,16 +44,17 @@ public class ExecutionMetrics {
     incrementCounter("mariaalpha.execution.orders.submitted.total", "side", side);
   }
 
+  public void recordOrderSubmitted(String side, String type) {
+    incrementCounter("mariaalpha.execution.orders.submitted.total", "side", side, "type", type);
+  }
+
   public void recordFill(String symbol) {
     incrementCounter("mariaalpha.execution.fills.total", "symbol", symbol);
   }
 
   public void recordSorRouting(String venue, String venueType) {
-    Counter.builder("mariaalpha.execution.sor.routing.total")
-        .tag("venue", venue)
-        .tag("venue_type", venueType)
-        .register(registry)
-        .increment();
+    incrementCounter(
+        "mariaalpha.execution.sor.routing.total", "venue", venue, "venue_type", venueType);
   }
 
   public void recordSorScoringDuration(long nanos) {
@@ -70,22 +71,38 @@ public class ExecutionMetrics {
   }
 
   public void recordVenueSubmit(String venue, String venueType) {
-    Counter.builder("mariaalpha.execution.venue.submit.total")
-        .tag("venue", venue)
-        .tag("venue_type", venueType)
-        .register(registry)
-        .increment();
+    incrementCounter(
+        "mariaalpha.execution.venue.submit.total", "venue", venue, "venue_type", venueType);
   }
 
   public void recordVenueFill(String venue, String venueType) {
-    Counter.builder("mariaalpha.execution.venue.fills.total")
-        .tag("venue", venue)
-        .tag("venue_type", venueType)
-        .register(registry)
-        .increment();
+    incrementCounter(
+        "mariaalpha.execution.venue.fills.total", "venue", venue, "venue_type", venueType);
+  }
+
+  public void recordIocResidualCancelled(String symbol, String side) {
+    incrementCounter(
+        "mariaalpha.execution.ioc.residual.cancelled.total", "symbol", symbol, "side", side);
+  }
+
+  public void recordFokKilled(String symbol, String side) {
+    incrementCounter("mariaalpha.execution.fok.killed.total", "symbol", symbol, "side", side);
   }
 
   private void incrementCounter(String counterName, String tagName, String tagValue) {
     Counter.builder(counterName).tag(tagName, tagValue).register(registry).increment();
+  }
+
+  private void incrementCounter(
+      String counterName,
+      String firstTagName,
+      String firstTagValue,
+      String secondTagName,
+      String secondTagValue) {
+    Counter.builder(counterName)
+        .tag(firstTagName, firstTagValue)
+        .tag(secondTagName, secondTagValue)
+        .register(registry)
+        .increment();
   }
 }

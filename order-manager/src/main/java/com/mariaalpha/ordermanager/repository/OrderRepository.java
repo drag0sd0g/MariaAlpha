@@ -21,6 +21,8 @@ public interface OrderRepository extends JpaRepository<OrderEntity, UUID> {
 
   boolean existsByClientOrderId(String clientOrderId);
 
+  List<OrderEntity> findByParentOrderId(UUID parentOrderId);
+
   @Query(
       """
       SELECT o FROM OrderEntity o

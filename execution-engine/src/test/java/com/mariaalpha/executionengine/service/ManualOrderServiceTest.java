@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.mariaalpha.executionengine.controller.dto.SubmitOrderRequest;
+import com.mariaalpha.executionengine.iceberg.IcebergCoordinator;
 import com.mariaalpha.executionengine.lifecycle.OrderLifecycleManager;
 import com.mariaalpha.executionengine.model.Order;
 import com.mariaalpha.executionengine.model.OrderSignal;
@@ -21,13 +22,15 @@ class ManualOrderServiceTest {
 
   private OrderExecutionService executionService;
   private OrderLifecycleManager lifecycleManager;
+  private IcebergCoordinator icebergCoordinator;
   private ManualOrderService service;
 
   @BeforeEach
   void setUp() {
     executionService = mock(OrderExecutionService.class);
     lifecycleManager = mock(OrderLifecycleManager.class);
-    service = new ManualOrderService(executionService, lifecycleManager);
+    icebergCoordinator = mock(IcebergCoordinator.class);
+    service = new ManualOrderService(executionService, lifecycleManager, icebergCoordinator);
 
     // submitOrder returns the order passed in (simulates pipeline registration)
     when(executionService.submitOrder(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -37,7 +40,15 @@ class ManualOrderServiceTest {
   void submit_buildsInstructionWithStrategyManual() {
     var request =
         new SubmitOrderRequest(
-            "AAPL", Side.BUY, OrderType.LIMIT, 100, new BigDecimal("178.50"), null, null);
+            "AAPL",
+            Side.BUY,
+            OrderType.LIMIT,
+            100,
+            new BigDecimal("178.50"),
+            null,
+            null,
+            null,
+            null);
 
     var response = service.submit(request);
 
@@ -50,7 +61,9 @@ class ManualOrderServiceTest {
 
   @Test
   void submit_generatesClientOrderIdWhenAbsent() {
-    var request = new SubmitOrderRequest("AAPL", Side.BUY, OrderType.MARKET, 10, null, null, null);
+    var request =
+        new SubmitOrderRequest(
+            "AAPL", Side.BUY, OrderType.MARKET, 10, null, null, null, null, null);
 
     service.submit(request);
 
@@ -62,7 +75,7 @@ class ManualOrderServiceTest {
   void submit_preservesProvidedClientOrderId() {
     var request =
         new SubmitOrderRequest(
-            "TSLA", Side.SELL, OrderType.MARKET, 50, null, null, "my-client-id-123");
+            "TSLA", Side.SELL, OrderType.MARKET, 50, null, null, null, null, "my-client-id-123");
 
     service.submit(request);
 
