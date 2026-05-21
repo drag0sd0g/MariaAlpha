@@ -8,7 +8,7 @@ The service has two HTTP interfaces:
 
 | Interface | Port | Protocol | Purpose |
 |-----------|------|----------|---------|
-| REST API | 8084 | HTTP/1.1 + JSON | `/api/execution/status`, `/api/execution/resume` — trading controls |
+| REST API | 8084 | HTTP/1.1 + JSON | `/api/execution/status`, `/api/execution/resume`, `/api/execution/orders/*` (manual entry + iceberg progress), `/api/routing/*` (SOR preview, venue health) |
 | Actuator | 8085 | HTTP/1.1 + JSON | `/actuator/health`, `/actuator/prometheus` — ops and observability |
 
 ---
@@ -41,7 +41,7 @@ The service has two HTTP interfaces:
      ▼        ▼                 ▼
   Handler   Risk Check     Smart Order
   Registry    Chain           Router
-     │        │                 │
+   (7 types)  │                 │
      │   ┌────┴────┐            │
      │   │ 5 checks│            │
      │   │ in order│            │
@@ -50,6 +50,14 @@ The service has two HTTP interfaces:
      └──────────┬───────────────┘
                 │
                 ▼
+    ┌─────────────────────────┐
+    │ ICEBERG? → IcebergCoord │   parent slicing path
+    │            (slices into │
+    │             LIMIT       │
+    │             children)   │
+    └────────┬────────────────┘
+             │ (all other types fall through)
+             ▼
         ExchangeAdapter
          (submit order)
                 │
@@ -102,25 +110,61 @@ The `Order` class is intentionally mutable — it accumulates fills, tracks fill
 
 ### Stage 2: Order Type Validation
 
-The `OrderTypeHandlerRegistry` looks up the handler for the order's type (MARKET, LIMIT, or STOP). If no handler is registered (e.g., an unsupported type like IOC arrives from a future strategy engine version), the order is rejected.
+The `OrderTypeHandlerRegistry` looks up the handler for the order's type. As of issue 2.1.4 seven order types are supported: **MARKET, LIMIT, STOP, IOC, FOK, GTC, ICEBERG**. If no handler is registered (e.g., a Phase-3 type like PEGGED arrives from a future strategy version), the order is rejected with `"Unsupported order type"`.
 
 Each handler performs type-specific validation:
 
 **MarketOrderHandler:**
 - Quantity must be positive
 - Market data must be available for the symbol
+- Emits `TimeInForce.DAY`
 
 **LimitOrderHandler:**
 - All of the above, plus:
 - Limit price must be present and positive
+- Emits `TimeInForce.DAY`
 
 **StopOrderHandler:**
 - All of the above, plus:
 - Stop price must be present and positive
 - BUY STOP price must be above the current ask (momentum entry — you only want to buy if the price breaks through a resistance level)
 - SELL STOP price must be below the current bid (stop-loss — you only want to sell if the price drops below a support level)
+- Emits `TimeInForce.DAY`
 
-The handler pattern is extensible. Adding a new order type (e.g., IOC, FOK, GTC, Iceberg — planned for Phase 2) requires implementing the `OrderTypeHandler` interface and annotating the class with `@Component`. Spring auto-discovers it and the registry picks it up. No existing code needs to change.
+**IocOrderHandler** (Immediate-Or-Cancel):
+- Quantity > 0, positive limit price, market state present
+- Pre-flight marketability check: rejects with a clear validation error if a BUY limit is below the ask or a SELL limit is above the bid — an IOC submitted in that state would cancel for zero fills, so we reject up-front rather than emit an opaque cancel event
+- Emits `TimeInForce.IOC`
+
+**FokOrderHandler** (Fill-Or-Kill):
+- Same as IOC validation; FOK is all-or-nothing immediate. The MVP simulator uses a top-of-book approximation; depth-aware partials are deferred to issue 2.1.10
+- Emits `TimeInForce.FOK`
+
+**GtcOrderHandler** (Good-Till-Cancel):
+- Identical validation to LIMIT; GTC is a TIF overlay that changes when the order survives on the book (across days for Alpaca), not how it is matched
+- Emits `TimeInForce.GTC`
+
+**IcebergOrderHandler**:
+- Quantity > 0, positive limit price, **`displayQuantity` > 0 and strictly less than `quantity`**, market state present
+- The handler's `toExecutionInstruction` populates `ExecutionInstruction.displayQuantity` so the value flows downstream, but the parent order never reaches a venue adapter directly — see the iceberg dispatch below
+- Emits `TimeInForce.DAY` (TIF applies to each child slice individually)
+
+Wire-format translation lives in `AlpacaOrderTypeMapper`, which collapses IOC/FOK/GTC into Alpaca's `type=limit` with the appropriate `time_in_force` and explicitly rejects ICEBERG (the slicer is responsible for issuing the child LIMITs).
+
+The handler pattern remains extensible: adding a new order type (e.g. PEGGED — Phase 3) only requires implementing the `OrderTypeHandler` interface and annotating with `@Component`. Spring auto-discovers it and the registry picks it up. No existing code changes.
+
+#### ICEBERG dispatch (special case)
+
+Immediately after validation + risk checks, `OrderExecutionService.processOrder` branches on `OrderType.ICEBERG` and hands the parent off to `IcebergCoordinator.onParentSubmit` *instead of* the normal venue-adapter call. The coordinator:
+
+1. Registers the parent in the in-memory `ParentChildOrderRegistry` along with its target `displayQuantity`
+2. Builds a child LIMIT `Order` (via `IcebergSliceFactory`) sized to `min(remaining, displayQuantity)`, with `parentOrderId` linking it back to the parent and `strategyName="ICEBERG-CHILD"`
+3. Routes the child through the SOR, registers it with the lifecycle manager, and submits it to the venue adapter
+4. On the *first* child ack the parent transitions NEW → SUBMITTED
+
+Subsequent slices are issued from `OrderExecutionService.onExecutionReport` via the `icebergCoordinator.onChildFillIfApplicable(order, report)` hook (called once `dailyLossMonitor.onFill` has run). The coordinator transitions the parent into PARTIALLY_FILLED on the first child completion and into FILLED when cumulative child fills meet the parent quantity (with reason `iceberg-complete`).
+
+A parent cancel (via `ManualOrderService.cancel`) cascades through `IcebergCoordinator.onParentCancelRequested`, which cancels the currently-active child at its venue and transitions the parent to CANCELLED with reason `iceberg-parent-cancelled`. Already-filled children are immutable; not-yet-submitted slices are simply never issued.
 
 ### Stage 3: Risk Check Chain
 
@@ -150,16 +194,18 @@ Checks the `DailyLossMonitor.isTradingHalted()` flag. This is technically redund
 
 ### Stage 4: Routing
 
-The `SmartOrderRouter` interface allows for venue selection logic — choosing between multiple exchanges or dark pools based on order characteristics, market conditions, or historical fill quality. In the MVP, the `DirectRouter` implementation is a pass-through that routes all orders to the single configured exchange adapter (venue = "PRIMARY") and publishes a `RoutingDecision` to the `routing.decisions` Kafka topic.
+The `SmartOrderRouter` interface allows for venue selection logic — choosing between multiple exchanges or dark pools based on order characteristics, market conditions, or historical fill quality. Issue 2.1.1 introduced `ScoredSmartOrderRouter`, which weighs each configured venue across four scorers (latency, fees, information-leakage, liquidity / price-improvement) and writes the full breakdown to the `routing.decisions` Kafka topic. The legacy `DirectRouter` remains as a pass-through fallback. See `docs/smart-order-router-explainer.md` for the scoring model.
 
-Phase 2 will introduce venue scoring (fill quality, latency, fees), dark pool routing, and internal crossing — all behind the same `SmartOrderRouter` interface.
+Iceberg child slices flow through the same router — each child is routed independently, so a multi-venue split across an ICEBERG parent is possible.
 
 ### Stage 5: Submission
 
-The handler builds an `ExecutionInstruction` from the order (adding time-in-force and adjusted limit price), and the instruction is submitted to the exchange adapter. The adapter returns an `OrderAck`:
+The handler builds an `ExecutionInstruction` from the order (a typed `TimeInForce`, an adjusted limit price, and an optional `displayQuantity` for ICEBERG children), and the instruction is submitted to the exchange adapter. The adapter returns an `OrderAck`:
 
 - **Accepted**: The order transitions to `SUBMITTED` and the exchange order ID is stored on the order for fill correlation.
 - **Rejected**: The order transitions to `REJECTED` with the adapter's rejection reason.
+
+For ICEBERG parents this stage is bypassed (see "ICEBERG dispatch" above) — the coordinator owns submission and lifecycle for the parent.
 
 ---
 
@@ -192,13 +238,33 @@ Active when `spring.profiles.active=simulated` (the default). This adapter fills
 
 Once triggered, the STOP order converts to a MARKET order and schedules a fill.
 
+**GTC orders** are handled identically to LIMIT in-process (the simulator has no concept of overnight sessions; GTC's "survives across days" semantic only matters to Alpaca).
+
+**IOC orders** compute marketability against the current bid/ask snapshot:
+- Marketable (BUY limit ≥ ask, or SELL limit ≤ bid): schedules a normal fill against the top-of-book approximation
+- Non-marketable: emits an `ExecutionReport(fillQuantity=0, remainingQuantity=0, reason="ioc-residual-cancel")` after `fillLatencyMs`, which `OrderExecutionService.onExecutionReport` translates into a CANCELLED transition. The `mariaalpha.execution.ioc.residual.cancelled.total` counter is incremented for that branch.
+
+**FOK orders** apply the same marketability check; non-marketable orders emit `reason="fok-killed"` (recorded via `mariaalpha.execution.fok.killed.total`). FOK is all-or-nothing — there is no partial-fill path.
+
+**ICEBERG orders** never reach `SimulatedExchangeAdapter.submitOrder` directly. The adapter's switch fails closed for `ICEBERG` with `accepted=false, reason="ICEBERG orders must be sliced by IcebergCoordinator, not submitted directly"` as a defence-in-depth check; the real path goes parent → IcebergCoordinator → child LIMITs through the regular pipeline. Each child fills like any other LIMIT.
+
 The fill quantity is controlled by `partialFillRatio` (default: 1.0 = always full fill). Setting this to 0.5 would simulate partial fills, where each fill covers 50% of the remaining quantity.
 
 ### AlpacaExchangeAdapter
 
 Active when `spring.profiles.active=alpaca`. This adapter connects to Alpaca Markets for live or paper trading:
 
-**Order submission** uses Java's built-in `HttpClient` to POST to `/v2/orders` with API key authentication. The request body maps the order fields to Alpaca's API format (lowercase side, lowercase type, string quantities).
+**Order submission** uses Java's built-in `HttpClient` to POST to `/v2/orders` with API key authentication. The request body maps the order fields to Alpaca's API format via `AlpacaOrderTypeMapper`:
+
+| Internal `OrderType` | Alpaca `type` | Alpaca `time_in_force` |
+|----------------------|---------------|------------------------|
+| MARKET               | `market`      | `day`                  |
+| LIMIT                | `limit`       | `day`                  |
+| STOP                 | `stop`        | `day`                  |
+| IOC                  | `limit`       | `ioc`                  |
+| FOK                  | `limit`       | `fok`                  |
+| GTC                  | `limit`       | `gtc`                  |
+| ICEBERG              | (mapper throws — children go via LIMIT) | n/a       |
 
 **Fill reception** uses an OkHttp WebSocket connection to Alpaca's `trade_updates` stream. The `AlpacaWebSocketListener`:
 1. Authenticates on connection with the API key/secret
@@ -252,15 +318,17 @@ This design guarantees:
 When an `ExecutionReport` arrives from the exchange adapter (via the registered callback):
 
 1. The `OrderLifecycleManager` looks up the order by exchange order ID
-2. A `Fill` record is created with the fill price, quantity, venue, and timestamp
-3. The order transitions to `PARTIALLY_FILLED` (if remaining quantity > 0) or `FILLED` (if remaining = 0)
-4. The fill is added to the order, which recomputes the weighted-average fill price:
+2. **Zero-quantity terminal event branch**: if both `fillQuantity == 0` and `remainingQuantity == 0`, the report is treated as a cancellation. The order is transitioned to CANCELLED with the report's `reason` (or `"exchange-cancel"` if absent), and the IOC-residual-cancel / FOK-killed counters are incremented for those specific reasons. If the order is already terminal (e.g. a prior PARTIAL → FILLED on IOC), the `IllegalStateTransitionException` is swallowed and the event is dropped.
+3. For positive-quantity fills, a `Fill` record is created with the fill price, quantity, venue, and timestamp
+4. The order transitions to `PARTIALLY_FILLED` (if remaining quantity > 0) or `FILLED` (if remaining = 0)
+5. The fill is added to the order, which recomputes the weighted-average fill price:
 
 ```
 avgFillPrice = (prevAvg × prevFilledQty + fillPrice × fillQty) / newFilledQty
 ```
 
-5. The `DailyLossMonitor` is notified of the fill to update the daily P&L
+6. The `DailyLossMonitor` is notified of the fill to update the daily P&L
+7. **Iceberg hook**: `icebergCoordinator.onChildFillIfApplicable(order, report)` runs last. It no-ops unless the order has a `parentOrderId` known to the registry, in which case it updates the parent's progress and submits the next slice (or transitions the parent to FILLED).
 
 ---
 
@@ -356,13 +424,13 @@ Each Alpaca REST API call has a 5-second timeout. On timeout, the call is treate
 
 ### Inbound Topics
 
-**`strategy.signals`** — consumed by `SignalConsumer`. Each message is a JSON-serialised `OrderSignal` with fields: `symbol`, `side`, `quantity`, `orderType`, `limitPrice` (nullable), `stopPrice` (nullable), `strategyName`, `timestamp`. The consumer deserialises using Jackson and delegates to `OrderExecutionService.executeSignal()`.
+**`strategy.signals`** — consumed by `SignalConsumer`. Each message is a JSON-serialised `OrderSignal` with fields: `symbol`, `side`, `quantity`, `orderType`, `limitPrice` (nullable), `stopPrice` (nullable), `strategyName`, `timestamp`, plus the Phase 2 additions `displayQuantity` (nullable Integer; ICEBERG parents only), `tif` (nullable `TimeInForce`; populated for manual IOC/FOK/GTC submissions), and `parentOrderId` (nullable String; set on iceberg children). The consumer deserialises using Jackson and delegates to `OrderExecutionService.executeSignal()`. Strategies that emit only the 8 MVP fields still deserialise correctly — the three new fields are optional.
 
 **`market-data.ticks`** — consumed by `MarketDataConsumer` in a separate consumer group (`execution-engine-market-data`). Each tick is parsed into a `MarketState` (symbol, bidPrice, askPrice, lastTradePrice, timestamp) and stored in the `MarketStateTracker`. This provides the risk checks and order type handlers with current market prices.
 
 ### Outbound Topics
 
-**`orders.lifecycle`** — published by `OrderEventPublisher` on every state transition. Each message is an `OrderEvent` containing the orderId (used as the Kafka key for ordering), the new status, a full order snapshot, the fill (if this transition was caused by a fill), the rejection reason (if rejected), and a timestamp. Downstream consumers (Order Manager, Analytics, Reconciliation) use this topic to maintain their own views of order state.
+**`orders.lifecycle`** — published by `OrderEventPublisher` on every state transition. Each message is an `OrderEvent` containing the orderId (used as the Kafka key for ordering), the new status, a full `OrderSnapshot` (now including `displayQuantity`, `tif`, and `parentOrderId`), the fill (if this transition was caused by a fill), the rejection reason (if rejected), and a timestamp. Downstream consumers (Order Manager, Analytics, Reconciliation) use this topic to maintain their own views of order state.
 
 **`routing.decisions`** — published by `RoutingDecisionPublisher` whenever an order is routed. Contains the orderId, selected venue, routing reason, and timestamp. In the MVP this always shows venue="PRIMARY" from the DirectRouter.
 
@@ -388,9 +456,18 @@ The following metrics are exported at `/actuator/prometheus`:
 |--------|------|------|-------------|
 | `mariaalpha.execution.order.latency.ms` | Timer | — | End-to-end latency from signal arrival to order submission, with p50/p95/p99 percentiles |
 | `mariaalpha.execution.risk.check.duration.ms` | Timer | — | Risk check chain evaluation duration |
-| `mariaalpha.execution.risk.rejections.total` | Counter | `reason` | Count of rejected orders by rejection reason (TradingHalted, ValidationFailed, MaxOrderNotional, etc.) |
-| `mariaalpha.execution.orders.submitted.total` | Counter | `side` | Count of successfully submitted orders by side (BUY/SELL) |
+| `mariaalpha.execution.sor.scoring.duration.ms` | Timer | — | Smart Order Router scoring loop duration (Phase 2.1.1) |
+| `mariaalpha.execution.risk.rejections.total` | Counter | `reason` | Count of rejected orders by rejection reason (TradingHalted, ValidationFailed, MaxOrderNotional, IcebergFirstSliceRejected, etc.) |
+| `mariaalpha.execution.orders.submitted.total` | Counter | `side` (also `type` via overload) | Count of successfully submitted orders |
 | `mariaalpha.execution.fills.total` | Counter | `symbol` | Count of fills received by symbol |
+| `mariaalpha.execution.venue.submit.total` | Counter | `venue`, `venue_type` | Per-venue submission count (Phase 2.1.1 SOR) |
+| `mariaalpha.execution.venue.fills.total` | Counter | `venue`, `venue_type` | Per-venue fill count |
+| `mariaalpha.execution.sor.routing.total` | Counter | `venue`, `venue_type` | Per-venue routing-decision count |
+| `mariaalpha.execution.sor.candidate.score` | DistributionSummary | `venue`, `venue_type` | Histogram of per-venue scores observed during routing |
+| `mariaalpha.execution.ioc.residual.cancelled.total` | Counter | `symbol`, `side` | Count of IOC orders that cancelled with zero fills (Phase 2.1.3) |
+| `mariaalpha.execution.fok.killed.total` | Counter | `symbol`, `side` | Count of FOK orders that killed for insufficient liquidity (Phase 2.1.3) |
+| `mariaalpha.execution.iceberg.slices.total` | Counter | `parent_symbol`, `side` | Count of iceberg child slices submitted (Phase 2.1.4) |
+| `mariaalpha.execution.iceberg.parent.duration.ms` | Timer | `parent_symbol` | Wall-clock duration from parent SUBMITTED to FILLED (Phase 2.1.4) |
 
 ---
 
@@ -446,7 +523,9 @@ All settings live under the `execution-engine.*` namespace and are overridable v
 
 The execution engine needs `OrderSignal`, `Side`, and `OrderType` — models that also exist in the strategy engine. Rather than creating a shared-models library, these are replicated locally under `com.mariaalpha.executionengine.model`. This avoids coupling two independently deployable services. The field names match exactly, so Kafka JSON deserialisation works without mapping. A shared-models module will be introduced when a third consumer needs the same types.
 
-The execution engine's `OrderType` adds `STOP` (not present in the strategy engine's copy). The execution engine's `OrderSignal` adds `stopPrice` (not present in the strategy engine's copy). Jackson ignores unknown properties by default, so strategy engine signals (without `stopPrice`) deserialise correctly — `stopPrice` is simply `null`.
+The execution engine's `OrderType` enum is the richest copy in the system: it carries the four Phase-2 additions (IOC, FOK, GTC, ICEBERG) on top of the MVP MARKET/LIMIT/STOP. The order-manager `OrderType` mirrors it. The strategy-engine `OrderType` deliberately stays at MARKET/LIMIT — strategies only emit those two; richer types arrive through the manual REST API. Post-trade goes one further and also enumerates `STOP_LIMIT` and `PEGGED` so its TCA pipeline doesn't need a schema bump for Phase 3.
+
+The execution engine's `OrderSignal` adds `stopPrice` (not present in the strategy engine's copy), plus the Phase-2 fields `displayQuantity`, `tif`, and `parentOrderId`. `OrderSignal` retains a backwards-compatible 8-arg constructor so existing strategy-engine + test call sites compile unchanged. Jackson ignores unknown properties by default, so strategy engine signals deserialise correctly — the missing fields are simply `null`.
 
 ### Callback-Based Fill Delivery
 
@@ -458,4 +537,17 @@ Order status transitions use `AtomicReference.compareAndSet()` rather than `sync
 
 ### Direct Router as SOR Stub
 
-The `DirectRouter` is intentionally trivial — it routes every order to the single configured exchange adapter. This exists as a placeholder for the Phase 2 Smart Order Router, which will score multiple venues and potentially split orders across exchanges. By introducing the `SmartOrderRouter` interface now, the routing step is wired into the pipeline from the start, and upgrading to multi-venue routing requires no changes to the orchestration service.
+The `DirectRouter` is a legacy pass-through that routes every order to the single configured exchange adapter. Issue 2.1.1 introduced the production router, `ScoredSmartOrderRouter`, behind the same `SmartOrderRouter` interface. The pre-existing scaffolding meant upgrading to multi-venue routing required no changes to the orchestration service.
+
+### Iceberg Subsystem (issue 2.1.4)
+
+The iceberg flow is deliberately *not* implemented as another `OrderTypeHandler`. The handler interface returns a single `ExecutionInstruction` per call; iceberg needs to issue many child orders over time, react to fills, and own its own state. That's a coordinator-shaped responsibility, not a stateless validator, so it lives in a sibling `iceberg/` package:
+
+- **`IcebergCoordinator`** — orchestrates parent → child slicing, hooks into `OrderExecutionService.processOrder` (replacing the venue-adapter call for ICEBERG parents) and `onExecutionReport` (handling child completions). Owns the parent state-machine transitions.
+- **`ParentChildOrderRegistry`** — in-memory `ConcurrentHashMap`-backed maps of child→parent and per-parent `IcebergProgress`. Per-parent mutations use `ConcurrentHashMap.compute` to stay race-free under concurrent fills on sibling children.
+- **`IcebergSliceFactory`** — builds child LIMIT `Order` instances. Children inherit symbol/side/limit-price, get `strategyName="ICEBERG-CHILD"`, and carry the parent's UUID in `parentOrderId`.
+- **`IcebergProgress`** — immutable record holding total / display / submitted / filled quantities, slice count, and the currently-active child id.
+- **`IcebergProgressView`** — REST DTO exposed via `GET /api/execution/orders/{parentId}/iceberg-progress`. Returns 404 once the parent reaches a terminal state (the registry cleans up on FILLED/CANCELLED).
+- **`IcebergMetrics`** — facade for the two iceberg-specific meters.
+
+The registry is in-memory only — there's no Postgres backing for the live parent→child relationship. Child rows in the order-manager DB carry `parent_order_id` (migration 006) so the relationship is rebuildable from durable state if the execution-engine restarts, but the *coordinator* state (current slice, submitted-but-not-acked, etc.) is lost on restart. Issue 3.4.1 (program trading) is the right ticket to add a recovery path if program-trading workloads need it.

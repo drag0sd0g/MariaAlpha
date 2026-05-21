@@ -68,7 +68,16 @@ At a glance:
 
 ## Data Model
 
-Four PostgreSQL tables, all created by Liquibase changesets `001`–`004`:
+Four PostgreSQL tables, created by Liquibase changesets `001`–`006`:
+
+| Changeset | Adds |
+|-----------|------|
+| `001-create-orders.yaml` | `orders` table + indexes on `symbol`, `status`, `created_at`, `exchange_order_id` |
+| `002-create-fills.yaml` | `fills` table |
+| `003-create-positions.yaml` | `positions` table |
+| `004-create-portfolio-snapshots.yaml` | `portfolio_snapshots` table |
+| `005-orders-display-quantity-check.yaml` | CHECK constraint `ck_orders_display_quantity` (Phase 2.1.4 — activates iceberg support) |
+| `006-orders-parent-order-id.yaml` | `parent_order_id UUID` column + `idx_orders_parent_order_id` index (Phase 2.1.4 — links iceberg children to their parent) |
 
 ### `orders` — one row per order (not per fill)
 
@@ -77,23 +86,26 @@ order_id             UUID PRIMARY KEY              -- internal UUID
 client_order_id      VARCHAR(64) UNIQUE NOT NULL   -- idempotency key
 symbol               VARCHAR(16) NOT NULL
 side                 VARCHAR(4)  NOT NULL          -- 'BUY' | 'SELL'
-order_type           VARCHAR(16) NOT NULL          -- 'MARKET' | 'LIMIT' | 'STOP'
+order_type           VARCHAR(16) NOT NULL          -- 'MARKET'|'LIMIT'|'STOP'|'IOC'|'FOK'|'GTC'|'ICEBERG'
 quantity             DECIMAL(18,8) NOT NULL
 limit_price          DECIMAL(18,8)                 -- nullable for MARKET
 stop_price           DECIMAL(18,8)                 -- nullable for non-STOP
 status               VARCHAR(16) NOT NULL          -- state machine
-strategy             VARCHAR(32)                   -- 'VWAP', 'MOMENTUM', ...
+strategy             VARCHAR(32)                   -- 'VWAP', 'MOMENTUM', 'MANUAL', 'ICEBERG-CHILD', ...
 filled_quantity      DECIMAL(18,8) NOT NULL DEFAULT 0
 avg_fill_price       DECIMAL(18,8)
 exchange_order_id    VARCHAR(64)                   -- broker reference
 venue                VARCHAR(32)
-display_quantity     DECIMAL(18,8)                 -- iceberg support
+display_quantity     DECIMAL(18,8)                 -- ICEBERG only; CHECK > 0 AND < quantity (migration 005)
+parent_order_id      UUID                          -- ICEBERG children only; FK semantics enforced in app (migration 006)
 arrival_mid_price    DECIMAL(18,8)                 -- for slippage analysis
 created_at           TIMESTAMPTZ NOT NULL
 updated_at           TIMESTAMPTZ NOT NULL
 ```
 
-Indexes: `symbol`, `status`, `created_at`, `exchange_order_id`.
+Indexes: `symbol`, `status`, `created_at`, `exchange_order_id`, `parent_order_id`.
+
+`OrderRepository.findByParentOrderId(UUID)` is used by downstream consumers (and by ad-hoc TCA roll-up queries) to fetch the full set of children for an ICEBERG parent. The relationship is not enforced as a database `FOREIGN KEY` because parents and children land via separate Kafka events whose arrival order isn't guaranteed; the app-level invariant is "parent exists by the time a child is queried back via the REST API."
 
 ### `fills` — one row per child fill
 
@@ -165,7 +177,10 @@ Payload schema (`OrderLifecycleEvent`):
     "filledQuantity": 10,
     "avgFillPrice": 150.25,
     "exchangeOrderId": "BROKER-ABC-42",
-    "venue": "SIMULATED"
+    "venue": "SIMULATED",
+    "displayQuantity": null,
+    "tif": "DAY",
+    "parentOrderId": null
   },
   "fill": {
     "fillId": "f0c1...",
@@ -185,6 +200,14 @@ Payload schema (`OrderLifecycleEvent`):
 ```
 
 Fills are **optional**: status-only transitions (`NEW → SUBMITTED`, `SUBMITTED → CANCELLED`, `SUBMITTED → REJECTED`) arrive with `fill: null`. Every partial or full fill carries a populated `fill`.
+
+Phase 2.1.3 / 2.1.4 added three optional fields to the `order` payload:
+
+- `displayQuantity` (Integer, nullable) — populated on ICEBERG parents only
+- `tif` (`"DAY" | "IOC" | "FOK" | "GTC"`, nullable) — populated from the order's `TimeInForce` enum
+- `parentOrderId` (String UUID, nullable) — populated on ICEBERG children, references their parent's `orderId`
+
+These are forward-compatible: pre-2.1.3 consumers ignore them. The order-manager `OrderSnapshotEvent` record exposes a backwards-compatible secondary constructor so legacy producers still deserialise.
 
 ### `market-data.ticks` — produced by the Market Data Gateway
 

@@ -17,22 +17,21 @@ We will deploy the full MariaAlpha stack — 7 application services + UI + Postg
 
 The plan commits to Oracle because **it is the only provider in 2026 that offers a free-forever VM at the scale we need** (~5 vCPU / ~7 GiB requested). See §3 for the alternative-providers analysis.
 
-Total time to complete (after the in-flight 2.1.3/2.1.4 PR lands): **~1–2 weeks of focused work**, broken into eight new GitHub issues plus expansions to two existing ones (#82, #83).
+Total time to complete: **~1–2 weeks of focused work**, broken into eight new GitHub issues plus expansions to two existing ones (#82, #83).
 
 ---
 
 ## 2. Sequencing decision
 
-**Recommendation: finish in-flight work first, then pivot.**
+Issues 2.1.3 (IOC/FOK) and 2.1.4 (GTC/Iceberg) have **landed** on `main` (commits `87cbb54` and `cb96a14`). The branch is in a clean, mergeable state and the cloud-deployment milestone described in this document is the natural next milestone to open.
 
-| Step | Effort | Outcome |
+| Step | Status / Effort | Outcome |
 | --- | --- | --- |
-| Finish 2.1.3 (IOC/FOK) + 2.1.4 (GTC/Iceberg) on the current branch | 1–2 days | Branch is at a clean, mergeable commit |
-| Push branch to `origin/2.1.3-IOC-FOK-GTC-Iceberg`, open PR against `main` | <1 hour | Work is durably backed up off the laptop |
-| Merge, then open the cloud-deployment milestone (this document) | ~1–2 weeks | Every subsequent feature PR auto-deploys |
+| ~~Finish 2.1.3 (IOC/FOK) + 2.1.4 (GTC/Iceberg)~~ | ✅ Merged (`87cbb54`, `cb96a14`) | Branch was at a clean, mergeable commit before the pivot |
+| Open the cloud-deployment milestone (this document) | ~1–2 weeks | Every subsequent feature PR auto-deploys |
 | Resume Phase 2 starting at 2.1.5 (TWAP) | — | Each merge ships to cloud |
 
-Rationale: pivoting mid-feature leaves a half-built ExchangeAdapter behaviour set on the branch — that complicates the next PR's diff and obscures whether the cloud pipeline broke the new feature or the new feature broke itself. Two days to a clean commit is cheap insurance.
+Rationale (still load-bearing for the *next* mid-feature pivot decision): pivoting mid-feature leaves a half-built ExchangeAdapter behaviour set on the branch, which complicates the next PR's diff and obscures whether the cloud pipeline broke the new feature or the new feature broke itself. The same logic will apply when this document is revisited.
 
 ---
 
@@ -1013,7 +1012,7 @@ curl -fsS https://api.$LB_IP.nip.io/actuator/health/readiness
 
 Once you approve this document, the execution sequence is:
 
-1. **Finish 2.1.3 + 2.1.4** on the current branch and open a PR. Merge.
+1. ~~**Finish 2.1.3 + 2.1.4** on the current branch and open a PR. Merge.~~ ✅ Done (commits `87cbb54`, `cb96a14`).
 2. **Sign up for Oracle Cloud** with home region Frankfurt. Run `hitrov` script in the background to acquire Ampere capacity (no impact on Step 3 — runs in parallel).
 3. **Create the 8 new issues** listed in §13.1 (2.8.1 – 2.8.7) and expand the acceptance criteria on #82 and #83.
 4. **Edit the TDD** (NG-5 → G-10, §10 expansion) as a separate PR for clean history.
