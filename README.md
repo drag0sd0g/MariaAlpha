@@ -18,9 +18,9 @@ Phase 1 is complete. MariaAlpha ships as a working, end-to-end algorithmic tradi
 - **Full observability** — Grafana LGTM stack (Alloy, Prometheus, Loki, Tempo, Grafana 11) with a provisioned Trading Pipeline dashboard covering all 7 services
 - **Production-grade CI** — lint, unit, integration, and end-to-end tests gating every pull request; CodeQL and Snyk security scans
 
-The Phase 1 acceptance test — `SimulatedHappyPathE2ETest` — boots the full 14-service Docker Compose stack and traverses the complete Tick-to-Trade pipeline on every CI run. See [`docs/phase-1-completion.md`](docs/phase-1-completion.md) for the full record of what was built.
+The Phase 1 acceptance test — `SimulatedHappyPathE2ETest` — boots the full Docker Compose stack (15 long-running services + a one-shot Kafka topics initializer) and traverses the complete Tick-to-Trade pipeline on every CI run. See [`docs/phase-1-completion.md`](docs/phase-1-completion.md) for the full record of what was built.
 
-The roadmap for Phase 2 (Smart Order Router, TWAP/Momentum strategies, Helm/Kubernetes, Redis distributed cache, advanced order types, regime classifier, Playwright UI e2e tests) is in [§11 of the Technical Design Document](docs/technical-design-document.md#phase-2-full-desk-workflows--sor--rich-analytics).
+Phase 2 work has begun landing on `main`: the Smart Order Router (issue 2.1.1), the advanced order-type handlers IOC / FOK / GTC / Iceberg (2.1.3, 2.1.4), and the umbrella Helm chart for Kubernetes deployment (2.7.1) are all shipped. Remaining Phase 2 items — TWAP / Momentum / Implementation Shortfall strategies, Redis distributed position cache, regime classifier, Playwright UI e2e tests, and the docker image publish workflow — are tracked in [§11 of the Technical Design Document](docs/technical-design-document.md#phase-2-full-desk-workflows--sor--rich-analytics).
 
 ## Prerequisites
 
@@ -43,8 +43,12 @@ with Docker Desktop ≥ 25.0 and 8 GB RAM allocated.
 git clone https://github.com/drag0sd0g/MariaAlpha.git
 cd MariaAlpha
 cp .env.example .env
-# .env defaults are fine for local dev. If you change MARIAALPHA_API_KEY, rebuild
-# the UI image: docker compose build ui && docker compose up -d ui
+# .env defaults are fine for local dev. For docker-compose, changing
+# MARIAALPHA_API_KEY requires rebuilding the UI image
+# (`docker compose build ui && docker compose up -d ui`) because Vite bakes the
+# value into the bundle at build time. The Helm chart avoids this — the UI's
+# init container renders the key into /config.js at pod start, so secret
+# rotation is a `helm upgrade` + pod restart with no image rebuild.
 ```
 
 ### 2. Build everything
@@ -64,9 +68,10 @@ warm Gradle cache.
 just run
 ```
 
-Runs `docker compose up -d` and starts 14 containers. First-time runs build all
-service images (~3 minutes); subsequent runs reuse the cache. Wait ~90 seconds after
-`just run` returns for every service to become healthy.
+Runs `docker compose up -d` and starts 15 long-running containers plus a
+one-shot `kafka-init` container that creates topics and exits. First-time runs
+build all service images (~3 minutes); subsequent runs reuse the cache. Wait
+~90 seconds after `just run` returns for every service to become healthy.
 
 ### 4. Verify
 

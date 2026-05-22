@@ -432,7 +432,7 @@ Each Alpaca REST API call has a 5-second timeout. On timeout, the call is treate
 
 **`orders.lifecycle`** — published by `OrderEventPublisher` on every state transition. Each message is an `OrderEvent` containing the orderId (used as the Kafka key for ordering), the new status, a full `OrderSnapshot` (now including `displayQuantity`, `tif`, and `parentOrderId`), the fill (if this transition was caused by a fill), the rejection reason (if rejected), and a timestamp. Downstream consumers (Order Manager, Analytics, Reconciliation) use this topic to maintain their own views of order state.
 
-**`routing.decisions`** — published by `RoutingDecisionPublisher` whenever an order is routed. Contains the orderId, selected venue, routing reason, and timestamp. In the MVP this always shows venue="PRIMARY" from the DirectRouter.
+**`routing.decisions`** — published by `RoutingDecisionPublisher` whenever an order is routed. Contains the orderId, selected venue, the full per-venue score breakdown, and the routing reason. Since issue 2.1.1 this shows the venue chosen by `ScoredSmartOrderRouter` (typically one of `SIMULATED`, `DARK_POOL_A`, `INTERNAL_CROSS` — whichever wins on the composite latency / fees / information-leakage / liquidity score). The legacy `DirectRouter` remains as a one-venue fallback when explicitly selected; that mode emits venue="PRIMARY".
 
 **`analytics.risk-alerts`** — published by `RiskAlertPublisher` when the daily loss limit is breached. Contains the symbol, alert type (`DAILY_LOSS_LIMIT_BREACH`), severity (`CRITICAL`), a human-readable message, and a timestamp.
 

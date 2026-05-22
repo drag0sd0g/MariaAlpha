@@ -1164,18 +1164,24 @@ graph LR
     end
 ```
 
+A `helm` job inside `ci.yml` (added by issue 2.7.1) runs `helm dependency update`, `helm lint`, and `kubeconform -strict` against the rendered umbrella chart on every PR.
+
+The multi-arch image publish workflow is planned for issue 2.7.2 — not yet on `main`:
+
 ```mermaid
 graph LR
-    subgraph "docker-publish.yml (on push to main)"
+    subgraph "docker-publish.yml (planned, issue 2.7.2)"
         A[Build Docker Images<br/>multi-arch amd64/arm64] --> B[Push to GHCR<br/>ghcr.io/drag0sd0g/mariaalpha] --> C[Update Helm<br/>image tags]
     end
 ```
 
 ### 10.2 Kubernetes Deployment (Helm)
 
-> **Note:** Resource values below are initial estimates. They MUST be profiled and adjusted under realistic load.
+> **Status:** issue 2.7.1 has shipped the umbrella Helm chart at `charts/mariaalpha/`. See [`charts/mariaalpha/README.md`](../charts/mariaalpha/README.md) and the runbook [`docs/runbooks/helm-install.md`](runbooks/helm-install.md). The Analytics Service row below is not yet implemented and is excluded from the chart.
 
-| Component | Replicas | CPU Req | CPU Limit | Mem Req | Mem Limit |
+The table below is the **Phase-2 sizing target**, not what the local chart currently ships. The local chart defaults to `replicaCount: 1` with `autoscaling.enabled: false` for every Java service to keep the OrbStack laptop install lean — HPA templates exist behind the flag so a cloud overlay can enable them without touching templates.
+
+| Component | Replicas (target) | CPU Req | CPU Limit | Mem Req | Mem Limit |
 | --- | --- | --- | --- | --- | --- |
 | API Gateway | 2 (HPA: 2-4) | 250m | 500m | 256Mi | 512Mi |
 | Market Data GW | 1 | 500m | 1000m | 512Mi | 1Gi |
@@ -1184,7 +1190,7 @@ graph LR
 | Order Manager | 1 (HPA: 1-2) | 250m | 500m | 256Mi | 512Mi |
 | Post-Trade | 1 | 250m | 500m | 256Mi | 512Mi |
 | ML Signal Service | 1 | 500m | 1000m | 1Gi | 2Gi |
-| Analytics Service | 1 | 250m | 500m | 512Mi | 1Gi |
+| Analytics Service (not yet implemented) | 1 | 250m | 500m | 512Mi | 1Gi |
 | React UI | 1 | 100m | 250m | 128Mi | 256Mi |
 | PostgreSQL | 1 (StatefulSet) | 500m | 2000m | 1Gi | 4Gi |
 | Kafka (KRaft) | 1 | 500m | 1000m | 1Gi | 2Gi |
@@ -1194,7 +1200,7 @@ graph LR
 | Alloy | DaemonSet | 100m | 250m | 128Mi | 256Mi |
 | Grafana | 1 | 100m | 250m | 256Mi | 512Mi |
 
-**Kubernetes orchestration:** Docker Desktop includes a built-in single-node Kubernetes cluster (enable via Settings → Kubernetes → Enable Kubernetes). This is the simplest option for local development — no separate VM or CLI. Alternatives: minikube (lightweight VM-based) or kind (Kubernetes in Docker containers).
+**Kubernetes orchestration:** the chart is developed against **OrbStack**'s built-in single-node Kubernetes cluster (`orb start k8s`), which auto-resolves `*.orb.local` hostnames to in-cluster services — this is what the chart's `values.yaml` defaults to. Docker Desktop's built-in Kubernetes, minikube, and kind also work (override `ingress.hostBase` and add `/etc/hosts` entries; see `charts/mariaalpha/README.md` § Troubleshooting).
 
 ---
 
@@ -1343,7 +1349,7 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 | [2.6.2](https://github.com/drag0sd0g/MariaAlpha/issues/79) | Create Grafana Trading Pipeline dashboard | Observability |
 | [2.6.3](https://github.com/drag0sd0g/MariaAlpha/issues/80) | Create Grafana Portfolio & Risk dashboard | Observability |
 | [2.6.4](https://github.com/drag0sd0g/MariaAlpha/issues/81) | Create Grafana Post-Trade & Quality dashboard | Observability |
-| [2.7.1](https://github.com/drag0sd0g/MariaAlpha/issues/82) | Create Helm charts for full Kubernetes deployment | Deployment |
+| [2.7.1](https://github.com/drag0sd0g/MariaAlpha/issues/82) ✅ | Create Helm charts for full Kubernetes deployment | Deployment |
 | [2.7.2](https://github.com/drag0sd0g/MariaAlpha/issues/83) | Implement Docker image publish workflow | CI/CD |
 | [2.7.3](https://github.com/drag0sd0g/MariaAlpha/issues/84) | Add mutation testing (PITest + mutmut) to CI | CI/CD |
 | [2.7.4](https://github.com/drag0sd0g/MariaAlpha/issues/85) | Introduce Redis for distributed position cache | Infrastructure |
