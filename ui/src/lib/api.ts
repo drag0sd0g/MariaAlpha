@@ -12,14 +12,19 @@ export class ApiError extends Error {
 // chart's init container. The Vite env vars are used as fallback for `npm run dev`.
 type MaConfig = { apiKey?: string; apiBaseUrl?: string };
 const runtimeConfig: MaConfig =
-  (typeof window !== "undefined" && (window as unknown as { MA_CONFIG?: MaConfig }).MA_CONFIG) || {};
+  (typeof window !== "undefined" && (window as unknown as { MA_CONFIG?: MaConfig }).MA_CONFIG) ||
+  {};
 
 const baseUrl = runtimeConfig.apiBaseUrl ?? import.meta.env.VITE_API_BASE_URL ?? "";
 const apiKey = runtimeConfig.apiKey ?? import.meta.env.VITE_MARIAALPHA_API_KEY ?? "";
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!apiKey) {
-    throw new ApiError(0, path, "API key is not set (window.MA_CONFIG.apiKey or VITE_MARIAALPHA_API_KEY)");
+    throw new ApiError(
+      0,
+      path,
+      "API key is not set (window.MA_CONFIG.apiKey or VITE_MARIAALPHA_API_KEY)",
+    );
   }
   const headers = new Headers(init.headers);
   headers.set("X-API-Key", apiKey);
