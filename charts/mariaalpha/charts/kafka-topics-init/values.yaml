@@ -1,0 +1,10 @@
+image:
+  repository: apache/kafka
+  tag: "3.9.0"
+  pullPolicy: IfNotPresent
+
+kafkaBootstrap: "kafka.mariaalpha-data.svc.cluster.local:9092"
+
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits:   { cpu: 500m, memory: 512Mi }

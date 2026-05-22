@@ -1,0 +1,6 @@
+apiVersion: v2
+name: order-manager
+description: Order manager — order lifecycle persistence and position tracking.
+type: application
+version: 0.1.0
+appVersion: "0.2.4"

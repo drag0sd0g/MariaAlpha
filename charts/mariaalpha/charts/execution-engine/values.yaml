@@ -1,0 +1,32 @@
+replicaCount: 1
+springProfilesActive: "simulated"
+
+image:
+  tag: ""           # inherits global.images.tag when blank
+  repository: ""    # inherits global pattern when blank
+
+service:
+  type: ClusterIP
+  appPort: 8084
+  managementPort: 8085
+
+resources:
+  requests: { cpu: 250m, memory: 256Mi }
+  limits:   { cpu: 500m, memory: 512Mi }
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+  readOnlyRootFilesystem: false
+
+serviceMonitor:
+  enabled: true
+  interval: 15s
+
+extraEnv: []

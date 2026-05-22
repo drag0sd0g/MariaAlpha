@@ -97,6 +97,22 @@ Polling /actuator/health on every service...
 | <http://localhost:9090/> | Prometheus |
 | <http://localhost:8080/actuator/health> | API Gateway aggregate health |
 
+## Kubernetes Quickstart (Helm on OrbStack)
+
+An alternative to docker-compose: deploy the same stack to a local Kubernetes cluster via the umbrella Helm chart in [`charts/mariaalpha/`](charts/mariaalpha/README.md).
+
+```bash
+brew install helm                            # one-time
+orb start k8s                                # OrbStack ships a single-node cluster
+just k8s-up                                  # build images, helm dep update, helm install (≈3 min cold)
+just k8s-test                                # helm test: actuator-health + iceberg-parent → FILLED
+open http://mariaalpha.orb.local             # UI
+open http://grafana.mariaalpha.orb.local     # Grafana dashboards
+just k8s-down                                # uninstall + drop PVCs (dev-cluster only)
+```
+
+Detailed install/upgrade/rollback recipes live in [`docs/runbooks/helm-install.md`](docs/runbooks/helm-install.md). Secret rotation is documented in [`docs/runbooks/helm-rotate-secrets.md`](docs/runbooks/helm-rotate-secrets.md).
+
 ### 6. Try the API
 
 Every API call requires the `X-API-Key` header. The default key is `local-dev-key`.

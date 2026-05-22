@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: execution-engine-risk-limits
+  namespace: {{ .Values.global.appNamespace | default "mariaalpha" }}
+  labels:
+    {{- include "execution-engine.labels" . | nindent 4 }}
+data:
+  risk-limits.yml: |
+    # Risk check limits — loaded by execution-engine at startup.
+    risk:
+      max-order-notional: 100000
+      max-position-per-symbol: 500000
+      max-portfolio-exposure: 2000000
+      max-open-orders: 50
+      max-daily-loss: 25000

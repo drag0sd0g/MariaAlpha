@@ -9,3 +9,4 @@ proto/generated/
 .DS_Store
 **/__pycache__/
 **/*.py[cod]
+**/*.tgz

@@ -1,0 +1,453 @@
+## ============================================================================
+## MariaAlpha umbrella chart — local OrbStack-friendly defaults.
+##
+## Override per environment with -f values-<env>.yaml. The shape is identical
+## across environments; only the image registry, ingress hostBase, storageClass,
+## and secret backend differ.
+## ============================================================================
+
+global:
+  images:
+    registry: ""             # empty = use local Docker daemon images (OrbStack)
+    repository: "mariaalpha" # produces "mariaalpha/<svc>:<tag>" when registry is ""
+    tag: "local"
+    pullPolicy: IfNotPresent
+  storageClass: ""           # use cluster default (local-path on OrbStack)
+  ingressHostBase: "mariaalpha.orb.local"
+  # The chart uses just two namespaces:
+  #   - appNamespace (= release namespace): applications + observability + ingress
+  #   - dataNamespace: stateful workloads (Postgres, Kafka)
+  # The 4-namespace topology from the original plan was simplified to avoid
+  # cross-subchart namespaceOverride incompatibilities (kube-prometheus-stack
+  # has multiple sub-blocks with their own namespace handling).
+  dataNamespace: "mariaalpha-data"
+  appNamespace: "mariaalpha"
+
+## ------------------------------------------------------------------
+## Secrets
+##
+## Local default: render plain Secret resources from the values below.
+## Production: set useSealedSecrets=true and commit SealedSecret manifests
+## under sealed-secrets/, then disable the plain-text fields below.
+## ------------------------------------------------------------------
+secrets:
+  useSealedSecrets: false
+  alpacaApiKeyId: ""              # supply for alpaca profile only
+  alpacaApiSecretKey: ""
+  mariaalphaApiKey: "local-dev-key"
+  postgresPassword: "mariaalpha"
+  grafanaAdminUser: "admin"
+  grafanaAdminPassword: "admin"
+
+## ------------------------------------------------------------------
+## Per-service overrides — each block matches the subchart's values shape.
+## ------------------------------------------------------------------
+
+api-gateway:
+  enabled: true
+  replicaCount: 1
+  springProfilesActive: "default"
+  resources:
+    requests: { cpu: 250m, memory: 256Mi }
+    limits:   { cpu: 500m, memory: 512Mi }
+
+market-data-gateway:
+  enabled: true
+  replicaCount: 1
+  springProfilesActive: "simulated"
+  resources:
+    requests: { cpu: 500m, memory: 512Mi }
+    limits:   { cpu: 1000m, memory: 1Gi }
+
+strategy-engine:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests: { cpu: 500m, memory: 512Mi }
+    limits:   { cpu: 1000m, memory: 1Gi }
+
+execution-engine:
+  enabled: true
+  replicaCount: 1
+  springProfilesActive: "simulated"
+  resources:
+    requests: { cpu: 250m, memory: 256Mi }
+    limits:   { cpu: 500m, memory: 512Mi }
+
+order-manager:
+  enabled: true
+  replicaCount: 1
+  springProfilesActive: "default"
+  resources:
+    requests: { cpu: 250m, memory: 256Mi }
+    limits:   { cpu: 500m, memory: 512Mi }
+
+post-trade:
+  enabled: true
+  replicaCount: 1
+  springProfilesActive: "default"
+  resources:
+    requests: { cpu: 250m, memory: 256Mi }
+    limits:   { cpu: 500m, memory: 512Mi }
+
+ml-signal-service:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits:   { cpu: 1000m, memory: 2Gi }
+
+ui:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits:   { cpu: 250m, memory: 256Mi }
+
+kafka-topics-init:
+  enabled: true
+
+## ------------------------------------------------------------------
+## Ingress (umbrella-rendered)
+## ------------------------------------------------------------------
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    ui:      "mariaalpha.orb.local"
+    api:     "api.mariaalpha.orb.local"
+    grafana: "grafana.mariaalpha.orb.local"
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+
+## ============================================================================
+## External chart configuration (Bitnami / Grafana / Prometheus)
+## ============================================================================
+
+## --- Postgres (Bitnami) -----------------------------------------------------
+## Bitnami moved their free images to the `bitnamilegacy` Docker Hub org in
+## late 2025 / early 2026; override registry to keep first-time installs
+## working without a registry credential.
+postgresql:
+  enabled: true
+  fullnameOverride: postgresql
+  namespaceOverride: mariaalpha-data
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/postgresql
+  global:
+    security:
+      allowInsecureImages: true
+    postgresql:
+      auth:
+        username: mariaalpha
+        database: mariaalpha
+        existingSecret: postgres-credentials
+        secretKeys:
+          adminPasswordKey: postgres-password
+          userPasswordKey: postgres-password
+  primary:
+    persistence:
+      size: 20Gi
+    resources:
+      requests: { cpu: 500m, memory: 1Gi }
+      limits:   { cpu: 2000m, memory: 4Gi }
+    initdb:
+      scripts:
+        00-mariaalpha-schemas.sql: |-
+          CREATE SCHEMA IF NOT EXISTS liq_mdg;
+          CREATE SCHEMA IF NOT EXISTS liq_om;
+          CREATE SCHEMA IF NOT EXISTS liq_pt;
+
+## --- Kafka (Bitnami, KRaft combined mode) -----------------------------------
+kafka:
+  enabled: true
+  fullnameOverride: kafka
+  namespaceOverride: mariaalpha-data
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/kafka
+  global:
+    security:
+      allowInsecureImages: true
+  listeners:
+    client:
+      protocol: PLAINTEXT
+    controller:
+      protocol: PLAINTEXT
+    interbroker:
+      protocol: PLAINTEXT
+    external:
+      protocol: PLAINTEXT
+  kraft:
+    enabled: true
+  controller:
+    replicaCount: 1
+    persistence:
+      size: 20Gi
+    resources:
+      requests: { cpu: 500m, memory: 1Gi }
+      limits:   { cpu: 1000m, memory: 2Gi }
+  broker:
+    replicaCount: 0           # combined-mode (controller serves both roles)
+  ## Single-broker mode requires the system topics to use replication factor 1.
+  ## Without this, __consumer_offsets fails to auto-create and every consumer
+  ## hangs after subscribe (no group join, listener never fires). Mirrors what
+  ## docker-compose.yml sets via KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1.
+  extraConfig: |-
+    offsets.topic.replication.factor=1
+    transaction.state.log.replication.factor=1
+    transaction.state.log.min.isr=1
+    default.replication.factor=1
+    min.insync.replicas=1
+
+## --- Prometheus stack (kube-prometheus-stack via alias) ---------------------
+prometheus-stack:
+  enabled: true
+  fullnameOverride: mariaalpha
+  crds:
+    enabled: true
+  alertmanager:
+    enabled: false
+  nodeExporter:
+    enabled: false           # OrbStack does not expose host metrics meaningfully
+  kubeStateMetrics:
+    enabled: true
+  prometheus:
+    prometheusSpec:
+      serviceMonitorSelectorNilUsesHelmValues: false
+      serviceMonitorSelector: {}
+      podMonitorSelectorNilUsesHelmValues: false
+      retention: 7d
+      resources:
+        requests: { cpu: 250m, memory: 1Gi }
+        limits:   { cpu: 500m, memory: 2Gi }
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            accessModes: [ReadWriteOnce]
+            resources:
+              requests:
+                storage: 10Gi
+  grafana:
+    fullnameOverride: grafana
+    admin:
+      existingSecret: grafana-admin
+      userKey: admin-user
+      passwordKey: admin-password
+    sidecar:
+      dashboards:
+        enabled: true
+        searchNamespace: ALL
+        label: grafana_dashboard
+        labelValue: "1"
+      datasources:
+        enabled: true
+        searchNamespace: ALL
+    defaultDashboardsEnabled: true
+    additionalDataSources:
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://loki.mariaalpha.svc.cluster.local:3100
+      - name: Tempo
+        type: tempo
+        access: proxy
+        url: http://tempo.mariaalpha.svc.cluster.local:3200
+    persistence:
+      enabled: true
+      size: 1Gi
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits:   { cpu: 250m, memory: 512Mi }
+    service:
+      type: ClusterIP
+      port: 80
+
+## --- Loki -------------------------------------------------------------------
+loki:
+  enabled: true
+  fullnameOverride: loki
+  deploymentMode: SingleBinary
+  loki:
+    auth_enabled: false
+    commonConfig:
+      replication_factor: 1
+    storage:
+      type: filesystem
+    schemaConfig:
+      configs:
+        - from: "2024-04-01"
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: index_
+            period: 24h
+    pattern_ingester:
+      enabled: false
+    limits_config:
+      allow_structured_metadata: true
+      volume_enabled: true
+  singleBinary:
+    replicas: 1
+    resources:
+      requests: { cpu: 250m, memory: 512Mi }
+      limits:   { cpu: 500m, memory: 1Gi }
+    persistence:
+      enabled: true
+      size: 10Gi
+  read:
+    replicas: 0
+  write:
+    replicas: 0
+  backend:
+    replicas: 0
+  chunksCache:
+    enabled: false
+  resultsCache:
+    enabled: false
+  test:
+    enabled: false
+  lokiCanary:
+    enabled: false
+  monitoring:
+    selfMonitoring:
+      enabled: false
+      grafanaAgent:
+        installOperator: false
+    lokiCanary:
+      enabled: false
+  gateway:
+    enabled: false
+
+## --- Tempo ------------------------------------------------------------------
+tempo:
+  enabled: true
+  fullnameOverride: tempo
+  persistence:
+    enabled: true
+    size: 5Gi
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits:   { cpu: 500m, memory: 1Gi }
+  tempo:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+## --- Alloy (DaemonSet — log + trace shipping) -------------------------------
+alloy:
+  enabled: true
+  fullnameOverride: alloy
+  controller:
+    type: daemonset
+  alloy:
+    configMap:
+      create: true
+      content: |
+        logging {
+          level  = "info"
+          format = "logfmt"
+        }
+
+        // Scrape pod logs from the node filesystem and ship to Loki.
+        discovery.kubernetes "pods" {
+          role = "pod"
+        }
+
+        discovery.relabel "pod_logs" {
+          targets = discovery.kubernetes.pods.targets
+          rule {
+            source_labels = ["__meta_kubernetes_pod_node_name"]
+            target_label  = "__host__"
+          }
+          rule {
+            source_labels = ["__meta_kubernetes_namespace"]
+            target_label  = "namespace"
+          }
+          rule {
+            source_labels = ["__meta_kubernetes_pod_name"]
+            target_label  = "pod"
+          }
+          rule {
+            source_labels = ["__meta_kubernetes_pod_container_name"]
+            target_label  = "container"
+          }
+          rule {
+            action        = "replace"
+            replacement   = "/var/log/pods/*$1/*.log"
+            separator     = "/"
+            source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+            target_label  = "__path__"
+          }
+        }
+
+        local.file_match "pod_logs" {
+          path_targets = discovery.relabel.pod_logs.output
+        }
+
+        loki.source.file "pod_logs" {
+          targets    = local.file_match.pod_logs.targets
+          forward_to = [loki.write.default.receiver]
+        }
+
+        loki.write "default" {
+          endpoint {
+            url = "http://loki.mariaalpha.svc.cluster.local:3100/loki/api/v1/push"
+          }
+        }
+
+        // OTLP receiver — services push traces here, we forward to Tempo.
+        otelcol.receiver.otlp "default" {
+          grpc {
+            endpoint = "0.0.0.0:4317"
+          }
+          http {
+            endpoint = "0.0.0.0:4318"
+          }
+          output {
+            traces = [otelcol.exporter.otlp.tempo.input]
+          }
+        }
+
+        otelcol.exporter.otlp "tempo" {
+          client {
+            endpoint = "tempo.mariaalpha.svc.cluster.local:4317"
+            tls {
+              insecure = true
+            }
+          }
+        }
+
+## --- ingress-nginx ----------------------------------------------------------
+ingress-nginx:
+  enabled: true
+  fullnameOverride: ingress-nginx
+  controller:
+    replicaCount: 1
+    service:
+      type: LoadBalancer
+    admissionWebhooks:
+      enabled: false           # avoid certs-secret bootstrap on first install
+    ingressClassResource:
+      name: nginx
+      default: true
+
+## --- cert-manager -----------------------------------------------------------
+cert-manager:
+  enabled: false               # off locally; OCI overlay flips on
+  installCRDs: true
+  crds:
+    enabled: true
+
+## --- sealed-secrets ---------------------------------------------------------
+sealed-secrets:
+  enabled: false               # off by default; flip on to enable bitnami-labs controller
+  fullnameOverride: sealed-secrets
+  namespaceOverride: mariaalpha-infra

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: market-data-gateway-symbols
+  namespace: {{ .Values.global.appNamespace | default "mariaalpha" }}
+  labels:
+    {{- include "market-data-gateway.labels" . | nindent 4 }}
+data:
+  symbols.yml: |
+    market-data:
+      symbols:
+{{- range (splitList "," .Values.symbols) }}
+        - {{ . | trim }}
+{{- end }}

@@ -2,9 +2,11 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Build args injected by docker-compose. VITE_* vars are baked into the bundle at
-# build time; rebuild the image when the API key changes.
-ARG VITE_MARIAALPHA_API_KEY
+# Build args are optional. The runtime path (window.MA_CONFIG from /config.js,
+# rendered by the Helm UI subchart's init container) takes precedence in
+# production. They remain accepted for docker-compose backwards compatibility
+# and for `npm run dev`, where the runtime script is not served.
+ARG VITE_MARIAALPHA_API_KEY=
 ARG VITE_API_BASE_URL=
 
 # Copy manifest first so npm ci is layer-cacheable independent of source changes.

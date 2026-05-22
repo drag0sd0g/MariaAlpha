@@ -1,0 +1,22 @@
+{{- if .Values.serviceMonitor.enabled }}
+{{- if .Capabilities.APIVersions.Has "monitoring.coreos.com/v1/ServiceMonitor" }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: order-manager
+  namespace: {{ .Values.global.appNamespace | default "mariaalpha" }}
+  labels:
+    {{- include "order-manager.labels" . | nindent 4 }}
+    release: {{ .Release.Name }}
+spec:
+  namespaceSelector:
+    matchNames: ["{{ .Values.global.appNamespace | default "mariaalpha" }}"]
+  selector:
+    matchLabels:
+      {{- include "order-manager.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: management
+      path: /actuator/prometheus
+      interval: {{ .Values.serviceMonitor.interval }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: {{ .Values.global.appNamespace | default "mariaalpha" }}
+  labels:
+    {{- include "api-gateway.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      {{- include "api-gateway.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "api-gateway.labels" . | nindent 8 }}
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: api-gateway
+          image: {{ include "api-gateway.image" . | quote }}
+          imagePullPolicy: {{ .Values.global.images.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: app
+              containerPort: {{ .Values.service.appPort }}
+            - name: management
+              containerPort: {{ .Values.service.managementPort }}
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: {{ .Values.springProfilesActive | quote }}
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka.mariaalpha-data.svc.cluster.local:9092"
+            - name: MANAGEMENT_PORT
+              value: "{{ .Values.service.managementPort }}"
+            - name: MARIAALPHA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mariaalpha-api-key
+                  key: MARIAALPHA_API_KEY
+            - { name: MARKET_DATA_GATEWAY_URL,            value: "http://market-data-gateway:8079" }
+            - { name: MARKET_DATA_GATEWAY_MANAGEMENT_URL, value: "http://market-data-gateway:8081" }
+            - { name: STRATEGY_ENGINE_URL,                value: "http://strategy-engine:8082" }
+            - { name: STRATEGY_ENGINE_MANAGEMENT_URL,     value: "http://strategy-engine:8083" }
+            - { name: EXECUTION_ENGINE_URL,               value: "http://execution-engine:8084" }
+            - { name: EXECUTION_ENGINE_MANAGEMENT_URL,    value: "http://execution-engine:8085" }
+            - { name: ORDER_MANAGER_URL,                  value: "http://order-manager:8086" }
+            - { name: ORDER_MANAGER_MANAGEMENT_URL,       value: "http://order-manager:8087" }
+            - { name: POST_TRADE_URL,                     value: "http://post-trade:8088" }
+            - { name: POST_TRADE_MANAGEMENT_URL,          value: "http://post-trade:8089" }
+            - { name: ANALYTICS_SERVICE_URL,              value: "http://analytics-service:8095" }
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: management }
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: management }
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: management }
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

@@ -1,10 +1,14 @@
 export type WsEndpoint = "/ws/market-data" | "/ws/positions" | "/ws/orders" | "/ws/alerts";
 
-export function buildWsUrl(endpoint: WsEndpoint, query: Record<string, string> = {}): string {
-  const apiKey = import.meta.env.VITE_MARIAALPHA_API_KEY ?? "";
-  if (!apiKey) throw new Error("VITE_MARIAALPHA_API_KEY is not set");
+type MaConfig = { apiKey?: string; apiBaseUrl?: string };
 
-  const baseRaw = import.meta.env.VITE_API_BASE_URL ?? "";
+export function buildWsUrl(endpoint: WsEndpoint, query: Record<string, string> = {}): string {
+  const runtimeConfig: MaConfig =
+    (typeof window !== "undefined" && (window as unknown as { MA_CONFIG?: MaConfig }).MA_CONFIG) || {};
+  const apiKey = runtimeConfig.apiKey ?? import.meta.env.VITE_MARIAALPHA_API_KEY ?? "";
+  if (!apiKey) throw new Error("API key is not set (window.MA_CONFIG.apiKey or VITE_MARIAALPHA_API_KEY)");
+
+  const baseRaw = runtimeConfig.apiBaseUrl ?? import.meta.env.VITE_API_BASE_URL ?? "";
   // Convert http(s) base to ws(s); empty base → relative URL goes through Vite proxy.
   const wsBase = baseRaw.replace(/^http:\/\//, "ws://").replace(/^https:\/\//, "wss://");
 

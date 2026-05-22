@@ -1,0 +1,30 @@
+replicaCount: 1
+springProfilesActive: "default"
+
+image:
+  tag: ""
+
+service:
+  type: ClusterIP
+  appPort: 8088
+  managementPort: 8089
+
+resources:
+  requests: { cpu: 250m, memory: 256Mi }
+  limits:   { cpu: 500m, memory: 512Mi }
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+  readOnlyRootFilesystem: false
+
+serviceMonitor:
+  enabled: true
+  interval: 15s
+
+extraEnv: []
