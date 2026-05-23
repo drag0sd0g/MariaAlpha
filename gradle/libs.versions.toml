@@ -1,6 +1,9 @@
 [versions]
 java = "21"
-spring-boot = "3.5.12"
+spring-boot = "3.5.14"
+# Override the Tomcat managed by spring-boot-dependencies (3.5.14 ships 10.1.54).
+# 10.1.55 fixes the critical "Improper Authentication" CVE (SNYK-JAVA-ORGAPACHETOMCATEMBED-16691231).
+tomcat = "10.1.55"
 spring-cloud = "2025.0.2"
 spring-dependency-management = "1.1.7"
 spotbugs-plugin = "6.4.8"

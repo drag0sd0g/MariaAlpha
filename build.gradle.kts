@@ -13,6 +13,7 @@ plugins {
 val javaVersion = libs.versions.java.get().toInt()
 val springBomCoordinate = libs.spring.boot.bom.get().toString()
 val checkstyleToolVersion = libs.versions.checkstyle.get()
+val tomcatVersion = libs.versions.tomcat.get()
 
 subprojects {
     apply(plugin = "java-library")
@@ -27,6 +28,13 @@ subprojects {
             languageVersion = JavaLanguageVersion.of(javaVersion)
         }
     }
+
+    // Override the Tomcat version managed by the Spring Boot BOM. 3.5.14 ships
+    // tomcat 10.1.54; 10.1.55 is required to clear the critical Improper
+    // Authentication CVE (SNYK-JAVA-ORGAPACHETOMCATEMBED-16691231). The Spring
+    // dependency-management plugin resolves the BOM's ${tomcat.version} property
+    // against this project extra property.
+    extra["tomcat.version"] = tomcatVersion
 
     extensions.configure<DependencyManagementExtension> {
         imports {
