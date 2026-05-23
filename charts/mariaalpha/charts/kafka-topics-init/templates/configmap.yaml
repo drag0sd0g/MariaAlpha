@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-topics-init-script
+  namespace: {{ .Values.global.dataNamespace | default "mariaalpha-data" }}
+  labels:
+    app.kubernetes.io/name: kafka-topics-init
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: mariaalpha
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation
+data:
+  create-topics.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    BOOTSTRAP_SERVER="${KAFKA_BOOTSTRAP_SERVER:-kafka.mariaalpha-data.svc.cluster.local:9092}"
+    KAFKA_BIN="/opt/kafka/bin"
+
+    create_topic() {
+      local topic="$1"
+      local partitions="$2"
+      local retention_ms="$3"
+      echo "Creating topic: ${topic} (partitions=${partitions}, retention=${retention_ms}ms)"
+      "${KAFKA_BIN}/kafka-topics.sh" \
+        --bootstrap-server "${BOOTSTRAP_SERVER}" \
+        --create \
+        --if-not-exists \
+        --topic "${topic}" \
+        --partitions "${partitions}" \
+        --config retention.ms="${retention_ms}"
+    }
+
+    create_topic "market-data.ticks"     1 14400000
+    create_topic "strategy.signals"      1 259200000
+    create_topic "orders.lifecycle"      1 259200000
+    create_topic "positions.updates"     1 259200000
+    create_topic "analytics.tca"         1 259200000
+    create_topic "analytics.risk-alerts" 1 259200000
+    create_topic "routing.decisions"     1 259200000
+    create_topic "orders.dlq"            1 2592000000
+
+    echo "All topics created successfully."

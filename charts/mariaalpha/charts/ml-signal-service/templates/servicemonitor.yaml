@@ -1,0 +1,22 @@
+{{- if .Values.serviceMonitor.enabled }}
+{{- if .Capabilities.APIVersions.Has "monitoring.coreos.com/v1/ServiceMonitor" }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ml-signal-service
+  namespace: {{ .Values.global.appNamespace | default "mariaalpha" }}
+  labels:
+    {{- include "ml-signal-service.labels" . | nindent 4 }}
+    release: {{ .Release.Name }}
+spec:
+  namespaceSelector:
+    matchNames: ["{{ .Values.global.appNamespace | default "mariaalpha" }}"]
+  selector:
+    matchLabels:
+      {{- include "ml-signal-service.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.serviceMonitor.interval }}
+{{- end }}
+{{- end }}

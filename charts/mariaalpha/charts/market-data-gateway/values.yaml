@@ -1,0 +1,33 @@
+replicaCount: 1
+springProfilesActive: "simulated"
+
+image:
+  tag: ""
+
+service:
+  type: ClusterIP
+  appPort: 8079
+  managementPort: 8081
+  grpcPort: 50052
+
+symbols: "AAPL,MSFT,GOOGL,AMZN,TSLA"
+
+resources:
+  requests: { cpu: 500m, memory: 512Mi }
+  limits:   { cpu: 1000m, memory: 1Gi }
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+  readOnlyRootFilesystem: false
+
+serviceMonitor:
+  enabled: true
+  interval: 15s
+
+extraEnv: []

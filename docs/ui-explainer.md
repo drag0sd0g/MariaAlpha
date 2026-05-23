@@ -465,8 +465,12 @@ ui/src/
 
 All REST calls go through `api()` in [src/lib/api.ts](../ui/src/lib/api.ts). The function:
 
-1. Reads `VITE_MARIAALPHA_API_KEY` from the environment and sets `X-API-Key` header on every
-   request. If the key is absent it throws immediately rather than letting the server reject.
+1. Resolves the API key with **runtime-config-first** precedence: reads `window.MA_CONFIG.apiKey`
+   (rendered into `/config.js` at pod start by the Helm UI subchart's init container reading
+   the `mariaalpha-api-key` Secret), and falls back to `import.meta.env.VITE_MARIAALPHA_API_KEY`
+   when the runtime script is absent (e.g., `npm run dev` or the docker-compose stack, where the
+   build-time Vite env var is still in use). Sets `X-API-Key` on every request. If neither
+   source yields a key it throws immediately.
 2. Sets `Content-Type: application/json` automatically when a body is present.
 3. Treats HTTP 204 as a successful void response (used by the cancel endpoint).
 4. Throws `ApiError` (with `status` and `path` fields) for non-2xx responses, enabling typed
@@ -553,11 +557,23 @@ entries.
 
 ## Authentication
 
-Every request (REST and WebSocket) requires `VITE_MARIAALPHA_API_KEY`. The API Gateway validates
-this key on all incoming connections. In development the key is set in a `.env.local` file
-(excluded from git). In production it is injected at build time via the CI environment.
+Every request (REST and WebSocket) requires an API key that the API Gateway validates on all
+incoming connections. The key is resolved with **runtime-config-first** precedence:
 
-The application fails fast if the key is absent: `api()` throws `ApiError(0, path, "VITE_MARIAALPHA_API_KEY is not set")` before any network call, and `buildWsUrl` throws synchronously, which `useWebSocket` catches and converts to a permanent `error` state.
+- **Helm / Kubernetes (production path):** the UI subchart's `render-config` init container reads
+  the `mariaalpha-api-key` Secret and writes `window.MA_CONFIG = { apiKey: "…", apiBaseUrl: "" }`
+  into `/config.js`, which the SPA fetches on first paint before the React bundle reads
+  `window.MA_CONFIG.apiKey`. Rotating the secret is a `helm upgrade` + pod restart — no image rebuild.
+- **`npm run dev` and docker-compose (fallback path):** the runtime `/config.js` is absent (or
+  returns the SPA's `index.html` HTML stub, which fails to parse as JS and leaves `window.MA_CONFIG`
+  undefined), so `api()` and `buildWsUrl()` fall back to `import.meta.env.VITE_MARIAALPHA_API_KEY`
+  baked at Vite build time. For dev set the key in `ui/.env.local` (excluded from git); for
+  docker-compose it is passed in via the `VITE_MARIAALPHA_API_KEY` build arg in `docker-compose.yml`.
+
+The application fails fast if neither source yields a key: `api()` throws
+`ApiError(0, path, "API key is not set (window.MA_CONFIG.apiKey or VITE_MARIAALPHA_API_KEY)")`
+before any network call, and `buildWsUrl` throws synchronously — `useWebSocket` catches and
+converts to a permanent `error` state.
 
 ---
 
@@ -603,7 +619,8 @@ Node.js 20+, npm 10+.
 
 ### Environment
 
-Create `ui/.env.local`:
+Create `ui/.env.local` (used by `npm run dev` only — Helm deployments inject the key at runtime
+via the chart's UI init container, see § Authentication):
 
 ```
 VITE_MARIAALPHA_API_KEY=your-key-here

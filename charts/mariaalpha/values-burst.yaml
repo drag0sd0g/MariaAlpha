@@ -1,0 +1,39 @@
+## Load-test overlay: roughly doubles requests/limits for the Java services
+## and gives ml-signal-service more headroom.
+##
+## Usage: helm upgrade --install mariaalpha . -f values.yaml -f values-burst.yaml
+
+api-gateway:
+  resources:
+    requests: { cpu: 1000m, memory: 1Gi }
+    limits:   { cpu: 2000m, memory: 2Gi }
+
+market-data-gateway:
+  resources:
+    requests: { cpu: 1000m, memory: 1Gi }
+    limits:   { cpu: 2000m, memory: 2Gi }
+
+strategy-engine:
+  resources:
+    requests: { cpu: 1000m, memory: 1Gi }
+    limits:   { cpu: 2000m, memory: 2Gi }
+
+execution-engine:
+  resources:
+    requests: { cpu: 1000m, memory: 1Gi }
+    limits:   { cpu: 2000m, memory: 2Gi }
+
+order-manager:
+  resources:
+    requests: { cpu: 1000m, memory: 1Gi }
+    limits:   { cpu: 2000m, memory: 2Gi }
+
+post-trade:
+  resources:
+    requests: { cpu: 1000m, memory: 1Gi }
+    limits:   { cpu: 2000m, memory: 2Gi }
+
+ml-signal-service:
+  resources:
+    requests: { cpu: 2000m, memory: 4Gi }
+    limits:   { cpu: 4000m, memory: 8Gi }

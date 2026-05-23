@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-signal-service
+  namespace: {{ .Values.global.appNamespace | default "mariaalpha" }}
+  labels:
+    {{- include "ml-signal-service.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      {{- include "ml-signal-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ml-signal-service.labels" . | nindent 8 }}
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: ml-signal-service
+          image: {{ include "ml-signal-service.image" . | quote }}
+          imagePullPolicy: {{ .Values.global.images.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: app
+              containerPort: {{ .Values.service.appPort }}
+            - name: grpc
+              containerPort: {{ .Values.service.grpcPort }}
+          env:
+            - { name: ML_SIGNAL_KAFKA_BOOTSTRAP_SERVERS, value: "kafka.mariaalpha-data.svc.cluster.local:9092" }
+            - { name: ML_SIGNAL_SIGNAL_MODEL_PATH,       value: "/app/ml-models/signal_model.joblib" }
+            - { name: ML_SIGNAL_API_PORT,                value: "{{ .Values.service.appPort }}" }
+            - { name: ML_SIGNAL_GRPC_PORT,               value: "{{ .Values.service.grpcPort }}" }
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          startupProbe:
+            httpGet: { path: /health, port: app }
+            failureThreshold: 60
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /health, port: app }
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: { path: /health, port: app }
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

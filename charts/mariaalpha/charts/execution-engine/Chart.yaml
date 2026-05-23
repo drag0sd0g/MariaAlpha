@@ -1,0 +1,6 @@
+apiVersion: v2
+name: execution-engine
+description: Execution engine — order lifecycle, SOR, iceberg coordination.
+type: application
+version: 0.1.0
+appVersion: "0.2.4"

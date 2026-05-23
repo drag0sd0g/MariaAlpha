@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ui-config
+  namespace: {{ .Values.global.appNamespace | default "mariaalpha" }}
+  labels:
+    {{- include "ui.labels" . | nindent 4 }}
+data:
+  # Template injected into the SPA at runtime via the envsubst init container.
+  # The browser fetches /config.js on first paint, before the React bundle reads
+  # window.MA_CONFIG. Rotating MARIAALPHA_API_KEY requires only a pod restart.
+  config.js.tmpl: |
+    window.MA_CONFIG = {
+      apiKey: "__MARIAALPHA_API_KEY__",
+      apiBaseUrl: ""
+    };

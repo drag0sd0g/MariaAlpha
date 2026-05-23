@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: execution-engine
+  namespace: {{ .Values.global.appNamespace | default "mariaalpha" }}
+  labels:
+    {{- include "execution-engine.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      {{- include "execution-engine.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "execution-engine.labels" . | nindent 8 }}
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: execution-engine
+          image: {{ include "execution-engine.image" . | quote }}
+          imagePullPolicy: {{ .Values.global.images.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: app
+              containerPort: {{ .Values.service.appPort }}
+            - name: management
+              containerPort: {{ .Values.service.managementPort }}
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: {{ .Values.springProfilesActive | quote }}
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka.mariaalpha-data.svc.cluster.local:9092"
+            - name: MANAGEMENT_PORT
+              value: "{{ .Values.service.managementPort }}"
+            - name: ALPACA_API_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: alpaca-credentials
+                  key: ALPACA_API_KEY_ID
+                  optional: true
+            - name: ALPACA_API_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: alpaca-credentials
+                  key: ALPACA_API_SECRET_KEY
+                  optional: true
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: management
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: management
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: management
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: risk-limits
+              mountPath: /app/config/risk-limits.yml
+              subPath: risk-limits.yml
+      volumes:
+        - name: risk-limits
+          configMap:
+            name: execution-engine-risk-limits

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: kafka-topics-init
+description: Helm post-install Job that creates the 8 Kafka topics required by MariaAlpha services.
+type: application
+version: 0.1.0
+appVersion: "3.9.0"

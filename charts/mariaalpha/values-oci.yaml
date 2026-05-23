@@ -1,0 +1,33 @@
+## Reserved placeholder for the Oracle Cloud (OCI) overlay.
+##
+## Filled in by issue 2.7.2 / 2.8.x once GHCR image publishing, OCI Block
+## Volumes, and the public-DNS Ingress hostname are decided. Until then this
+## file exists only to lock the shape and prove the umbrella chart loads
+## additional overlays.
+
+global:
+  # images:
+  #   registry: ghcr.io
+  #   repository: drag0sd0g/mariaalpha
+  #   tag: v0.2.4
+  #   pullPolicy: IfNotPresent
+  # storageClass: oci-bv
+  # ingressHostBase: mariaalpha.example.com
+
+# secrets:
+#   useSealedSecrets: true
+
+# ingress:
+#   className: nginx
+#   hosts:
+#     ui:      mariaalpha.example.com
+#     api:     api.mariaalpha.example.com
+#     grafana: grafana.mariaalpha.example.com
+#   annotations:
+#     cert-manager.io/cluster-issuer: letsencrypt-prod
+
+# cert-manager:
+#   enabled: true
+
+# sealed-secrets:
+#   enabled: true

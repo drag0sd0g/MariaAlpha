@@ -1,0 +1,6 @@
+apiVersion: v2
+name: market-data-gateway
+description: Market data gateway — Alpaca/simulated tick ingestion, Kafka producer, gRPC book server.
+type: application
+version: 0.1.0
+appVersion: "0.2.4"

@@ -224,3 +224,42 @@ jobs:
           name: e2e-test-report
           path: e2e-tests/build/reports/tests/test/
           if-no-files-found: ignore
+
+  helm:
+    name: Helm chart (lint + render)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.4
+
+      - name: Install kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
+            | tar -xz -C /usr/local/bin kubeconform
+          kubeconform -v
+
+      - name: Helm dependency update
+        working-directory: charts/mariaalpha
+        run: helm dependency update
+
+      - name: Helm lint
+        working-directory: charts/mariaalpha
+        run: helm lint .
+
+      - name: Helm template + kubeconform
+        working-directory: charts/mariaalpha
+        run: |
+          # 2>/dev/null discards subchart load-time warnings (Bitnami/Grafana
+          # emit `level=INFO` lines that get mixed into stdout and break YAML
+          # parsing). Subchart deps include CRDs that the API server normally
+          # registers, so -ignore-missing-schemas + the datreeio catalog cover
+          # ServiceMonitor / SealedSecret / etc.
+          helm template mariaalpha . 2>/dev/null > /tmp/rendered.yaml
+          kubeconform -strict -summary -ignore-missing-schemas \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            /tmp/rendered.yaml

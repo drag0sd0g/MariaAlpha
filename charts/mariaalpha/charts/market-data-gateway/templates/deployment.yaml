@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: market-data-gateway
+  namespace: {{ .Values.global.appNamespace | default "mariaalpha" }}
+  labels:
+    {{- include "market-data-gateway.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      {{- include "market-data-gateway.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "market-data-gateway.labels" . | nindent 8 }}
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: market-data-gateway
+          image: {{ include "market-data-gateway.image" . | quote }}
+          imagePullPolicy: {{ .Values.global.images.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: app
+              containerPort: {{ .Values.service.appPort }}
+            - name: management
+              containerPort: {{ .Values.service.managementPort }}
+            - name: grpc
+              containerPort: {{ .Values.service.grpcPort }}
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: {{ .Values.springProfilesActive | quote }}
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka.mariaalpha-data.svc.cluster.local:9092"
+            - name: MANAGEMENT_PORT
+              value: "{{ .Values.service.managementPort }}"
+            - { name: POSTGRES_HOST, value: "postgresql.mariaalpha-data.svc.cluster.local" }
+            - { name: POSTGRES_PORT, value: "5432" }
+            - { name: POSTGRES_DB,   value: "mariaalpha" }
+            - { name: POSTGRES_USER, value: "mariaalpha" }
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-app-credentials
+                  key: postgres-password
+            - { name: SPRING_DATASOURCE_URL, value: "jdbc:postgresql://postgresql.mariaalpha-data.svc.cluster.local:5432/mariaalpha" }
+            - { name: SPRING_DATASOURCE_USERNAME, value: "mariaalpha" }
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-app-credentials
+                  key: postgres-password
+            - { name: SPRING_LIQUIBASE_LIQUIBASE_SCHEMA, value: "liq_mdg" }
+            - { name: MARKET_DATA_SYMBOLS, value: {{ .Values.symbols | quote }} }
+            - name: ALPACA_API_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: alpaca-credentials
+                  key: ALPACA_API_KEY_ID
+                  optional: true
+            - name: ALPACA_API_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: alpaca-credentials
+                  key: ALPACA_API_SECRET_KEY
+                  optional: true
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: management }
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: management }
+            periodSeconds: 10
+          # Use /liveness for readiness too: the gateway's /readiness depends on
+          # a "tick received" health indicator that flips to OUT_OF_SERVICE once
+          # the simulated CSV is exhausted, taking the pod out of Service
+          # rotation even though it remains alive and functional.
+          readinessProbe:
+            httpGet: { path: /actuator/health/liveness, port: management }
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: symbols
+              mountPath: /app/config/symbols.yml
+              subPath: symbols.yml
+      volumes:
+        - name: symbols
+          configMap:
+            name: market-data-gateway-symbols

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: ui
+description: React + nginx UI for MariaAlpha — runtime-config bootstrap via /config.js.
+type: application
+version: 0.1.0
+appVersion: "0.2.4"

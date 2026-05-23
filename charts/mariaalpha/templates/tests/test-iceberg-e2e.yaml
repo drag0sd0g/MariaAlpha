@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ .Release.Name }}-test-iceberg-e2e"
+  namespace: {{ include "mariaalpha.appNamespace" . }}
+  labels:
+    {{- include "mariaalpha.commonLabels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  containers:
+    - name: e2e
+      image: badouralix/curl-jq:latest
+      command:
+        - sh
+        - -c
+        - |
+          set -e
+          API_KEY=$(cat /etc/mariaalpha-secret/MARIAALPHA_API_KEY)
+
+          # Quantity sized to stay under the $100k max-order-notional risk limit even
+          # at the simulator's ~$178 market price for AAPL (500 × 178 ≈ $89k).
+          echo "Submitting ICEBERG parent order..."
+          RESP=$(curl -sS -X POST "http://api-gateway:8080/api/execution/orders" \
+            -H "X-API-Key: ${API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"symbol":"AAPL","side":"BUY","orderType":"ICEBERG","quantity":500,"limitPrice":180.00,"displayQuantity":100}')
+          echo "Response: $RESP"
+
+          PARENT_ID=$(echo "$RESP" | jq -r '.orderId // .parentOrderId // .id // empty')
+          if [ -z "$PARENT_ID" ]; then
+            echo "FAIL: could not extract orderId from response"
+            exit 1
+          fi
+          echo "Parent order: $PARENT_ID"
+
+          for i in $(seq 1 60); do
+            STATUS=$(curl -sS -H "X-API-Key: ${API_KEY}" \
+              "http://order-manager:8086/api/orders/${PARENT_ID}" | jq -r '.status // "UNKNOWN"')
+            echo "tick $i: status=$STATUS"
+            if [ "$STATUS" = "FILLED" ]; then
+              echo "PASS: parent order reached FILLED"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "FAIL: parent order did not reach FILLED within 120 s"
+          curl -sS -H "X-API-Key: ${API_KEY}" "http://order-manager:8086/api/orders/${PARENT_ID}" || true
+          exit 1
+      volumeMounts:
+        - name: api-key
+          mountPath: /etc/mariaalpha-secret
+          readOnly: true
+  volumes:
+    - name: api-key
+      secret:
+        secretName: mariaalpha-api-key

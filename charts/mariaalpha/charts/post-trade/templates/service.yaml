@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: post-trade
+  namespace: {{ .Values.global.appNamespace | default "mariaalpha" }}
+  labels:
+    {{- include "post-trade.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.service.appPort }}
+      targetPort: app
+      protocol: TCP
+    - name: management
+      port: {{ .Values.service.managementPort }}
+      targetPort: management
+      protocol: TCP
+  selector:
+    {{- include "post-trade.selectorLabels" . | nindent 4 }}

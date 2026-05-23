@@ -1,0 +1,29 @@
+replicaCount: 1
+
+image:
+  tag: ""
+
+service:
+  type: ClusterIP
+  appPort: 8090
+  grpcPort: 50051
+
+resources:
+  requests: { cpu: 500m, memory: 1Gi }
+  limits:   { cpu: 1000m, memory: 2Gi }
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+  readOnlyRootFilesystem: false
+
+serviceMonitor:
+  enabled: true
+  interval: 15s
+
+extraEnv: []

@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ui
+  namespace: {{ .Values.global.appNamespace | default "mariaalpha" }}
+  labels:
+    {{- include "ui.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      {{- include "ui.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ui.labels" . | nindent 8 }}
+    spec:
+      enableServiceLinks: false
+      initContainers:
+        # Substitute __MARIAALPHA_API_KEY__ in the template using the mounted secret.
+        # We avoid envsubst by using sed (busybox) — keeps the image small and
+        # avoids depending on a third-party envsubst container.
+        - name: render-config
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              esc=$(printf '%s' "$MARIAALPHA_API_KEY" | sed -e 's/[&/\\]/\\&/g')
+              sed "s|__MARIAALPHA_API_KEY__|$esc|g" /template/config.js.tmpl > /shared/config.js
+              echo "rendered /shared/config.js (length=$(wc -c < /shared/config.js))"
+          env:
+            - name: MARIAALPHA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mariaalpha-api-key
+                  key: MARIAALPHA_API_KEY
+          volumeMounts:
+            - name: template
+              mountPath: /template
+            - name: shared
+              mountPath: /shared
+      containers:
+        - name: ui
+          image: {{ include "ui.image" . | quote }}
+          imagePullPolicy: {{ .Values.global.images.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 80
+          startupProbe:
+            httpGet: { path: /, port: http }
+            failureThreshold: 30
+            periodSeconds: 3
+          livenessProbe:
+            httpGet: { path: /, port: http }
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /, port: http }
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: shared
+              mountPath: /usr/share/nginx/html/config.js
+              subPath: config.js
+      volumes:
+        - name: template
+          configMap:
+            name: ui-config
+            items:
+              - key: config.js.tmpl
+                path: config.js.tmpl
+        - name: shared
+          emptyDir: {}

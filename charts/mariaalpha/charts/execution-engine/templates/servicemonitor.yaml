@@ -1,0 +1,22 @@
+{{- if .Values.serviceMonitor.enabled }}
+{{- if .Capabilities.APIVersions.Has "monitoring.coreos.com/v1/ServiceMonitor" }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: execution-engine
+  namespace: {{ .Values.global.appNamespace | default "mariaalpha" }}
+  labels:
+    {{- include "execution-engine.labels" . | nindent 4 }}
+    release: {{ .Release.Name }}
+spec:
+  namespaceSelector:
+    matchNames: ["{{ .Values.global.appNamespace | default "mariaalpha" }}"]
+  selector:
+    matchLabels:
+      {{- include "execution-engine.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: management
+      path: /actuator/prometheus
+      interval: {{ .Values.serviceMonitor.interval }}
+{{- end }}
+{{- end }}

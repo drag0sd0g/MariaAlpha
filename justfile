@@ -120,6 +120,43 @@ ui-lint:
 ui-fix:
     cd ui && npm run lint:fix && npm run format
 
+# --- Kubernetes (Helm) — see docs/runbooks/helm-install.md ---
+
+# Start the OrbStack-managed Kubernetes cluster.
+k8s-start:
+    orb start k8s
+
+# Build local images and install the umbrella chart on the active cluster.
+k8s-up:
+    just build
+    -docker tag mariaalpha-execution-engine:latest mariaalpha/execution-engine:local
+    -docker tag mariaalpha-ml-signal-service:latest mariaalpha/ml-signal-service:local
+    cd charts/mariaalpha && helm dependency update
+    helm upgrade --install mariaalpha charts/mariaalpha \
+        --create-namespace -n mariaalpha \
+        --wait --timeout 10m
+
+# Uninstall and wipe the four namespaces (incl. PVCs). Dev-cluster only.
+k8s-down:
+    -helm uninstall mariaalpha -n mariaalpha
+    -kubectl -n mariaalpha-data delete pvc --all
+    -kubectl -n mariaalpha-o11y delete pvc --all
+    -kubectl delete ns mariaalpha mariaalpha-data mariaalpha-o11y mariaalpha-infra --ignore-not-found
+
+# Tail logs across every app pod.
+k8s-logs:
+    kubectl -n mariaalpha logs -l app.kubernetes.io/part-of=mariaalpha --all-containers --tail=100 -f
+
+# Run the helm test hooks (actuator health + iceberg e2e).
+k8s-test:
+    helm test mariaalpha -n mariaalpha --logs
+
+# Lint and render the chart locally — no cluster required.
+k8s-lint:
+    cd charts/mariaalpha && helm lint . --strict
+    cd charts/mariaalpha && helm template mariaalpha . --debug > /tmp/mariaalpha-rendered.yaml
+    @echo "Rendered to /tmp/mariaalpha-rendered.yaml"
+
 # End-to-end smoke test against Alpaca paper trading (manual; requires real Alpaca creds in .env)
 smoke-alpaca:
     @if [ -z "${ALPACA_API_KEY_ID:-}" ]; then echo "Set ALPACA_API_KEY_ID and ALPACA_API_SECRET_KEY in .env first"; exit 1; fi

@@ -1,0 +1,18 @@
+{{/*
+The release namespace (`mariaalpha` by default) is created by
+`helm install --create-namespace`. The data namespace is created here as a
+regular template (not a hook). Bitnami's postgres + kafka subcharts target it
+via namespaceOverride; helm applies templates in alphabetical order of
+filename, and "namespaces.yaml" sorts before subcharts/{kafka,postgresql}/
+manifests, so the namespace exists when those resources apply.
+*/}}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "mariaalpha.dataNamespace" . }}
+  labels:
+    {{- include "mariaalpha.commonLabels" . | nindent 4 }}
+    mariaalpha.io/purpose: data
+  annotations:
+    "helm.sh/resource-policy": keep

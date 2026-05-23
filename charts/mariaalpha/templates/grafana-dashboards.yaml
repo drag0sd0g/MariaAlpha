@@ -1,0 +1,17 @@
+{{- if (index .Values "prometheus-stack" "enabled") }}
+{{- range $path, $_ := .Files.Glob "files/grafana-dashboards/*.json" }}
+{{- $name := base $path | trimSuffix ".json" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-{{ $name }}
+  namespace: {{ include "mariaalpha.o11yNamespace" $ }}
+  labels:
+    {{- include "mariaalpha.commonLabels" $ | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  {{ base $path | quote }}: |-
+{{ $.Files.Get $path | indent 4 }}
+{{- end }}
+{{- end }}
