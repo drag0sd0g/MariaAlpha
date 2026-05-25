@@ -314,12 +314,21 @@ GitHub Actions workflows run on every push and PR to `main`:
 
 | Workflow | File | What it checks |
 | --- | --- | --- |
-| **CI** | `ci.yml` | Java: Spotless, Checkstyle, SpotBugs, tests + JaCoCo. Python: ruff, mypy, pytest. UI: ESLint, Prettier, tsc. |
+| **CI** | `ci.yml` | Java: Spotless, Checkstyle, SpotBugs, tests + JaCoCo. Python: ruff, mypy, pytest. UI: ESLint, Prettier, tsc. Plus Helm lint + kubeconform and the Docker Compose e2e suite. |
 | **CodeQL** | `codeql.yml` | Security analysis for Java, Python, TypeScript (also runs weekly). |
 | **Snyk** | `snyk.yml` | Dependency vulnerability scanning (requires `SNYK_TOKEN` secret). |
 | **PR Metadata** | `pr-metadata.yml` | Auto-populates labels, milestone, assignee, and project from linked issues. |
 
 Python and UI jobs skip automatically when no source files exist yet. JaCoCo and test reports are uploaded as build artifacts. Snyk requires a `SNYK_TOKEN` repository secret — obtain one from [snyk.io](https://snyk.io).
+
+Two workflows run outside the per-PR critical path:
+
+| Workflow | File | Trigger | What it does |
+| --- | --- | --- | --- |
+| **Docker Publish** | `docker-publish.yml` | push to `main`, `v*.*.*` tags, manual | Multi-arch (amd64/arm64) build of every service image, push to GHCR (`ghcr.io/<owner>/mariaalpha/<svc>`), and — on a version tag — open a PR bumping the Helm chart's image tag. PRs build the images without pushing. |
+| **Mutation Testing** | `mutation.yml` | weekly (Mon 03:00 UTC), manual | PITest (Java services) + mutmut (Python ML service). Advisory only — no score gate; HTML/XML reports are uploaded as artifacts. |
+
+**Cutting a release:** push a `vX.Y.Z` tag. `docker-publish.yml` publishes `:X.Y.Z`, `:X.Y`, and `:latest` for every service, then opens a `chore/helm-image-tag-X.Y.Z` PR repointing `charts/mariaalpha/values.yaml` `global.images` at the GHCR registry and new tag. To deploy from GHCR instead of locally built images, merge that PR (or set `global.images.registry`/`tag` via `-f`/`--set`).
 
 ### Branch rules
 

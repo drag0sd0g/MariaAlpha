@@ -1,0 +1,94 @@
+name: Mutation Testing
+
+on:
+  schedule:
+    - cron: "0 3 * * 1" # Mondays 03:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pitest:
+    name: PITest (Java)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Run PITest across all Java services
+        run: ./gradlew pitest --continue
+
+      - name: Upload PITest reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pitest-reports
+          path: "**/build/reports/pitest/**"
+          if-no-files-found: warn
+
+  mutmut:
+    name: mutmut (Python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: ml-signal-service
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate Python proto stubs
+        working-directory: ${{ github.workspace }}
+        run: |
+          pip install grpcio-tools==1.70.0 --quiet
+          bash proto/generate_python.sh
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run mutmut
+        run: mutmut run || true
+
+      - name: Generate mutmut reports
+        if: always()
+        run: |
+          mutmut results || true
+          mutmut junitxml > mutmut-results.xml || true
+          mutmut html || true
+
+      - name: Mutation summary
+        if: always()
+        run: |
+          {
+            echo '### mutmut — ml-signal-service'
+            echo '```'
+            mutmut results || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload mutmut reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutmut-reports
+          path: |
+            ml-signal-service/html/
+            ml-signal-service/mutmut-results.xml
+          if-no-files-found: warn
