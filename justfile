@@ -46,6 +46,20 @@ test-e2e:
 test-python:
     cd ml-signal-service && pytest
 
+# Run mutation testing (Java PITest + Python mutmut) — slow; CI runs this weekly
+mutation:
+    just mutation-java
+    just mutation-python
+
+# PITest mutation analysis across all Java services (reports in build/reports/pitest)
+mutation-java:
+    ./gradlew pitest --continue
+
+# mutmut mutation analysis for the ML Signal Service (config in setup.cfg)
+mutation-python:
+    cd ml-signal-service && mutmut run || true
+    cd ml-signal-service && mutmut results
+
 # Run all linters and format checks (CI gate)
 check:
     ./gradlew spotlessCheck checkstyleMain spotbugsMain

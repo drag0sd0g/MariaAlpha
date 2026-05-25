@@ -1,0 +1,162 @@
+name: Docker Publish
+
+# Issue 2.7.2 — multi-arch image build, GHCR push, Helm tag bump.
+#
+# Tag selection is event-driven via docker/metadata-action:
+#   • pull_request          → build only, do NOT push (proves Dockerfiles build)
+#   • push to main          → push :main + :sha-<commit> (traceable dev images)
+#   • push tag vX.Y.Z       → push :X.Y.Z, :X.Y, :latest  AND  bump Helm tags
+#   • workflow_dispatch     → manual run (push :main + :sha unless on a tag)
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  pull_request:
+    branches: [main]
+    paths:
+      - "**/Dockerfile"
+      - "proto/**"
+      - ".github/workflows/docker-publish.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  # ghcr.io/<owner>/mariaalpha/<service> — matches the Helm image helper, which
+  # renders "{{ registry }}/{{ repository }}/<svc>:{{ tag }}".
+  IMAGE_NAMESPACE: ${{ github.repository_owner }}/mariaalpha
+
+jobs:
+  build:
+    name: Build & push (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    # arm64 layers build under QEMU emulation; the gradle-in-Docker services are
+    # the slow ones, so give each matrix leg plenty of headroom.
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { service: market-data-gateway, dockerfile: market-data-gateway/Dockerfile }
+          - { service: strategy-engine,     dockerfile: strategy-engine/Dockerfile }
+          - { service: execution-engine,    dockerfile: execution-engine/Dockerfile }
+          - { service: order-manager,       dockerfile: order-manager/Dockerfile }
+          - { service: post-trade,          dockerfile: post-trade/Dockerfile }
+          - { service: api-gateway,         dockerfile: api-gateway/Dockerfile }
+          - { service: ml-signal-service,   dockerfile: ml-signal-service/Dockerfile }
+          - { service: ui,                  dockerfile: ui/Dockerfile }
+    steps:
+      - uses: actions/checkout@v4
+
+      # The ml-signal-service image COPYs proto/generated/python/, which is
+      # git-ignored and so must be generated before `docker build` (same step the
+      # e2e job in ci.yml runs).
+      - name: Generate Python proto stubs
+        if: matrix.service == 'ml-signal-service'
+        run: |
+          pip install grpcio-tools==1.70.0 --quiet
+          bash proto/generate_python.sh
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      # No login on PRs — those runs build but never push, and forks have no
+      # write access to GHCR anyway.
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata (tags + labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.service }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-
+          # latest=auto attaches :latest only for non-prerelease semver tags,
+          # never on a branch build.
+          flavor: |
+            latest=auto
+          labels: |
+            org.opencontainers.image.title=mariaalpha-${{ matrix.service }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: false
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  # Once every image for a release tag is published, point the umbrella chart at
+  # the new GHCR images. Lands as a PR (peter-evans/create-pull-request) so the
+  # bump still flows through CI/review instead of bypassing branch protection.
+  update-helm:
+    name: Bump Helm image tags
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve release version
+        id: version
+        # refs/tags/v1.2.3 → 1.2.3
+        run: echo "tag=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Bump global image registry + tag
+        env:
+          VERSION: ${{ steps.version.outputs.tag }}
+          REGISTRY_NS: ${{ env.REGISTRY }}/${{ github.repository_owner }}
+        run: |
+          # mikefarah yq (preinstalled on ubuntu-latest) preserves comments.
+          yq -i '
+            .global.images.registry = strenv(REGISTRY_NS) |
+            .global.images.tag = strenv(VERSION)
+          ' charts/mariaalpha/values.yaml
+          echo "----- charts/mariaalpha/values.yaml global.images -----"
+          yq '.global.images' charts/mariaalpha/values.yaml
+
+      - name: Open Helm bump PR
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: chore/helm-image-tag-${{ steps.version.outputs.tag }}
+          base: main
+          commit-message: "chore(helm): pin images to ${{ steps.version.outputs.tag }}"
+          title: "chore(helm): pin images to ${{ steps.version.outputs.tag }}"
+          body: |
+            Automated by `docker-publish.yml` after publishing the
+            `v${{ steps.version.outputs.tag }}` images to GHCR.
+
+            Points `charts/mariaalpha/values.yaml` `global.images` at
+            `${{ env.REGISTRY }}/${{ github.repository_owner }}/mariaalpha/<svc>:${{ steps.version.outputs.tag }}`.
+          labels: |
+            component:ci-cd
+            type:infra

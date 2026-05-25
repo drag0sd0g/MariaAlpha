@@ -5,3 +5,4 @@ pytest-cov==6.0.0
 ruff==0.9.4
 mypy==1.14.1
 httpx==0.28.1
+mutmut==2.5.1

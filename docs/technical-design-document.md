@@ -1158,22 +1158,26 @@ Java: Gradle with dependency locking + OWASP Dependency-Check + Snyk in CI. Pyth
 graph LR
     subgraph "ci.yml (on push / PR)"
         direction LR
-        JF[Spotless] --> JL[Checkstyle] --> JSB[SpotBugs] --> JT[Tests + JaCoCo] --> JM[PITest] --> JO[OWASP] --> JCQ[CodeQL] --> JS[Snyk]
-        PL[ruff] --> PM[mypy] --> PT[pytest + cov] --> PMT[mutmut] --> PA[pip-audit] --> PCQ[CodeQL] --> PS[Snyk]
+        JF[Spotless] --> JL[Checkstyle] --> JSB[SpotBugs] --> JT[Tests + JaCoCo] --> JO[OWASP] --> JCQ[CodeQL] --> JS[Snyk]
+        PL[ruff] --> PM[mypy] --> PT[pytest + cov] --> PA[pip-audit] --> PCQ[CodeQL] --> PS[Snyk]
         UL[ESLint + Prettier] --> UT[tsc --noEmit]
     end
 ```
 
 A `helm` job inside `ci.yml` (added by issue 2.7.1) runs `helm dependency update`, `helm lint`, and `kubeconform -strict` against the rendered umbrella chart on every PR.
 
-The multi-arch image publish workflow is planned for issue 2.7.2 — not yet on `main`:
+Mutation testing (issue 2.7.3) is intentionally **not** on the per-PR critical path — it is O(mutants × tests) and far too slow. It runs in a dedicated `mutation.yml` workflow on a weekly schedule (plus manual `workflow_dispatch`). PITest covers the six Java services and mutmut covers the Python ML Signal Service; both are advisory (no score gate) and publish their HTML/XML reports as build artifacts.
+
+The multi-arch image publish workflow shipped in issue 2.7.2 as `docker-publish.yml`:
 
 ```mermaid
 graph LR
-    subgraph "docker-publish.yml (planned, issue 2.7.2)"
-        A[Build Docker Images<br/>multi-arch amd64/arm64] --> B[Push to GHCR<br/>ghcr.io/drag0sd0g/mariaalpha] --> C[Update Helm<br/>image tags]
+    subgraph "docker-publish.yml (push to main, v*.*.* tags, manual)"
+        A[Build Docker Images<br/>multi-arch amd64/arm64] --> B[Push to GHCR<br/>ghcr.io/drag0sd0g/mariaalpha] --> C[Bump Helm image tags<br/>via PR, on v* tags]
     end
 ```
+
+Tag selection is event-driven (`docker/metadata-action`): pull requests build the images without pushing; pushes to `main` publish `:main` and `:sha-<commit>`; a `vX.Y.Z` tag publishes `:X.Y.Z`, `:X.Y`, and `:latest` and then opens a PR repointing `charts/mariaalpha/values.yaml` `global.images` at the released GHCR images.
 
 ### 10.2 Kubernetes Deployment (Helm)
 
