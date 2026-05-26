@@ -9,7 +9,7 @@ Full-stack algorithmic trading engine — see [Technical Design Document](docs/t
 Phase 1 is complete. MariaAlpha ships as a working, end-to-end algorithmic trading engine with the following capabilities:
 
 - **Live market data ingestion** — simulated CSV replay (default) or Alpaca IEX WebSocket, with auto-reconnect and per-symbol in-memory order book
-- **VWAP execution strategy** enhanced by an ML signal — LightGBM classifier (15 technical indicators) called over gRPC with a Resilience4j circuit breaker; strategy hot-swap at runtime via REST
+- **VWAP and TWAP execution strategies** enhanced by an ML signal — LightGBM classifier (15 technical indicators) called over gRPC with a Resilience4j circuit breaker; strategy hot-swap at runtime via REST
 - **Risk check chain** — five composable checks (max notional, max position, max portfolio exposure, max open orders, daily loss limit) with trading halt and resume
 - **Dual exchange routing** — simulated exchange (configurable fill latency + slippage) or Alpaca paper trading (REST + `trade_updates` WebSocket), switchable via `EXECUTION_PROFILE`
 - **Real-time position and P&L tracking** — mark-to-market unrealized P&L, portfolio aggregates, fill history, all persisted in PostgreSQL
@@ -20,7 +20,7 @@ Phase 1 is complete. MariaAlpha ships as a working, end-to-end algorithmic tradi
 
 The Phase 1 acceptance test — `SimulatedHappyPathE2ETest` — boots the full Docker Compose stack (15 long-running services + a one-shot Kafka topics initializer) and traverses the complete Tick-to-Trade pipeline on every CI run. See [`docs/phase-1-completion.md`](docs/phase-1-completion.md) for the full record of what was built.
 
-Phase 2 work has begun landing on `main`: the Smart Order Router (issue 2.1.1), the advanced order-type handlers IOC / FOK / GTC / Iceberg (2.1.3, 2.1.4), and the umbrella Helm chart for Kubernetes deployment (2.7.1) are all shipped. Remaining Phase 2 items — TWAP / Momentum / Implementation Shortfall strategies, Redis distributed position cache, regime classifier, Playwright UI e2e tests, and the docker image publish workflow — are tracked in [§11 of the Technical Design Document](docs/technical-design-document.md#phase-2-full-desk-workflows--sor--rich-analytics).
+Phase 2 work has begun landing on `main`: the Smart Order Router (issue 2.1.1), the advanced order-type handlers IOC / FOK / GTC / Iceberg (2.1.3, 2.1.4), the TWAP execution strategy (2.1.5), and the umbrella Helm chart for Kubernetes deployment (2.7.1) are all shipped. Remaining Phase 2 items — Momentum / Implementation Shortfall strategies, Redis distributed position cache, regime classifier, Playwright UI e2e tests, and the docker image publish workflow — are tracked in [§11 of the Technical Design Document](docs/technical-design-document.md#phase-2-full-desk-workflows--sor--rich-analytics).
 
 ## Prerequisites
 
@@ -146,6 +146,23 @@ curl -X PUT -H "X-API-Key: local-dev-key" \
           ]
         }' \
     http://localhost:8080/api/strategies/VWAP/parameters
+
+# Alternatively, bind & configure TWAP — 100 shares in 6 equal slices between 14:30 and 16:00 NY time.
+curl -X PUT -H "X-API-Key: local-dev-key" \
+    -H "Content-Type: application/json" \
+    -d '{"strategyName":"TWAP"}' \
+    http://localhost:8080/api/strategies/AAPL
+
+curl -X PUT -H "X-API-Key: local-dev-key" \
+    -H "Content-Type: application/json" \
+    -d '{
+          "targetQuantity": 100,
+          "side": "BUY",
+          "startTime": "14:30:00",
+          "endTime": "16:00:00",
+          "numSlices": 6
+        }' \
+    http://localhost:8080/api/strategies/TWAP/parameters
 
 # Place a manual LIMIT order.
 curl -X POST -H "X-API-Key: local-dev-key" \

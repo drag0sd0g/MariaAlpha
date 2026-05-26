@@ -144,4 +144,74 @@ public class TickConsumerIntegrationTest {
     assertThat(signal.side()).isEqualTo(Side.BUY);
     assertThat(signal.quantity()).isEqualTo(500);
   }
+
+  @Test
+  void twapTickPublishedToKafkaTriggersSignalOnStrategySignalsTopic() throws Exception {
+    // Configure TWAP: 300 shares, single full-day slice, so any trading-hours tick fires it.
+    var twapStrategy = strategyRegistry.get("TWAP").orElseThrow();
+    twapStrategy.updateParameters(
+        Map.of(
+            "targetQuantity", 300,
+            "side", "SELL",
+            "startTime", "09:30",
+            "endTime", "16:00",
+            "numSlices", 1));
+    router.setActiveStrategy("MSFT", "TWAP");
+
+    var ts =
+        ZonedDateTime.of(
+                LocalDate.of(2026, 3, 24), LocalTime.of(11, 0), ZoneId.of("America/New_York"))
+            .toInstant();
+    var tick =
+        new MarketTick(
+            "MSFT",
+            ts,
+            EventType.QUOTE,
+            BigDecimal.ZERO,
+            0L,
+            new BigDecimal("415.30"),
+            new BigDecimal("415.40"),
+            100L,
+            80L,
+            0L,
+            DataSource.ALPACA,
+            false);
+
+    var props = new HashMap<String, Object>();
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
+    props.put(ConsumerConfig.GROUP_ID_CONFIG, "test-consumer-twap-" + Instant.now().toEpochMilli());
+    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+
+    var captured = new AtomicReference<OrderSignal>();
+
+    try (var consumer = new KafkaConsumer<String, String>(props)) {
+      consumer.subscribe(List.of("strategy.signals"));
+
+      kafkaTemplate.send("market-data.ticks", "MSFT", objectMapper.writeValueAsString(tick)).get();
+
+      Awaitility.await()
+          .atMost(Duration.ofSeconds(15))
+          .pollInterval(Duration.ofMillis(500))
+          .until(
+              () -> {
+                var records = consumer.poll(Duration.ofMillis(200));
+                for (var record : records) {
+                  var signal = objectMapper.readValue(record.value(), OrderSignal.class);
+                  if ("MSFT".equals(signal.symbol())) {
+                    captured.set(signal);
+                    return true;
+                  }
+                }
+                return false;
+              });
+    }
+
+    var signal = captured.get();
+    assertThat(signal.symbol()).isEqualTo("MSFT");
+    assertThat(signal.side()).isEqualTo(Side.SELL);
+    assertThat(signal.quantity()).isEqualTo(300);
+    assertThat(signal.strategyName()).isEqualTo("TWAP");
+  }
 }

@@ -126,7 +126,7 @@ MariaAlpha's VWAP strategy sits in the `strategy-engine` module and follows the 
              |                               |
              |  TradingStrategy interface     |
              |    +-- VwapStrategy            |
-             |    +-- TwapStrategy (future)   |
+             |    +-- TwapStrategy            |
              |    +-- MomentumStrategy (fut.) |
              |                               |
              |  StrategyRegistry              |
@@ -191,7 +191,7 @@ All times are converted to `America/New_York` (US Eastern Time) since the primar
 | Benchmark tracking | Better for volume-weighted benchmark | Better for time-weighted benchmark |
 | Market impact | Lower (trades with the crowd) | Higher (may trade against thin volume) |
 
-MariaAlpha implements TWAP as a separate strategy (1.3.x future issue) which simply divides the target quantity into equal slices across evenly-spaced intervals.
+MariaAlpha implements TWAP as a separate strategy (issue 2.1.5) which simply divides the target quantity into equal slices across evenly-spaced intervals. See [`twap-strategy-explainer.md`](twap-strategy-explainer.md) for the design and how it reuses the same `TradingStrategy` plumbing as VWAP.
 
 ## 7. Further Reading
 
