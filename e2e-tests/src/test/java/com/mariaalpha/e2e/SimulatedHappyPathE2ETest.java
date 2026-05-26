@@ -85,7 +85,7 @@ class SimulatedHappyPathE2ETest {
         var position = await().atMost(30, TimeUnit.SECONDS)
                 .pollInterval(Duration.ofMillis(500))
                 .ignoreExceptions()
-                .until(this::getApplePosition, pos -> pos != null && netQuantity(pos).signum() != 0);
+                .until(() -> getPosition("AAPL"), pos -> pos != null && netQuantity(pos).signum() != 0);
 
         assertThat(netQuantity(position)).as("AAPL net quantity should be 100 after VWAP bin fires")
                 .isEqualByComparingTo(new BigDecimal("100"));
@@ -99,7 +99,9 @@ class SimulatedHappyPathE2ETest {
         assertThat(new BigDecimal(position.get("realizedPnl").asText())).isEqualByComparingTo("0");
 
         var portfolio = httpGetAndCheck("/api/portfolio/summary");
-        assertThat(portfolio.get("openPositions").asInt()).isEqualTo(1);
+        // >= 1 rather than == 1: the TWAP test in this class may have opened an MSFT position too,
+        // and test method order is not guaranteed.
+        assertThat(portfolio.get("openPositions").asInt()).isGreaterThanOrEqualTo(1);
         assertThat(portfolio.has("totalPnl")).isTrue();
 
         var orders = httpGetAndCheck("/api/orders?symbol=AAPL");
@@ -113,6 +115,45 @@ class SimulatedHappyPathE2ETest {
         assertThat(status.get("tradingHalted").asBoolean())
                 .as("daily loss limit should not have tripped on a single 100-share fill")
                 .isFalse();
+    }
+
+    @Test
+    void simulatedTwapTickReachesMsftPositionWithFill() throws Exception {
+        bindTwapToMsftWith50Shares();
+
+        var position = await().atMost(30, TimeUnit.SECONDS)
+                .pollInterval(Duration.ofMillis(500))
+                .ignoreExceptions()
+                .until(() -> getPosition("MSFT"), pos -> pos != null && netQuantity(pos).signum() != 0);
+
+        assertThat(netQuantity(position)).as("MSFT net quantity should be 50 after TWAP slice fires")
+                .isEqualByComparingTo(new BigDecimal("50"));
+
+        var avgEntry = new BigDecimal(position.get("avgEntryPrice").asText());
+        assertThat(avgEntry).as("avgEntryPrice within CSV bid/ask span ± slippage")
+                .isBetween(new BigDecimal("415.00"), new BigDecimal("416.00"));
+
+        var orders = httpGetAndCheck("/api/orders?symbol=MSFT");
+        assertThat(orders.isArray()).isTrue();
+        assertThat(orders.size()).isGreaterThanOrEqualTo(1);
+        var order = orders.get(0);
+        assertThat(order.get("status").asText()).isEqualTo("FILLED");
+        assertThat(order.get("strategy").asText()).isEqualTo("TWAP");
+    }
+
+    private void bindTwapToMsftWith50Shares() throws Exception {
+        httpPutAndCheck("/api/strategies/MSFT", "{\"strategyName\":\"TWAP\"}");
+        // Single slice over the one-minute window that the simulated CSV ticks fall into
+        // (CSV MSFT ticks are 14:30:00-14:30:02Z == 10:30:00-10:30:02 America/New_York).
+        var params = MAPPER.writeValueAsString(
+                Map.of(
+                    "targetQuantity", 50,
+                    "side", "BUY",
+                    "startTime", "10:30:00",
+                    "endTime", "10:31:00",
+                    "numSlices", 1));
+        // Parameters are addressed by strategy name, not symbol
+        httpPutAndCheck("/api/strategies/TWAP/parameters", params);
     }
 
     private void bindVwapToAppleWith100Shares() throws Exception {
@@ -138,9 +179,10 @@ class SimulatedHappyPathE2ETest {
         return new BigDecimal(position.get("netQuantity").asText());
     }
 
-    private JsonNode getApplePosition() throws Exception {
+    private JsonNode getPosition(String symbol) throws Exception {
+        var requestPath = "/api/positions/" + symbol;
         HttpResponse<String> response = httpClient.send(HttpRequest.newBuilder()
-                        .uri(URI.create(baseUrl + "/api/positions/AAPL"))
+                        .uri(URI.create(baseUrl + requestPath))
                         .header("X-API-Key", API_KEY)
                         .GET()
                         .timeout(Duration.ofSeconds(3))
@@ -150,7 +192,7 @@ class SimulatedHappyPathE2ETest {
             return null; // position not yet created
         }
         if(response.statusCode() != 200){
-            throw new IllegalStateException("GET /api/positions/AAPL → " + response.statusCode() + " body="+response.body());
+            throw new IllegalStateException("GET " + requestPath + " → " + response.statusCode() + " body="+response.body());
         }
         return MAPPER.readTree(response.body());
     }

@@ -1328,7 +1328,7 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 | [2.1.2](https://github.com/drag0sd0g/MariaAlpha/issues/54) ✅ | Implement simulated dark pool and internal crossing venues | Execution Engine |
 | [2.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/55) ✅ | Implement IOC and FOK order type handlers | Execution Engine |
 | [2.1.4](https://github.com/drag0sd0g/MariaAlpha/issues/56) ✅ | Implement GTC and Iceberg order type handlers | Execution Engine |
-| [2.1.5](https://github.com/drag0sd0g/MariaAlpha/issues/57) | Implement TWAP strategy | Strategy Engine |
+| [2.1.5](https://github.com/drag0sd0g/MariaAlpha/issues/57) ✅ | Implement TWAP strategy | Strategy Engine |
 | [2.1.6](https://github.com/drag0sd0g/MariaAlpha/issues/58) | Implement Momentum/Trend-following strategy | Strategy Engine |
 | [2.1.7](https://github.com/drag0sd0g/MariaAlpha/issues/59) | Implement Implementation Shortfall algorithm | Strategy Engine |
 | [2.1.8](https://github.com/drag0sd0g/MariaAlpha/issues/60) | Implement POV (Participation Rate) algorithm | Strategy Engine |
