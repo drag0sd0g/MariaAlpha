@@ -15,6 +15,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -99,8 +100,8 @@ class SimulatedHappyPathE2ETest {
         assertThat(new BigDecimal(position.get("realizedPnl").asText())).isEqualByComparingTo("0");
 
         var portfolio = httpGetAndCheck("/api/portfolio/summary");
-        // >= 1 rather than == 1: the TWAP test in this class may have opened an MSFT position too,
-        // and test method order is not guaranteed.
+        // >= 1 rather than == 1: the TWAP (MSFT) and Momentum (GOOGL) tests in this class may have
+        // opened other positions too, and test method order is not guaranteed.
         assertThat(portfolio.get("openPositions").asInt()).isGreaterThanOrEqualTo(1);
         assertThat(portfolio.has("totalPnl")).isTrue();
 
@@ -139,6 +140,64 @@ class SimulatedHappyPathE2ETest {
         var order = orders.get(0);
         assertThat(order.get("status").asText()).isEqualTo("FILLED");
         assertThat(order.get("strategy").asText()).isEqualTo("TWAP");
+    }
+
+    @Test
+    void simulatedMomentumUptrendReachesGooglOrderWithFill() throws Exception {
+        bindMomentumToGoogl();
+
+        // As the simulated GOOGL uptrend's fast EMA crosses above the slow EMA, Momentum opens a
+        // long position. A later loop's reverse-crossover may flatten it, so we gate on the
+        // persisted (append-only) FILLED BUY order rather than a live, possibly-oscillating net
+        // position.
+        var order = await().atMost(40, TimeUnit.SECONDS)
+                .pollInterval(Duration.ofMillis(500))
+                .ignoreExceptions()
+                .until(this::firstFilledMomentumBuy, Objects::nonNull);
+
+        assertThat(order.get("side").asText()).isEqualTo("BUY");
+        assertThat(order.get("status").asText()).isEqualTo("FILLED");
+        assertThat(order.get("strategy").asText()).isEqualTo("MOMENTUM");
+        assertThat(order.get("symbol").asText()).isEqualTo("GOOGL");
+        assertThat(new BigDecimal(order.get("quantity").asText()))
+                .as("Momentum entry trades the configured clip size")
+                .isEqualByComparingTo(new BigDecimal("30"));
+
+        var status = httpGetAndCheck("/api/execution/status");
+        assertThat(status.get("tradingHalted").asBoolean())
+                .as("a small momentum round-trip must not trip the daily loss limit")
+                .isFalse();
+    }
+
+    private JsonNode firstFilledMomentumBuy() throws Exception {
+        var orders = httpGetAndCheck("/api/orders?symbol=GOOGL&strategy=MOMENTUM&status=FILLED");
+        if (!orders.isArray()) {
+            return null;
+        }
+        for (var order : orders) {
+            if ("BUY".equals(order.get("side").asText())) {
+                return order;
+            }
+        }
+        return null;
+    }
+
+    private void bindMomentumToGoogl() throws Exception {
+        httpPutAndCheck("/api/strategies/GOOGL", "{\"strategyName\":\"MOMENTUM\"}");
+        // Tiny EMA periods + a 2-trade warmup so the simulated GOOGL uptrend produces a prompt
+        // bullish crossover; stop-loss disabled (0) to keep the entry deterministic.
+        var params = MAPPER.writeValueAsString(
+                Map.of(
+                    "fastPeriod", 2,
+                    "slowPeriod", 3,
+                    "warmupTrades", 2,
+                    "rsiPeriod", 14,
+                    "volumeMultiplier", 1.5,
+                    "tradeQuantity", 30,
+                    "side", "BUY",
+                    "stopLossPct", 0.0));
+        // Parameters are addressed by strategy name, not symbol
+        httpPutAndCheck("/api/strategies/MOMENTUM/parameters", params);
     }
 
     private void bindTwapToMsftWith50Shares() throws Exception {

@@ -537,7 +537,7 @@ public interface TradingStrategy {
 | --- | --- | --- | --- |
 | VWAP | `targetQuantity`, `startTime`, `endTime`, `volumeProfile` | Slices parent order across time bins proportional to historical volume curve | Target quantity fully executed or end time reached |
 | TWAP | `targetQuantity`, `startTime`, `endTime`, `numSlices` | Distributes equal child orders across evenly spaced intervals | Target quantity fully executed or end time reached |
-| Momentum | `fastEMA` (20), `slowEMA` (50), `rsiPeriod` (14), `rsiOverbought` (70), `rsiOversold` (30) | Fast EMA crosses above slow EMA AND RSI not overbought AND volume > 1.5× average | Fast EMA crosses below slow EMA OR RSI reaches overbought OR stop-loss hit |
+| Momentum | `fastPeriod` (20), `slowPeriod` (50), `rsiPeriod` (14), `rsiOverbought` (70), `rsiOversold` (30), `volumeMultiplier` (1.5), `tradeQuantity`, `side`, `stopLossPct` (2.0) | Fast EMA crosses above slow EMA AND RSI not overbought AND volume > 1.5× average | Fast EMA crosses below slow EMA OR RSI reaches overbought OR stop-loss hit |
 
 **Signal integration:** if the ML signal confidence > 0.7 and agrees with the strategy direction, proceed. If > 0.7 and contradicts, suppress. If ≤ 0.7, proceed with strategy signal alone. Configurable via `config/strategy.yml`.
 
@@ -1329,7 +1329,7 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 | [2.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/55) ✅ | Implement IOC and FOK order type handlers | Execution Engine |
 | [2.1.4](https://github.com/drag0sd0g/MariaAlpha/issues/56) ✅ | Implement GTC and Iceberg order type handlers | Execution Engine |
 | [2.1.5](https://github.com/drag0sd0g/MariaAlpha/issues/57) ✅ | Implement TWAP strategy | Strategy Engine |
-| [2.1.6](https://github.com/drag0sd0g/MariaAlpha/issues/58) | Implement Momentum/Trend-following strategy | Strategy Engine |
+| [2.1.6](https://github.com/drag0sd0g/MariaAlpha/issues/58) ✅ | Implement Momentum/Trend-following strategy | Strategy Engine |
 | [2.1.7](https://github.com/drag0sd0g/MariaAlpha/issues/59) | Implement Implementation Shortfall algorithm | Strategy Engine |
 | [2.1.8](https://github.com/drag0sd0g/MariaAlpha/issues/60) | Implement POV (Participation Rate) algorithm | Strategy Engine |
 | [2.1.9](https://github.com/drag0sd0g/MariaAlpha/issues/61) | Implement Close algorithm (targeting closing auction) | Strategy Engine |

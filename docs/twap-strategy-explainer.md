@@ -77,7 +77,7 @@ TWAP sits in the `strategy-engine` module and implements the same pluggable `Tra
              |  TradingStrategy interface     |
              |    +-- VwapStrategy            |
              |    +-- TwapStrategy            |
-             |    +-- MomentumStrategy (fut.) |
+             |    +-- MomentumStrategy        |
              |                               |
              |  StrategyRegistry              |
              |    auto-discovers @Component   |
@@ -163,3 +163,4 @@ These mirror VWAP's MVP limitations and are deliberate scope cuts:
 - **Kissell & Glantz (2003)**: "Optimal Trading Strategies" — comprehensive coverage of VWAP, TWAP, and implementation shortfall algorithms.
 - **Johnson (2010)**: "Algorithmic Trading & DMA" — practical guide to execution algorithms including TWAP.
 - [`vwap-strategy-explainer.md`](vwap-strategy-explainer.md) — the sibling strategy this one mirrors.
+- [`momentum-strategy-explainer.md`](momentum-strategy-explainer.md) — the trend-following *alpha* strategy that complements these *execution* algorithms.
