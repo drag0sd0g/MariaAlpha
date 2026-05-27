@@ -163,4 +163,5 @@ These mirror VWAP's MVP limitations and are deliberate scope cuts:
 - **Kissell & Glantz (2003)**: "Optimal Trading Strategies" — comprehensive coverage of VWAP, TWAP, and implementation shortfall algorithms.
 - **Johnson (2010)**: "Algorithmic Trading & DMA" — practical guide to execution algorithms including TWAP.
 - [`vwap-strategy-explainer.md`](vwap-strategy-explainer.md) — the sibling strategy this one mirrors.
+- [`implementation-shortfall-strategy-explainer.md`](implementation-shortfall-strategy-explainer.md) — the front-loaded execution strategy that *also* mirrors TWAP's slicing but skews the allocations early (TWAP is IS at `urgency = 0`).
 - [`momentum-strategy-explainer.md`](momentum-strategy-explainer.md) — the trend-following *alpha* strategy that complements these *execution* algorithms.

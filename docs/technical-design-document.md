@@ -93,7 +93,7 @@ An engineer looking to demonstrate end-to-end competence in trading technology �
 **MariaAlpha** is a full-stack algorithmic trading engine that covers the complete trading lifecycle:
 
 1. Subscribes to real-time market data from free, open-source-compatible APIs (Alpaca).
-2. Runs configurable execution algorithms (VWAP, TWAP, Momentum) with a pluggable strategy interface.
+2. Runs configurable execution algorithms (VWAP, TWAP, Momentum, Implementation Shortfall) with a pluggable strategy interface.
 3. Integrates Python-based AI/ML services for real-time signal generation and strategy selection via gRPC, and async analytics (TCA, risk) via Kafka.
 4. Provides a React-based UI for live portfolio risk monitoring, manual RFQ pricing, order management, and analytics dashboards.
 5. Includes a complete post-trade pipeline with reconciliation, P&L attribution, and transaction cost analysis.
@@ -106,7 +106,7 @@ An engineer looking to demonstrate end-to-end competence in trading technology �
 | --- | --- |
 | G-1 | Demonstrate a complete, end-to-end algorithmic trading system from market data subscription to post-trade reconciliation. |
 | G-2 | Integrate AI/ML for real-time trading signal generation and intelligent strategy selection. |
-| G-3 | Support multiple configurable trading algorithms (VWAP, TWAP, Momentum) with a pluggable architecture. |
+| G-3 | Support multiple configurable trading algorithms (VWAP, TWAP, Momentum, Implementation Shortfall) with a pluggable architecture. |
 | G-4 | Provide a production-quality React UI for live risk monitoring, manual pricing, and order management. |
 | G-5 | Use only free, open-source tools and APIs — zero cost to run or demonstrate. |
 | G-6 | Follow production engineering best practices: CI/CD, Helm/K8s deployment, observability, security, resilience. |
@@ -538,6 +538,7 @@ public interface TradingStrategy {
 | VWAP | `targetQuantity`, `startTime`, `endTime`, `volumeProfile` | Slices parent order across time bins proportional to historical volume curve | Target quantity fully executed or end time reached |
 | TWAP | `targetQuantity`, `startTime`, `endTime`, `numSlices` | Distributes equal child orders across evenly spaced intervals | Target quantity fully executed or end time reached |
 | Momentum | `fastPeriod` (20), `slowPeriod` (50), `rsiPeriod` (14), `rsiOverbought` (70), `rsiOversold` (30), `volumeMultiplier` (1.5), `tradeQuantity`, `side`, `stopLossPct` (2.0) | Fast EMA crosses above slow EMA AND RSI not overbought AND volume > 1.5× average | Fast EMA crosses below slow EMA OR RSI reaches overbought OR stop-loss hit |
+| Implementation Shortfall (IS) | `targetQuantity`, `startTime`, `endTime`, `numSlices`, `urgency` (κ, default 0.5) | Front-loads child orders across equal time slices along the Almgren–Chriss optimal trajectory; `urgency=0` degrades to TWAP | Target quantity fully executed or end time reached |
 
 **Signal integration:** if the ML signal confidence > 0.7 and agrees with the strategy direction, proceed. If > 0.7 and contradicts, suppress. If ≤ 0.7, proceed with strategy signal alone. Configurable via `config/strategy.yml`.
 
@@ -686,10 +687,11 @@ classDiagram
     TradingStrategy <|.. VwapStrategy
     TradingStrategy <|.. TwapStrategy
     TradingStrategy <|.. MomentumStrategy
+    TradingStrategy <|.. ImplementationShortfallStrategy
     StrategyRegistry o-- TradingStrategy
 ```
 
-Future algorithms: Implementation Shortfall (Phase 2), POV (Phase 2), Close (Phase 2), Mean Reversion (Phase 3), Statistical Arbitrage (Phase 3).
+Status: VWAP/TWAP/Momentum and Implementation Shortfall (issue 2.1.7 — front-loaded execution along an Almgren–Chriss trajectory; see `docs/implementation-shortfall-strategy-explainer.md`) have all landed. Future algorithms: POV (Phase 2), Close (Phase 2), Mean Reversion (Phase 3), Statistical Arbitrage (Phase 3).
 
 #### 5.3.2 Order Type Handler Registry
 
@@ -1330,7 +1332,7 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 | [2.1.4](https://github.com/drag0sd0g/MariaAlpha/issues/56) ✅ | Implement GTC and Iceberg order type handlers | Execution Engine |
 | [2.1.5](https://github.com/drag0sd0g/MariaAlpha/issues/57) ✅ | Implement TWAP strategy | Strategy Engine |
 | [2.1.6](https://github.com/drag0sd0g/MariaAlpha/issues/58) ✅ | Implement Momentum/Trend-following strategy | Strategy Engine |
-| [2.1.7](https://github.com/drag0sd0g/MariaAlpha/issues/59) | Implement Implementation Shortfall algorithm | Strategy Engine |
+| [2.1.7](https://github.com/drag0sd0g/MariaAlpha/issues/59) ✅ | Implement Implementation Shortfall algorithm | Strategy Engine |
 | [2.1.8](https://github.com/drag0sd0g/MariaAlpha/issues/60) | Implement POV (Participation Rate) algorithm | Strategy Engine |
 | [2.1.9](https://github.com/drag0sd0g/MariaAlpha/issues/61) | Implement Close algorithm (targeting closing auction) | Strategy Engine |
 | [2.1.10](https://github.com/drag0sd0g/MariaAlpha/issues/62) | Implement internalization / crossing engine | Execution Engine |
