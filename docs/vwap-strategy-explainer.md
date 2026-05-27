@@ -193,6 +193,8 @@ All times are converted to `America/New_York` (US Eastern Time) since the primar
 
 MariaAlpha implements TWAP as a separate strategy (issue 2.1.5) which simply divides the target quantity into equal slices across evenly-spaced intervals. See [`twap-strategy-explainer.md`](twap-strategy-explainer.md) for the design and how it reuses the same `TradingStrategy` plumbing as VWAP.
 
+VWAP and TWAP are *execution* algorithms — they work a pre-decided parent order into the market. The [Momentum / trend-following strategy](momentum-strategy-explainer.md) (issue 2.1.6) is the complementary *alpha* strategy on the same `TradingStrategy` interface: it decides **whether** to hold a position at all, based on EMA crossovers, RSI, and volume confirmation.
+
 ## 7. Further Reading
 
 - **Almgren & Chriss (2000)**: "Optimal Execution of Portfolio Transactions" -- foundational paper on optimal trade execution

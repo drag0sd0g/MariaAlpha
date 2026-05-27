@@ -214,4 +214,85 @@ public class TickConsumerIntegrationTest {
     assertThat(signal.quantity()).isEqualTo(300);
     assertThat(signal.strategyName()).isEqualTo("TWAP");
   }
+
+  @Test
+  void momentumUptrendPublishedToKafkaTriggersEntrySignal() throws Exception {
+    // Configure MOMENTUM with tiny EMA periods so a two-trade uptrend produces a bullish
+    // crossover, and a 2-trade warmup so it acts immediately.
+    var momentumStrategy = strategyRegistry.get("MOMENTUM").orElseThrow();
+    momentumStrategy.updateParameters(
+        Map.of(
+            "fastPeriod", 2,
+            "slowPeriod", 3,
+            "warmupTrades", 2,
+            "volumeMultiplier", 1.5,
+            "tradeQuantity", 200,
+            "side", "BUY"));
+    router.setActiveStrategy("GOOGL", "MOMENTUM");
+
+    var seed = googlTrade("155.00", 100L);
+    var breakout = googlTrade("155.40", 300L);
+
+    var props = new HashMap<String, Object>();
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
+    props.put(
+        ConsumerConfig.GROUP_ID_CONFIG, "test-consumer-momentum-" + Instant.now().toEpochMilli());
+    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+
+    var captured = new AtomicReference<OrderSignal>();
+
+    try (var consumer = new KafkaConsumer<String, String>(props)) {
+      consumer.subscribe(List.of("strategy.signals"));
+
+      // Ordered publish on the same key (symbol) → same partition → in-order processing.
+      kafkaTemplate.send("market-data.ticks", "GOOGL", objectMapper.writeValueAsString(seed)).get();
+      kafkaTemplate
+          .send("market-data.ticks", "GOOGL", objectMapper.writeValueAsString(breakout))
+          .get();
+
+      Awaitility.await()
+          .atMost(Duration.ofSeconds(15))
+          .pollInterval(Duration.ofMillis(500))
+          .until(
+              () -> {
+                var records = consumer.poll(Duration.ofMillis(200));
+                for (var record : records) {
+                  var signal = objectMapper.readValue(record.value(), OrderSignal.class);
+                  if ("GOOGL".equals(signal.symbol())) {
+                    captured.set(signal);
+                    return true;
+                  }
+                }
+                return false;
+              });
+    }
+
+    var signal = captured.get();
+    assertThat(signal.symbol()).isEqualTo("GOOGL");
+    assertThat(signal.side()).isEqualTo(Side.BUY);
+    assertThat(signal.quantity()).isEqualTo(200);
+    assertThat(signal.strategyName()).isEqualTo("MOMENTUM");
+  }
+
+  private static MarketTick googlTrade(String price, long size) {
+    var ts =
+        ZonedDateTime.of(
+                LocalDate.of(2026, 3, 24), LocalTime.of(11, 0), ZoneId.of("America/New_York"))
+            .toInstant();
+    return new MarketTick(
+        "GOOGL",
+        ts,
+        EventType.TRADE,
+        new BigDecimal(price),
+        size,
+        new BigDecimal(price).subtract(new BigDecimal("0.02")),
+        new BigDecimal(price).add(new BigDecimal("0.02")),
+        100L,
+        80L,
+        0L,
+        DataSource.ALPACA,
+        false);
+  }
 }
