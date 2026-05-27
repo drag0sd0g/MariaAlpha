@@ -200,3 +200,5 @@ VWAP and TWAP are *execution* algorithms — they work a pre-decided parent orde
 - **Almgren & Chriss (2000)**: "Optimal Execution of Portfolio Transactions" -- foundational paper on optimal trade execution
 - **Kissell & Glantz (2003)**: "Optimal Trading Strategies" -- comprehensive coverage of VWAP, TWAP, and implementation shortfall algorithms
 - **Johnson (2010)**: "Algorithmic Trading & DMA" -- practical guide to execution algorithms including VWAP
+- [`twap-strategy-explainer.md`](twap-strategy-explainer.md) and [`implementation-shortfall-strategy-explainer.md`](implementation-shortfall-strategy-explainer.md) -- the sibling *execution* strategies on the same `TradingStrategy` interface (equal-time and front-loaded slicing)
+- [`momentum-strategy-explainer.md`](momentum-strategy-explainer.md) -- the complementary trend-following *alpha* strategy

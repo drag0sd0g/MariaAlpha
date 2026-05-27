@@ -22,14 +22,12 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.awaitility.Awaitility;
@@ -114,7 +112,7 @@ public class TickConsumerIntegrationTest {
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
     props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
 
-    var captured = new AtomicReference<List<ConsumerRecord<String, String>>>();
+    var captured = new AtomicReference<OrderSignal>();
 
     try (var consumer = new KafkaConsumer<String, String>(props)) {
       consumer.subscribe(List.of("strategy.signals"));
@@ -122,24 +120,27 @@ public class TickConsumerIntegrationTest {
       // Publish the tick to market-data.ticks
       kafkaTemplate.send("market-data.ticks", "AAPL", objectMapper.writeValueAsString(tick)).get();
 
-      // Wait for the signal to appear on strategy.signals
+      // Wait for the AAPL signal to appear on strategy.signals. Filter by symbol: this topic is
+      // shared across all the test methods in this class and read from earliest, so other methods'
+      // signals (MSFT/GOOGL/AMZN) may already sit ahead of ours regardless of execution order.
       Awaitility.await()
           .atMost(Duration.ofSeconds(15))
           .pollInterval(Duration.ofMillis(500))
           .until(
               () -> {
                 var records = consumer.poll(Duration.ofMillis(200));
-                var list = new ArrayList<ConsumerRecord<String, String>>();
-                records.forEach(list::add);
-                if (!list.isEmpty()) {
-                  captured.set(list);
-                  return true;
+                for (var record : records) {
+                  var signal = objectMapper.readValue(record.value(), OrderSignal.class);
+                  if ("AAPL".equals(signal.symbol())) {
+                    captured.set(signal);
+                    return true;
+                  }
                 }
                 return false;
               });
     }
 
-    var signal = objectMapper.readValue(captured.get().get(0).value(), OrderSignal.class);
+    var signal = captured.get();
     assertThat(signal.symbol()).isEqualTo("AAPL");
     assertThat(signal.side()).isEqualTo(Side.BUY);
     assertThat(signal.quantity()).isEqualTo(500);
@@ -213,6 +214,85 @@ public class TickConsumerIntegrationTest {
     assertThat(signal.side()).isEqualTo(Side.SELL);
     assertThat(signal.quantity()).isEqualTo(300);
     assertThat(signal.strategyName()).isEqualTo("TWAP");
+  }
+
+  @Test
+  void implementationShortfallTickPublishedToKafkaTriggersFrontLoadedSignal() throws Exception {
+    // Configure IS: 1000 shares over two equal half-day slices with urgency 0.5. A tick inside
+    // the first slice fires its front-loaded allocation — 557 shares (> the 500 a uniform split
+    // would give), demonstrating the front-loading end-to-end.
+    var isStrategy = strategyRegistry.get("IS").orElseThrow();
+    isStrategy.updateParameters(
+        Map.of(
+            "targetQuantity",
+            1000,
+            "side",
+            "BUY",
+            "startTime",
+            "09:30",
+            "endTime",
+            "16:00",
+            "numSlices",
+            2,
+            "urgency",
+            0.5));
+    router.setActiveStrategy("AMZN", "IS");
+
+    var ts =
+        ZonedDateTime.of(
+                LocalDate.of(2026, 3, 24), LocalTime.of(11, 0), ZoneId.of("America/New_York"))
+            .toInstant();
+    var tick =
+        new MarketTick(
+            "AMZN",
+            ts,
+            EventType.QUOTE,
+            BigDecimal.ZERO,
+            0L,
+            new BigDecimal("185.10"),
+            new BigDecimal("185.20"),
+            100L,
+            80L,
+            0L,
+            DataSource.ALPACA,
+            false);
+
+    var props = new HashMap<String, Object>();
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
+    props.put(ConsumerConfig.GROUP_ID_CONFIG, "test-consumer-is-" + Instant.now().toEpochMilli());
+    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+
+    var captured = new AtomicReference<OrderSignal>();
+
+    try (var consumer = new KafkaConsumer<String, String>(props)) {
+      consumer.subscribe(List.of("strategy.signals"));
+
+      kafkaTemplate.send("market-data.ticks", "AMZN", objectMapper.writeValueAsString(tick)).get();
+
+      Awaitility.await()
+          .atMost(Duration.ofSeconds(15))
+          .pollInterval(Duration.ofMillis(500))
+          .until(
+              () -> {
+                var records = consumer.poll(Duration.ofMillis(200));
+                for (var record : records) {
+                  var signal = objectMapper.readValue(record.value(), OrderSignal.class);
+                  if ("AMZN".equals(signal.symbol())) {
+                    captured.set(signal);
+                    return true;
+                  }
+                }
+                return false;
+              });
+    }
+
+    var signal = captured.get();
+    assertThat(signal.symbol()).isEqualTo("AMZN");
+    assertThat(signal.side()).isEqualTo(Side.BUY);
+    assertThat(signal.quantity()).isEqualTo(557);
+    assertThat(signal.strategyName()).isEqualTo("IS");
   }
 
   @Test

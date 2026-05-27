@@ -143,6 +143,30 @@ class SimulatedHappyPathE2ETest {
     }
 
     @Test
+    void simulatedShortfallTickReachesAmznPositionWithFill() throws Exception {
+        bindImplementationShortfallToAmznWith40Shares();
+
+        var position = await().atMost(30, TimeUnit.SECONDS)
+                .pollInterval(Duration.ofMillis(500))
+                .ignoreExceptions()
+                .until(() -> getPosition("AMZN"), pos -> pos != null && netQuantity(pos).signum() != 0);
+
+        assertThat(netQuantity(position)).as("AMZN net quantity should be 40 after the IS slice fires")
+                .isEqualByComparingTo(new BigDecimal("40"));
+
+        var avgEntry = new BigDecimal(position.get("avgEntryPrice").asText());
+        assertThat(avgEntry).as("avgEntryPrice within CSV bid/ask span ± slippage")
+                .isBetween(new BigDecimal("185.00"), new BigDecimal("185.50"));
+
+        var orders = httpGetAndCheck("/api/orders?symbol=AMZN");
+        assertThat(orders.isArray()).isTrue();
+        assertThat(orders.size()).isGreaterThanOrEqualTo(1);
+        var order = orders.get(0);
+        assertThat(order.get("status").asText()).isEqualTo("FILLED");
+        assertThat(order.get("strategy").asText()).isEqualTo("IS");
+    }
+
+    @Test
     void simulatedMomentumUptrendReachesGooglOrderWithFill() throws Exception {
         bindMomentumToGoogl();
 
@@ -198,6 +222,24 @@ class SimulatedHappyPathE2ETest {
                     "stopLossPct", 0.0));
         // Parameters are addressed by strategy name, not symbol
         httpPutAndCheck("/api/strategies/MOMENTUM/parameters", params);
+    }
+
+    private void bindImplementationShortfallToAmznWith40Shares() throws Exception {
+        httpPutAndCheck("/api/strategies/AMZN", "{\"strategyName\":\"IS\"}");
+        // Single slice over the one-minute window the simulated CSV AMZN ticks fall into
+        // (CSV AMZN ticks are 14:30:00-14:30:02Z == 10:30:00-10:30:02 America/New_York). With one
+        // slice the Almgren-Chriss front-load collapses to the whole clip; the multi-slice
+        // front-loading shape is exercised by the unit + integration tests instead.
+        var params = MAPPER.writeValueAsString(
+                Map.of(
+                    "targetQuantity", 40,
+                    "side", "BUY",
+                    "startTime", "10:30:00",
+                    "endTime", "10:31:00",
+                    "numSlices", 1,
+                    "urgency", 0.5));
+        // Parameters are addressed by strategy name, not symbol
+        httpPutAndCheck("/api/strategies/IS/parameters", params);
     }
 
     private void bindTwapToMsftWith50Shares() throws Exception {
