@@ -376,6 +376,88 @@ public class TickConsumerIntegrationTest {
   }
 
   @Test
+  void closePreCloseSliceLimitOrderEmittedDuringWorkingWindow() throws Exception {
+    // Configure CLOSE: parent 1000 shares, 50% pre-close fraction, 5 slices. A tick inside the
+    // first pre-close slice (15:05) emits the slice's 100-share LIMIT clip — exercising the
+    // working-into-the-close phase end-to-end.
+    var closeStrategy = strategyRegistry.get("CLOSE").orElseThrow();
+    closeStrategy.updateParameters(
+        Map.of(
+            "targetQuantity",
+            1000,
+            "side",
+            "BUY",
+            "windowStart",
+            "15:00",
+            "closeTime",
+            "16:00",
+            "mocOffsetMinutes",
+            10,
+            "preCloseFraction",
+            0.50,
+            "numPreCloseSlices",
+            5));
+    router.setActiveStrategy("NVDA", "CLOSE");
+
+    var ts =
+        ZonedDateTime.of(
+                LocalDate.of(2026, 3, 24), LocalTime.of(15, 5), ZoneId.of("America/New_York"))
+            .toInstant();
+    var tick =
+        new MarketTick(
+            "NVDA",
+            ts,
+            EventType.QUOTE,
+            BigDecimal.ZERO,
+            0L,
+            new BigDecimal("875.20"),
+            new BigDecimal("875.40"),
+            100L,
+            80L,
+            0L,
+            DataSource.ALPACA,
+            false);
+
+    var props = new HashMap<String, Object>();
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
+    props.put(
+        ConsumerConfig.GROUP_ID_CONFIG, "test-consumer-close-" + Instant.now().toEpochMilli());
+    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+
+    var captured = new AtomicReference<OrderSignal>();
+
+    try (var consumer = new KafkaConsumer<String, String>(props)) {
+      consumer.subscribe(List.of("strategy.signals"));
+
+      kafkaTemplate.send("market-data.ticks", "NVDA", objectMapper.writeValueAsString(tick)).get();
+
+      Awaitility.await()
+          .atMost(Duration.ofSeconds(15))
+          .pollInterval(Duration.ofMillis(500))
+          .until(
+              () -> {
+                var records = consumer.poll(Duration.ofMillis(200));
+                for (var record : records) {
+                  var signal = objectMapper.readValue(record.value(), OrderSignal.class);
+                  if ("NVDA".equals(signal.symbol())) {
+                    captured.set(signal);
+                    return true;
+                  }
+                }
+                return false;
+              });
+    }
+
+    var signal = captured.get();
+    assertThat(signal.symbol()).isEqualTo("NVDA");
+    assertThat(signal.side()).isEqualTo(Side.BUY);
+    assertThat(signal.quantity()).isEqualTo(100);
+    assertThat(signal.strategyName()).isEqualTo("CLOSE");
+  }
+
+  @Test
   void momentumUptrendPublishedToKafkaTriggersEntrySignal() throws Exception {
     // Configure MOMENTUM with tiny EMA periods so a two-trade uptrend produces a bullish
     // crossover, and a 2-trade warmup so it acts immediately.

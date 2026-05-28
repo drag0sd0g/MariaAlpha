@@ -167,6 +167,34 @@ class SimulatedHappyPathE2ETest {
     }
 
     @Test
+    void simulatedCloseTickReachesNvdaPositionWithMocFill() throws Exception {
+        bindCloseToNvdaWith45SharesMocOnly();
+
+        var position = await().atMost(30, TimeUnit.SECONDS)
+                .pollInterval(Duration.ofMillis(500))
+                .ignoreExceptions()
+                .until(() -> getPosition("NVDA"), pos -> pos != null && netQuantity(pos).signum() != 0);
+
+        // The simulated CSV NVDA ticks fall inside the configured pre-close window's MOC zone
+        // (15:55-15:59 ET vs. mocCutoff 15:55), so CLOSE fires the full 45-share parent in one
+        // MARKET (MOC-equivalent) order on the first tick after binding.
+        assertThat(netQuantity(position)).as("NVDA net quantity should reach the 45-share CLOSE parent")
+                .isEqualByComparingTo(new BigDecimal("45"));
+
+        var avgEntry = new BigDecimal(position.get("avgEntryPrice").asText());
+        assertThat(avgEntry).as("avgEntryPrice within CSV bid/ask span ± slippage")
+                .isBetween(new BigDecimal("875.00"), new BigDecimal("876.00"));
+
+        var orders = httpGetAndCheck("/api/orders?symbol=NVDA&strategy=CLOSE");
+        assertThat(orders.isArray()).isTrue();
+        assertThat(orders.size()).isGreaterThanOrEqualTo(1);
+        var order = orders.get(0);
+        assertThat(order.get("strategy").asText()).isEqualTo("CLOSE");
+        assertThat(order.get("status").asText()).isEqualTo("FILLED");
+        assertThat(order.get("orderType").asText()).isEqualTo("MARKET");
+    }
+
+    @Test
     void simulatedPovTickReachesTslaPositionWithFill() throws Exception {
         bindPovToTslaWith60Shares();
 
@@ -250,6 +278,27 @@ class SimulatedHappyPathE2ETest {
                     "stopLossPct", 0.0));
         // Parameters are addressed by strategy name, not symbol
         httpPutAndCheck("/api/strategies/MOMENTUM/parameters", params);
+    }
+
+    private void bindCloseToNvdaWith45SharesMocOnly() throws Exception {
+        httpPutAndCheck("/api/strategies/NVDA", "{\"strategyName\":\"CLOSE\"}");
+        // CSV NVDA ticks land at 14:30:02.500-14:30:04.500 UTC == 10:30:02.5-10:30:04.5 ET. The
+        // strategy is configured so its 60-second "session" wraps that interval: windowStart at
+        // 10:30:00, closeTime at 10:31:00, with a 1-minute MOC offset → mocCutoff = 10:30:00. Any
+        // NVDA tick reaching the strategy is past the cutoff, so the MOC fires the full 45-share
+        // parent in one MARKET order. preCloseFraction = 0 → pure MOC behaviour (the multi-slice
+        // pre-close schedule is exercised by the unit + integration tests instead).
+        var params = MAPPER.writeValueAsString(
+                Map.of(
+                    "targetQuantity", 45,
+                    "side", "BUY",
+                    "windowStart", "10:30:00",
+                    "closeTime", "10:31:00",
+                    "mocOffsetMinutes", 1,
+                    "preCloseFraction", 0.0,
+                    "numPreCloseSlices", 6));
+        // Parameters are addressed by strategy name, not symbol
+        httpPutAndCheck("/api/strategies/CLOSE/parameters", params);
     }
 
     private void bindPovToTslaWith60Shares() throws Exception {
