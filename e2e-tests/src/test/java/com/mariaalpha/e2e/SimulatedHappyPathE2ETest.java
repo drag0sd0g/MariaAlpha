@@ -266,13 +266,21 @@ class SimulatedHappyPathE2ETest {
         httpPutAndCheck("/api/strategies/GOOGL", "{\"strategyName\":\"MOMENTUM\"}");
         // Tiny EMA periods + a 2-trade warmup so the simulated GOOGL uptrend produces a prompt
         // bullish crossover; stop-loss disabled (0) to keep the entry deterministic.
+        //
+        // volumeMultiplier=0 disables the volume-confirmation gate, which is otherwise
+        // flake-prone in this loop-replay setup: if the strategy binds mid-loop instead of in
+        // the inter-loop quiet window, MomentumStrategy seeds its rolling volume baseline with
+        // the 400-share GOOGL trades and can never satisfy `size > 1.5 × avg` thereafter — the
+        // state persists across CSV iterations and the strategy is locked out. Volume gating
+        // is exercised by MomentumStrategyTest (bullishCrossoverFailsWithoutVolumeConfirmation);
+        // this e2e covers the signal→execution→fill→DB→API path, not the gate.
         var params = MAPPER.writeValueAsString(
                 Map.of(
                     "fastPeriod", 2,
                     "slowPeriod", 3,
                     "warmupTrades", 2,
                     "rsiPeriod", 14,
-                    "volumeMultiplier", 1.5,
+                    "volumeMultiplier", 0.0,
                     "tradeQuantity", 30,
                     "side", "BUY",
                     "stopLossPct", 0.0));
