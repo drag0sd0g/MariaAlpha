@@ -9,7 +9,7 @@ Full-stack algorithmic trading engine — see [Technical Design Document](docs/t
 Phase 1 is complete. MariaAlpha ships as a working, end-to-end algorithmic trading engine with the following capabilities:
 
 - **Live market data ingestion** — simulated CSV replay (default) or Alpaca IEX WebSocket, with auto-reconnect and per-symbol in-memory order book
-- **VWAP, TWAP, Momentum/trend-following, Implementation Shortfall, and POV (Percentage of Volume) strategies** enhanced by an ML signal — LightGBM classifier (15 technical indicators) called over gRPC with a Resilience4j circuit breaker; strategy hot-swap at runtime via REST
+- **VWAP, TWAP, Momentum/trend-following, Implementation Shortfall, POV (Percentage of Volume), and Close (Market-on-Close benchmark) strategies** enhanced by an ML signal — LightGBM classifier (15 technical indicators) called over gRPC with a Resilience4j circuit breaker; strategy hot-swap at runtime via REST
 - **Risk check chain** — five composable checks (max notional, max position, max portfolio exposure, max open orders, daily loss limit) with trading halt and resume
 - **Dual exchange routing** — simulated exchange (configurable fill latency + slippage) or Alpaca paper trading (REST + `trade_updates` WebSocket), switchable via `EXECUTION_PROFILE`
 - **Real-time position and P&L tracking** — mark-to-market unrealized P&L, portfolio aggregates, fill history, all persisted in PostgreSQL
@@ -20,7 +20,7 @@ Phase 1 is complete. MariaAlpha ships as a working, end-to-end algorithmic tradi
 
 The Phase 1 acceptance test — `SimulatedHappyPathE2ETest` — boots the full Docker Compose stack (15 long-running services + a one-shot Kafka topics initializer) and traverses the complete Tick-to-Trade pipeline on every CI run. See [`docs/phase-1-completion.md`](docs/phase-1-completion.md) for the full record of what was built.
 
-Phase 2 work has begun landing on `main`: the Smart Order Router (issue 2.1.1), the advanced order-type handlers IOC / FOK / GTC / Iceberg (2.1.3, 2.1.4), the TWAP execution strategy (2.1.5), the Momentum / trend-following strategy (2.1.6), the Implementation Shortfall execution strategy (2.1.7), the POV (Percentage of Volume) execution strategy (2.1.8), and the umbrella Helm chart for Kubernetes deployment (2.7.1) are all shipped. Remaining Phase 2 items — the Close strategy, Redis distributed position cache, regime classifier, Playwright UI e2e tests, and the docker image publish workflow — are tracked in [§11 of the Technical Design Document](docs/technical-design-document.md#phase-2-full-desk-workflows--sor--rich-analytics).
+Phase 2 work has begun landing on `main`: the Smart Order Router (issue 2.1.1), the advanced order-type handlers IOC / FOK / GTC / Iceberg (2.1.3, 2.1.4), the TWAP execution strategy (2.1.5), the Momentum / trend-following strategy (2.1.6), the Implementation Shortfall execution strategy (2.1.7), the POV (Percentage of Volume) execution strategy (2.1.8), the Close (Market-on-Close) execution strategy (2.1.9), and the umbrella Helm chart for Kubernetes deployment (2.7.1) are all shipped. Remaining Phase 2 items — the Redis distributed position cache, regime classifier, Playwright UI e2e tests, and the docker image publish workflow — are tracked in [§11 of the Technical Design Document](docs/technical-design-document.md#phase-2-full-desk-workflows--sor--rich-analytics).
 
 ## Prerequisites
 
@@ -224,6 +224,27 @@ curl -X PUT -H "X-API-Key: local-dev-key" \
           "maxClipSize": 5000
         }' \
     http://localhost:8080/api/strategies/POV/parameters
+
+# Or bind & configure Close (Market-on-Close benchmark) — work 30 % of a 10,000-share parent
+# across 6 LIMIT slices in the last 25 minutes; fire the remaining 7,000 as a MARKET MOC at
+# the 5-min-before-close cutoff (15:55 ET).
+curl -X PUT -H "X-API-Key: local-dev-key" \
+    -H "Content-Type: application/json" \
+    -d '{"strategyName":"CLOSE"}' \
+    http://localhost:8080/api/strategies/NVDA
+
+curl -X PUT -H "X-API-Key: local-dev-key" \
+    -H "Content-Type: application/json" \
+    -d '{
+          "targetQuantity": 10000,
+          "side": "BUY",
+          "windowStart": "15:30:00",
+          "closeTime": "16:00:00",
+          "mocOffsetMinutes": 5,
+          "preCloseFraction": 0.30,
+          "numPreCloseSlices": 6
+        }' \
+    http://localhost:8080/api/strategies/CLOSE/parameters
 
 # Place a manual LIMIT order.
 curl -X POST -H "X-API-Key: local-dev-key" \

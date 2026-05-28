@@ -10,7 +10,7 @@ service:
   managementPort: 8081
   grpcPort: 50052
 
-symbols: "AAPL,MSFT,GOOGL,AMZN,TSLA"
+symbols: "AAPL,MSFT,GOOGL,AMZN,TSLA,NVDA"
 
 resources:
   requests: { cpu: 500m, memory: 512Mi }

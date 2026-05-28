@@ -192,7 +192,7 @@ services:
       ALPACA_API_KEY_ID: ${ALPACA_API_KEY_ID:-}
       ALPACA_API_SECRET_KEY: ${ALPACA_API_SECRET_KEY:-}
       MANAGEMENT_PORT: 8081
-      MARKET_DATA_SYMBOLS: AAPL,MSFT,GOOGL,AMZN,TSLA
+      MARKET_DATA_SYMBOLS: AAPL,MSFT,GOOGL,AMZN,TSLA,NVDA
     volumes:
       - ./config/symbols.yml:/app/config/symbols.yml:ro
     ports:
