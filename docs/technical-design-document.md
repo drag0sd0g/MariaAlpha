@@ -310,6 +310,7 @@ sequenceDiagram
 | FR-8 | The system SHALL implement a VWAP execution algorithm that slices a parent order across the trading day proportional to a historical volume profile, targeting the day's volume-weighted average price. |
 | FR-9 | The system SHALL implement a TWAP execution algorithm that distributes a parent order evenly across configurable fixed time intervals. |
 | FR-10 | The system SHALL implement a Momentum/Trend-following strategy that generates entry/exit signals based on configurable moving average crossovers (e.g., 20-period / 50-period EMA cross), RSI thresholds, and volume confirmation. |
+| FR-10a | The system SHALL implement a Percentage-of-Volume (POV) execution algorithm that participates as a configurable fraction of the real-time traded volume on the tape (TRADE ticks only; quotes excluded), with per-clip minimum/maximum size guards and an end-of-window MARKET sweep for any unexecuted remainder. |
 | FR-11 | The system SHALL allow runtime selection of the active strategy per symbol via the REST API and UI, without requiring a restart. |
 | FR-12 | The system SHALL consume real-time ML signals from the Signal Service via gRPC and incorporate them as an additional input to strategy decisions (e.g., adjusting urgency, confirming/vetoing signals). |
 
@@ -539,6 +540,7 @@ public interface TradingStrategy {
 | TWAP | `targetQuantity`, `startTime`, `endTime`, `numSlices` | Distributes equal child orders across evenly spaced intervals | Target quantity fully executed or end time reached |
 | Momentum | `fastPeriod` (20), `slowPeriod` (50), `rsiPeriod` (14), `rsiOverbought` (70), `rsiOversold` (30), `volumeMultiplier` (1.5), `tradeQuantity`, `side`, `stopLossPct` (2.0) | Fast EMA crosses above slow EMA AND RSI not overbought AND volume > 1.5× average | Fast EMA crosses below slow EMA OR RSI reaches overbought OR stop-loss hit |
 | Implementation Shortfall (IS) | `targetQuantity`, `startTime`, `endTime`, `numSlices`, `urgency` (κ, default 0.5) | Front-loads child orders across equal time slices along the Almgren–Chriss optimal trajectory; `urgency=0` degrades to TWAP | Target quantity fully executed or end time reached |
+| POV | `targetQuantity`, `startTime`, `endTime`, `participationRate` (default 10%), `minClipSize`, `maxClipSize` | Reactive: tracks cumulative traded volume from TRADE ticks and emits LIMIT child orders sized so total emitted ≈ `participationRate × volume`. Quotes do not contribute volume. | Target quantity fully executed or end time reached — any remainder is swept with a MARKET order at the deadline |
 
 **Signal integration:** if the ML signal confidence > 0.7 and agrees with the strategy direction, proceed. If > 0.7 and contradicts, suppress. If ≤ 0.7, proceed with strategy signal alone. Configurable via `config/strategy.yml`.
 
@@ -688,10 +690,11 @@ classDiagram
     TradingStrategy <|.. TwapStrategy
     TradingStrategy <|.. MomentumStrategy
     TradingStrategy <|.. ImplementationShortfallStrategy
+    TradingStrategy <|.. PovStrategy
     StrategyRegistry o-- TradingStrategy
 ```
 
-Status: VWAP/TWAP/Momentum and Implementation Shortfall (issue 2.1.7 — front-loaded execution along an Almgren–Chriss trajectory; see `docs/implementation-shortfall-strategy-explainer.md`) have all landed. Future algorithms: POV (Phase 2), Close (Phase 2), Mean Reversion (Phase 3), Statistical Arbitrage (Phase 3).
+Status: VWAP/TWAP/Momentum, Implementation Shortfall (issue 2.1.7 — front-loaded execution along an Almgren–Chriss trajectory; see `docs/implementation-shortfall-strategy-explainer.md`), and POV (issue 2.1.8 — reactive participation as a fraction of traded volume; see `docs/pov-strategy-explainer.md`) have all landed. Future algorithms: Close (Phase 2), Mean Reversion (Phase 3), Statistical Arbitrage (Phase 3).
 
 #### 5.3.2 Order Type Handler Registry
 
@@ -1333,7 +1336,7 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 | [2.1.5](https://github.com/drag0sd0g/MariaAlpha/issues/57) ✅ | Implement TWAP strategy | Strategy Engine |
 | [2.1.6](https://github.com/drag0sd0g/MariaAlpha/issues/58) ✅ | Implement Momentum/Trend-following strategy | Strategy Engine |
 | [2.1.7](https://github.com/drag0sd0g/MariaAlpha/issues/59) ✅ | Implement Implementation Shortfall algorithm | Strategy Engine |
-| [2.1.8](https://github.com/drag0sd0g/MariaAlpha/issues/60) | Implement POV (Participation Rate) algorithm | Strategy Engine |
+| [2.1.8](https://github.com/drag0sd0g/MariaAlpha/issues/60) ✅ | Implement POV (Participation Rate) algorithm | Strategy Engine |
 | [2.1.9](https://github.com/drag0sd0g/MariaAlpha/issues/61) | Implement Close algorithm (targeting closing auction) | Strategy Engine |
 | [2.1.10](https://github.com/drag0sd0g/MariaAlpha/issues/62) | Implement internalization / crossing engine | Execution Engine |
 | [2.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/63) | Implement sector exposure risk check | Execution Engine |
