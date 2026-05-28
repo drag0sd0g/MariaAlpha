@@ -167,6 +167,34 @@ class SimulatedHappyPathE2ETest {
     }
 
     @Test
+    void simulatedPovTickReachesTslaPositionWithFill() throws Exception {
+        bindPovToTslaWith60Shares();
+
+        var position = await().atMost(30, TimeUnit.SECONDS)
+                .pollInterval(Duration.ofMillis(500))
+                .ignoreExceptions()
+                .until(() -> getPosition("TSLA"), pos -> pos != null && netQuantity(pos).signum() != 0);
+
+        // POV emits LIMIT clips proportional to traded volume on the tape. The first TSLA TRADE
+        // tick (size 300) at 10% participation suggests 30 shares; subsequent clips drive the
+        // emitted total to the 60-share parent target. The final aggregated net position is 60.
+        assertThat(netQuantity(position)).as("TSLA net quantity should reach the 60-share POV parent")
+                .isEqualByComparingTo(new BigDecimal("60"));
+
+        var avgEntry = new BigDecimal(position.get("avgEntryPrice").asText());
+        assertThat(avgEntry).as("avgEntryPrice within CSV bid/ask span ± slippage")
+                .isBetween(new BigDecimal("245.00"), new BigDecimal("246.00"));
+
+        var orders = httpGetAndCheck("/api/orders?symbol=TSLA&strategy=POV");
+        assertThat(orders.isArray()).isTrue();
+        assertThat(orders.size()).isGreaterThanOrEqualTo(1);
+        for (var order : orders) {
+            assertThat(order.get("strategy").asText()).isEqualTo("POV");
+            assertThat(order.get("status").asText()).isEqualTo("FILLED");
+        }
+    }
+
+    @Test
     void simulatedMomentumUptrendReachesGooglOrderWithFill() throws Exception {
         bindMomentumToGoogl();
 
@@ -222,6 +250,25 @@ class SimulatedHappyPathE2ETest {
                     "stopLossPct", 0.0));
         // Parameters are addressed by strategy name, not symbol
         httpPutAndCheck("/api/strategies/MOMENTUM/parameters", params);
+    }
+
+    private void bindPovToTslaWith60Shares() throws Exception {
+        httpPutAndCheck("/api/strategies/TSLA", "{\"strategyName\":\"POV\"}");
+        // 60-share parent at 20% participation over the same 10:30:00-10:31:00 ET window
+        // the simulated CSV TSLA ticks fall into. CSV TRADEs are 300/250/500/350 shares (1400
+        // cumulative) → 20% participation yields ~280 expected; the 60-share parent caps it.
+        // The first 300-share print alone produces a 60-share clip — POV completes in one shot.
+        var params = MAPPER.writeValueAsString(
+                Map.of(
+                    "targetQuantity", 60,
+                    "side", "BUY",
+                    "startTime", "10:30:00",
+                    "endTime", "10:31:00",
+                    "participationRate", 0.20,
+                    "minClipSize", 5,
+                    "maxClipSize", 1_000_000));
+        // Parameters are addressed by strategy name, not symbol
+        httpPutAndCheck("/api/strategies/POV/parameters", params);
     }
 
     private void bindImplementationShortfallToAmznWith40Shares() throws Exception {

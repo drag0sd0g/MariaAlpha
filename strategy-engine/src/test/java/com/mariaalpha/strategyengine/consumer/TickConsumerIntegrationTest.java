@@ -296,6 +296,86 @@ public class TickConsumerIntegrationTest {
   }
 
   @Test
+  void povTickPublishedToKafkaTriggersParticipationClip() throws Exception {
+    // Configure POV: parent 1000 shares, 10% participation. A single TRADE tick of size 5000
+    // means cumulativeMarketVolume=5000 → targetExecuted = 0.10 × 5000 = 500 → emit 500-share clip.
+    var povStrategy = strategyRegistry.get("POV").orElseThrow();
+    povStrategy.updateParameters(
+        Map.of(
+            "targetQuantity",
+            1000,
+            "side",
+            "BUY",
+            "startTime",
+            "09:30",
+            "endTime",
+            "16:00",
+            "participationRate",
+            0.10,
+            "minClipSize",
+            1,
+            "maxClipSize",
+            Integer.MAX_VALUE));
+    router.setActiveStrategy("TSLA", "POV");
+
+    var ts =
+        ZonedDateTime.of(
+                LocalDate.of(2026, 3, 24), LocalTime.of(11, 0), ZoneId.of("America/New_York"))
+            .toInstant();
+    var tick =
+        new MarketTick(
+            "TSLA",
+            ts,
+            EventType.TRADE,
+            new BigDecimal("245.30"),
+            5_000L,
+            new BigDecimal("245.28"),
+            new BigDecimal("245.32"),
+            100L,
+            80L,
+            0L,
+            DataSource.ALPACA,
+            false);
+
+    var props = new HashMap<String, Object>();
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
+    props.put(ConsumerConfig.GROUP_ID_CONFIG, "test-consumer-pov-" + Instant.now().toEpochMilli());
+    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+
+    var captured = new AtomicReference<OrderSignal>();
+
+    try (var consumer = new KafkaConsumer<String, String>(props)) {
+      consumer.subscribe(List.of("strategy.signals"));
+
+      kafkaTemplate.send("market-data.ticks", "TSLA", objectMapper.writeValueAsString(tick)).get();
+
+      Awaitility.await()
+          .atMost(Duration.ofSeconds(15))
+          .pollInterval(Duration.ofMillis(500))
+          .until(
+              () -> {
+                var records = consumer.poll(Duration.ofMillis(200));
+                for (var record : records) {
+                  var signal = objectMapper.readValue(record.value(), OrderSignal.class);
+                  if ("TSLA".equals(signal.symbol())) {
+                    captured.set(signal);
+                    return true;
+                  }
+                }
+                return false;
+              });
+    }
+
+    var signal = captured.get();
+    assertThat(signal.symbol()).isEqualTo("TSLA");
+    assertThat(signal.side()).isEqualTo(Side.BUY);
+    assertThat(signal.quantity()).isEqualTo(500);
+    assertThat(signal.strategyName()).isEqualTo("POV");
+  }
+
+  @Test
   void momentumUptrendPublishedToKafkaTriggersEntrySignal() throws Exception {
     // Configure MOMENTUM with tiny EMA periods so a two-trade uptrend produces a bullish
     // crossover, and a 2-trade warmup so it acts immediately.
