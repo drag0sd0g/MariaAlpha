@@ -168,7 +168,7 @@ A parent cancel (via `ManualOrderService.cancel`) cascades through `IcebergCoord
 
 ### Stage 3: Risk Check Chain
 
-The order passes through a composable chain of five risk checks, executed in order. The chain **short-circuits** on the first failure — if check 2 fails, checks 3-5 are never evaluated. This is a deliberate design choice: risk checks can involve lookups against position state and market data, so skipping unnecessary checks reduces latency.
+The order passes through a composable chain of eight risk checks, executed in order. The chain **short-circuits** on the first failure — if check 2 fails, the remaining checks are never evaluated. This is a deliberate design choice: risk checks can involve lookups against position state and market data, so skipping unnecessary checks reduces latency.
 
 Each check returns a `RiskCheckResult` with a boolean, the check name, and a human-readable reason. The reason is included in the Kafka rejection event, making it easy to diagnose why an order was blocked.
 
@@ -191,6 +191,18 @@ Counts the number of orders currently in SUBMITTED or PARTIALLY_FILLED status. I
 #### Check 5: DailyLossLimit (`@Order(5)`)
 
 Checks the `DailyLossMonitor.isTradingHalted()` flag. This is technically redundant with Stage 0, but it's included in the chain for completeness — if a loss breach occurs *between* Stage 0 and Stage 3 (due to concurrent fill processing), this check catches it. Since it's the cheapest check (a single boolean read), placing it last doesn't add meaningful latency.
+
+#### Check 6: SectorExposure (`@Order(6)`) — issue 2.2.1
+
+Aggregates the absolute notional of every open position by sector (sector classification provided by `SymbolReferenceData`) and projects the incoming order onto its sector. Rejects when the projection would push the sector past its configured ceiling. Per-sector ceilings live under `execution-engine.risk.sector-exposure-limits.<SECTOR>`; the `default-sector-exposure-limit` covers sectors not explicitly listed. SELLs that reduce existing long exposure always pass — the check only fires when the projection grows beyond the current sector exposure.
+
+#### Check 7: BetaExposure (`@Order(7)`) — issue 2.2.2
+
+Caps |Σ position_notional × beta| in dollars. Catches the case where MaxPortfolioExposure passes (gross $ is fine) but the underlying mix has drifted into a high-beta concentration — e.g. a portfolio dominated by NVDA (β ≈ 1.65) and TSLA (β ≈ 1.8) is much riskier than the same gross spread across MSFT (β ≈ 0.95) and broad-market positions. Self-disables when `max-absolute-beta-weighted-exposure ≤ 0`.
+
+#### Check 8: AdvParticipation (`@Order(8)`) — issue 2.2.3
+
+Rejects parents whose share count exceeds `max-adv-participation × ADV(symbol)`. Runs against the **parent** quantity, not the first slice — the intent is to refuse parents that are too large to source liquidly regardless of how they'd be chopped by VWAP/TWAP/POV/etc. Refuses any order on a symbol with missing reference data (the conservative default ADV of 0) to fail safe before reference rows are added.
 
 ### Stage 4: Routing
 
@@ -484,6 +496,12 @@ All settings live under the `execution-engine.*` namespace and are overridable v
 | `max-portfolio-exposure` | `2000000` | Maximum total gross portfolio exposure ($) |
 | `max-open-orders` | `50` | Maximum number of concurrent open orders |
 | `max-daily-loss` | `25000` | Daily loss threshold that triggers trading halt ($) |
+| `sector-exposure-limits.<SECTOR>` | per-sector | Per-sector $ ceiling (issue 2.2.1). Defaults: `TECH=1500000`, `AUTOMOTIVE=750000`, `UNKNOWN=250000` |
+| `default-sector-exposure-limit` | `1000000` | Fallback sector ceiling for sectors not listed above (issue 2.2.1). Set ≤0 to disable the sector check |
+| `max-absolute-beta-weighted-exposure` | `2500000` | Cap on \|Σ position × beta\| in dollars (issue 2.2.2). Set ≤0 to disable the beta check |
+| `max-adv-participation` | `0.10` | Max fraction of a symbol's ADV per parent order (issue 2.2.3). Set ≤0 to disable the ADV check |
+| `reference-data.symbols[]` | MVP universe | Per-symbol reference rows (`symbol`, `sector`, `beta`, `adv`). Production deployments would refresh this from a vendor feed |
+| `reference-data.defaults` | sector=UNKNOWN, β=1.0, ADV=0 | Fall-through values for unmapped symbols. ADV=0 makes the ADV check reject — intentionally fail-safe |
 
 ### Kafka Topics (`execution-engine.kafka.*`)
 

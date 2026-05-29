@@ -1,6 +1,7 @@
 package com.mariaalpha.executionengine.service;
 
 import java.math.BigDecimal;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 
@@ -25,5 +26,10 @@ public class PositionTracker {
     return positions.values().stream()
         .map(BigDecimal::abs)
         .reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  /** Live snapshot of every tracked position keyed by symbol. Used by the sector / beta checks. */
+  public Map<String, BigDecimal> snapshot() {
+    return Map.copyOf(positions);
   }
 }

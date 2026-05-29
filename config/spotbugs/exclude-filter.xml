@@ -372,6 +372,31 @@
         <Class name="com.mariaalpha.executionengine.controller.IcebergController"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
+    <!-- Phase-2 risk checks (issues 2.2.1, 2.2.2, 2.2.3) -->
+    <Match>
+        <Class name="com.mariaalpha.executionengine.config.RiskLimitsConfig"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.config.SymbolReferenceConfig"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.risk.SymbolReferenceData"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.risk.SectorExposureCheck"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.risk.BetaExposureCheck"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.risk.AdvParticipationCheck"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
     <!-- Internal crossing engine (issue 2.1.10) -->
     <Match>
         <Class name="com.mariaalpha.executionengine.crossing.RestingOrder"/>
