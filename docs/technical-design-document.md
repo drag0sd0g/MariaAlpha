@@ -757,11 +757,22 @@ graph LR
     R2 -->|pass| R3[MaxPortfolioExposure]
     R3 -->|pass| R4[MaxOpenOrders]
     R4 -->|pass| R5[DailyLossLimit]
-    R5 -->|pass| SOR[SOR / Submit]
-    R1 & R2 & R3 & R4 & R5 -->|fail| REJ[REJECTED]
+    R5 -->|pass| R6[SectorExposure]
+    R6 -->|pass| R7[BetaExposure]
+    R7 -->|pass| R8[AdvParticipation]
+    R8 -->|pass| SOR[SOR / Submit]
+    R1 & R2 & R3 & R4 & R5 & R6 & R7 & R8 -->|fail| REJ[REJECTED]
 ```
 
-Future checks: Sector Exposure (Phase 2), Beta Exposure (Phase 2), ADV Sizing (Phase 2), Intraday VaR (Phase 3), Correlated Positions (Phase 3).
+Phase-2 additions (all landed):
+
+- **`SectorExposureCheck`** (issue 2.2.1) — aggregates the absolute notional of every open position by sector, projects the incoming order onto its sector, rejects when the projection exceeds the configured ceiling. Per-sector ceilings live under `execution-engine.risk.sector-exposure-limits.<SECTOR>` with a global fallback (`default-sector-exposure-limit`). Sector classification is provided by `SymbolReferenceData`; symbols missing reference data land in a synthetic `UNKNOWN` sector that uses the fallback.
+- **`BetaExposureCheck`** (issue 2.2.2) — caps |Σ position_notional × beta| in dollars. Catches the case where MaxPortfolioExposure passes (gross $ is fine) but the underlying mix has drifted into a high-beta concentration that would amplify a market drawdown. Self-disables when `max-absolute-beta-weighted-exposure ≤ 0`.
+- **`AdvParticipationCheck`** (issue 2.2.3) — rejects parents whose share count exceeds `max-adv-participation × ADV(symbol)`. Runs against the **parent** quantity, not the first slice, so oversized parents are caught regardless of how they'd be chopped. Refuses any order on a symbol with missing reference data (the conservative default ADV of 0).
+
+`SymbolReferenceData` owns sector / beta / ADV lookup. Reference rows live under `execution-engine.risk.reference-data.symbols[]` in `application.yml` for the MVP simulator universe; production deployments would back this with a periodic vendor refresh (Bloomberg FLDS, Refinitiv RDP, etc.). Unmapped symbols fall through to `defaults` (sector=UNKNOWN, β=1.0, ADV=0).
+
+Future checks: Intraday VaR (Phase 3 — issue 3.5.1), Correlated Positions (Phase 3 — issue 3.5.2).
 
 #### 5.3.4 Exchange Adapter SPI
 
@@ -1381,9 +1392,9 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 | [2.1.8](https://github.com/drag0sd0g/MariaAlpha/issues/60) ✅ | Implement POV (Participation Rate) algorithm | Strategy Engine |
 | [2.1.9](https://github.com/drag0sd0g/MariaAlpha/issues/61) ✅ | Implement Close algorithm (targeting closing auction) | Strategy Engine |
 | [2.1.10](https://github.com/drag0sd0g/MariaAlpha/issues/62) ✅ | Implement internalization / crossing engine | Execution Engine |
-| [2.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/63) | Implement sector exposure risk check | Execution Engine |
-| [2.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/64) | Implement beta exposure risk check | Execution Engine |
-| [2.2.3](https://github.com/drag0sd0g/MariaAlpha/issues/65) | Implement ADV-relative sizing risk check | Execution Engine |
+| [2.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/63) ✅ | Implement sector exposure risk check | Execution Engine |
+| [2.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/64) ✅ | Implement beta exposure risk check | Execution Engine |
+| [2.2.3](https://github.com/drag0sd0g/MariaAlpha/issues/65) ✅ | Implement ADV-relative sizing risk check | Execution Engine |
 | [2.2.4](https://github.com/drag0sd0g/MariaAlpha/issues/66) | Implement flow toxicity / adverse selection detector | Analytics Service |
 | [2.2.5](https://github.com/drag0sd0g/MariaAlpha/issues/67) | Implement PnL attribution (spread, hedging, market, timing) | Analytics Service |
 | [2.2.6](https://github.com/drag0sd0g/MariaAlpha/issues/68) | Implement client interest / axe matching model | Analytics Service |

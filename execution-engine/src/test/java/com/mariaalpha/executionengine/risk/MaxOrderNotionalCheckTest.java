@@ -24,7 +24,9 @@ class MaxOrderNotionalCheckTest {
   @BeforeEach
   void setUp() {
     marketStateTracker = mock(MarketStateTracker.class);
-    var config = new RiskLimitsConfig(100_000, 500_000, 2_000_000, 50, 25_000);
+    var config =
+        new RiskLimitsConfig(
+            100_000, 500_000, 2_000_000, 50, 25_000, java.util.Map.of(), 0L, 0L, 0.0);
     check = new MaxOrderNotionalCheck(config, marketStateTracker);
   }
 
