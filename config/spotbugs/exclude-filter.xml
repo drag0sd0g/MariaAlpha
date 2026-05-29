@@ -372,4 +372,21 @@
         <Class name="com.mariaalpha.executionengine.controller.IcebergController"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
+    <!-- Internal crossing engine (issue 2.1.10) -->
+    <Match>
+        <Class name="com.mariaalpha.executionengine.crossing.RestingOrder"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.adapter.SimulatedInternalCrossingAdapter"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.controller.InternalCrossingController"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.crossing.InternalCrossingMetrics"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
 </FindBugsFilter>

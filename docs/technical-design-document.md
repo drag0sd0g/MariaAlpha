@@ -785,7 +785,46 @@ the risk-check chain and the exchange adapter. Two implementations ship today, s
 Three venue types are modelled (`LIT`, `DARK`, `INTERNAL`). The MVP profile registers a single LIT
 venue (`SIMULATED` or `ALPACA`); issue 2.1.2 introduces simulated dark and internal venue
 **adapters** and a `VenueAdapterRegistry` that submits each routed child order to the right
-adapter. ML-based adaptive scoring is deferred to Phase 4 (issue 4.8.1).
+adapter. Issue 2.1.10 replaces the original internalization stub with a real midpoint crossing
+engine (see §5.3.7). ML-based adaptive scoring is deferred to Phase 4 (issue 4.8.1).
+
+#### 5.3.7 Internal Crossing Engine (issue 2.1.10)
+
+`InternalCrossingEngine` is the in-process matching engine behind the `INTERNAL_CROSS` venue. It
+maintains a per-symbol, side-keyed FIFO book of resting orders and crosses offsetting BUY/SELL
+interest **at the NBBO midpoint**, capturing the bid-ask spread without market impact.
+
+Key properties:
+
+- **Midpoint pricing** — all crosses execute at `(bid + ask) / 2` of the current NBBO snapshot
+  taken from `MarketStateTracker`. LIT/DARK adapters pay the bid or lift the ask; INTERNAL_CROSS
+  pockets the difference and attributes it to spread capture.
+- **Limit-price gating** — LIMIT/IOC/FOK/GTC orders only cross when their limit straddles the
+  midpoint (BUY: `midpoint ≤ limit`; SELL: `midpoint ≥ limit`). MARKET orders accept any midpoint.
+- **Price-time priority** — degenerates to time priority because all crosses share the NBBO
+  midpoint; resting orders are matched in arrival order.
+- **Partial fills** — a 100-share aggressing BUY against a 30-share resting SELL emits one 30-share
+  cross and leaves the BUY's 70-share remainder resting.
+- **Sweep on NBBO update** — `sweep()` is invoked from the adapter's scheduler (`tickIntervalMs`)
+  so previously price-blocked orders cross when the midpoint shifts into their acceptable range.
+- **Simulated liquidity** — the legacy `cross-probability-on-submit` and
+  `match-probability-per-tick` knobs from 2.1.2 are repurposed as a synthetic-counterparty
+  injection rate, kept so the simulator still produces crosses when only one strategy is feeding
+  the venue. Real matching is always tried first; synthetic counterparties are conjured only when
+  the book has no real opposite-side interest.
+- **Stats and book introspection** — `/api/execution/internal-crossing/{stats,book,recent}` expose
+  `crossesTotal`, `internalCrossesTotal`, `syntheticCrossesTotal`, `sharesCrossedTotal`,
+  `spreadCapturedNotional`, per-symbol resting depth, and a 256-event ring of recent crosses.
+- **Metrics** — `mariaalpha.execution.internal.crosses.total{symbol,synthetic}`,
+  `mariaalpha.execution.internal.shares.crossed.total{symbol}`,
+  `mariaalpha.execution.internal.spread.captured.bps{symbol}`, and the
+  `mariaalpha.execution.internal.book.{buy,sell,resting}.depth` gauges feed the Post-Trade &
+  Quality dashboard's *internalization rate* panel.
+
+The adapter dispatches `ExecutionReport` callbacks **asynchronously** through its own scheduler
+(matching the LIT/DARK adapter contract), so a same-tick BUY+SELL pair leaves
+`OrderExecutionService.processOrder` time to transition both orders to `SUBMITTED` before the
+`FILLED` events arrive.
 
 #### 5.3.6 Electronic Trading API (Phase 3)
 
@@ -1125,7 +1164,7 @@ These are instrumented explicitly in application code:
 
 **Dashboard 2: Portfolio & Risk** — Total P&L gauge, daily P&L series, PnL attribution (Phase 2), gross/net exposure, sector heatmap (Phase 2), beta (Phase 2), risk alerts, flow toxicity (Phase 2).
 
-**Dashboard 3: Post-Trade & Quality** — Recon match rate, TCA slippage by strategy, implementation shortfall trend, VWAP benchmark, internalization rate (Phase 2).
+**Dashboard 3: Post-Trade & Quality** — Recon match rate, TCA slippage by strategy, implementation shortfall trend, VWAP benchmark, internalization rate (issue 2.1.10: `mariaalpha_execution_internal_crosses_total` / `mariaalpha_execution_venue_fills_total` keyed by venue and `mariaalpha_execution_internal_spread_captured_bps`).
 
 ### 8.4 Structured Logging and Distributed Tracing
 
@@ -1341,7 +1380,7 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 | [2.1.7](https://github.com/drag0sd0g/MariaAlpha/issues/59) ✅ | Implement Implementation Shortfall algorithm | Strategy Engine |
 | [2.1.8](https://github.com/drag0sd0g/MariaAlpha/issues/60) ✅ | Implement POV (Participation Rate) algorithm | Strategy Engine |
 | [2.1.9](https://github.com/drag0sd0g/MariaAlpha/issues/61) ✅ | Implement Close algorithm (targeting closing auction) | Strategy Engine |
-| [2.1.10](https://github.com/drag0sd0g/MariaAlpha/issues/62) | Implement internalization / crossing engine | Execution Engine |
+| [2.1.10](https://github.com/drag0sd0g/MariaAlpha/issues/62) ✅ | Implement internalization / crossing engine | Execution Engine |
 | [2.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/63) | Implement sector exposure risk check | Execution Engine |
 | [2.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/64) | Implement beta exposure risk check | Execution Engine |
 | [2.2.3](https://github.com/drag0sd0g/MariaAlpha/issues/65) | Implement ADV-relative sizing risk check | Execution Engine |

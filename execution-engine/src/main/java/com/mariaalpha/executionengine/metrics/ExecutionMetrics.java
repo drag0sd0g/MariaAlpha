@@ -89,6 +89,49 @@ public class ExecutionMetrics {
     incrementCounter("mariaalpha.execution.fok.killed.total", "symbol", symbol, "side", side);
   }
 
+  public void recordInternalCross(String symbol, boolean synthetic) {
+    incrementCounter(
+        "mariaalpha.execution.internal.crosses.total",
+        "symbol",
+        symbol,
+        "synthetic",
+        String.valueOf(synthetic));
+  }
+
+  public void recordInternalCrossedShares(String symbol, long shares) {
+    Counter.builder("mariaalpha.execution.internal.shares.crossed.total")
+        .tag("symbol", symbol)
+        .register(registry)
+        .increment(shares);
+  }
+
+  public void recordInternalSpreadCapturedBps(String symbol, double spreadBps) {
+    DistributionSummary.builder("mariaalpha.execution.internal.spread.captured.bps")
+        .tag("symbol", symbol)
+        .baseUnit("bps")
+        .register(registry)
+        .record(spreadBps);
+  }
+
+  public <T> void registerInternalBookGauges(
+      T source,
+      java.util.function.ToIntFunction<T> buyDepth,
+      java.util.function.ToIntFunction<T> sellDepth,
+      java.util.function.ToIntFunction<T> restingOrders) {
+    // Pass the live source bean (not a lambda capturing it) so Micrometer's WeakReference keeps a
+    // strong handle as long as the bean is alive. Lambdas get GC'd shortly after register() and
+    // the gauge degrades to NaN.
+    io.micrometer.core.instrument.Gauge.builder(
+            "mariaalpha.execution.internal.book.buy.depth", source, buyDepth::applyAsInt)
+        .register(registry);
+    io.micrometer.core.instrument.Gauge.builder(
+            "mariaalpha.execution.internal.book.sell.depth", source, sellDepth::applyAsInt)
+        .register(registry);
+    io.micrometer.core.instrument.Gauge.builder(
+            "mariaalpha.execution.internal.book.resting.orders", source, restingOrders::applyAsInt)
+        .register(registry);
+  }
+
   private void incrementCounter(String counterName, String tagName, String tagValue) {
     Counter.builder(counterName).tag(tagName, tagValue).register(registry).increment();
   }
