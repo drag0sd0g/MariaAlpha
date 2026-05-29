@@ -8,7 +8,7 @@ The service has two HTTP interfaces:
 
 | Interface | Port | Protocol | Purpose |
 |-----------|------|----------|---------|
-| REST API | 8084 | HTTP/1.1 + JSON | `/api/execution/status`, `/api/execution/resume`, `/api/execution/orders/*` (manual entry + iceberg progress), `/api/routing/*` (SOR preview, venue health) |
+| REST API | 8084 | HTTP/1.1 + JSON | `/api/execution/status`, `/api/execution/resume`, `/api/execution/orders/*` (manual entry + iceberg progress), `/api/execution/internal-crossing/{stats,book,recent}` (issue 2.1.10), `/api/routing/*` (SOR preview, venue health) |
 | Actuator | 8085 | HTTP/1.1 + JSON | `/actuator/health`, `/actuator/prometheus` — ops and observability |
 
 ---
@@ -137,7 +137,7 @@ Each handler performs type-specific validation:
 - Emits `TimeInForce.IOC`
 
 **FokOrderHandler** (Fill-Or-Kill):
-- Same as IOC validation; FOK is all-or-nothing immediate. The MVP simulator uses a top-of-book approximation; depth-aware partials are deferred to issue 2.1.10
+- Same as IOC validation; FOK is all-or-nothing immediate. The MVP simulator uses a top-of-book approximation; depth-aware partials are tracked separately from 2.1.10 (which delivered the internal crossing engine)
 - Emits `TimeInForce.FOK`
 
 **GtcOrderHandler** (Good-Till-Cancel):

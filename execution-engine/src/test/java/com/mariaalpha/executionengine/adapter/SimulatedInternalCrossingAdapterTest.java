@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import com.mariaalpha.executionengine.config.InternalCrossingConfig;
+import com.mariaalpha.executionengine.crossing.InternalCrossingEngine;
 import com.mariaalpha.executionengine.model.ExecutionInstruction;
 import com.mariaalpha.executionengine.model.ExecutionReport;
 import com.mariaalpha.executionengine.model.MarketState;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.Test;
 class SimulatedInternalCrossingAdapterTest {
 
   private MarketStateTracker tracker;
+  private InternalCrossingEngine engine;
   private SimulatedInternalCrossingAdapter adapter;
   private List<ExecutionReport> reports;
 
@@ -40,13 +42,15 @@ class SimulatedInternalCrossingAdapterTest {
             new BigDecimal("178.52"),
             Instant.now()));
     reports = new CopyOnWriteArrayList<>();
-    adapter = new SimulatedInternalCrossingAdapter(seed(42, 1.0, 0.0), tracker);
+    engine = new InternalCrossingEngine(tracker);
+    adapter = new SimulatedInternalCrossingAdapter(seed(42, 1.0, 0.0), engine);
     adapter.onExecutionReport(reports::add);
   }
 
   @AfterEach
   void tearDown() {
     adapter.shutdown();
+    engine.clearCrossListeners();
   }
 
   @Test
@@ -56,9 +60,10 @@ class SimulatedInternalCrossingAdapterTest {
   }
 
   @Test
-  void crossOnSubmitFillsAtMidpoint() {
+  void syntheticOnSubmitFillsAtMidpoint() {
+    // crossProb=1.0 → adapter always asks engine to synthesize a counterparty on submit.
     adapter.start();
-    adapter.submitOrder(instruction(100));
+    adapter.submitOrder(instruction(Side.BUY, 100));
     await().atMost(Duration.ofSeconds(2)).until(() -> !reports.isEmpty());
     assertThat(reports.get(0).venue()).isEqualTo("INTERNAL_CROSS");
     assertThat(reports.get(0).fillPrice()).isEqualByComparingTo("178.52");
@@ -66,32 +71,33 @@ class SimulatedInternalCrossingAdapterTest {
   }
 
   @Test
-  void fallsThroughToPendingWhenUnlucky() {
-    // crossProb=0 → never crosses on submit; matchProb=0 → never matches on tick; pending grows.
-    adapter = new SimulatedInternalCrossingAdapter(seed(42, 0.0, 0.0), tracker);
+  void fallsThroughToPendingWhenLiquidityDisabled() {
+    adapter = new SimulatedInternalCrossingAdapter(seed(42, 0.0, 0.0), engine);
     adapter.onExecutionReport(reports::add);
     adapter.start();
-    adapter.submitOrder(instruction(100));
+    adapter.submitOrder(instruction(Side.BUY, 100));
     assertThat(adapter.pendingSize()).isEqualTo(1);
     assertThat(reports).isEmpty();
   }
 
   @Test
-  void periodicMatchingFillsPending() {
-    adapter = new SimulatedInternalCrossingAdapter(seed(42, 0.0, 1.0), tracker);
+  void periodicSyntheticLiquidityFillsPending() {
+    adapter = new SimulatedInternalCrossingAdapter(seed(42, 0.0, 1.0), engine);
     adapter.onExecutionReport(reports::add);
     adapter.start();
-    adapter.submitOrder(instruction(100));
+    adapter.submitOrder(instruction(Side.BUY, 100));
     adapter.matchTick();
+    // Reports dispatch is async on the adapter scheduler, matching other venue adapters.
+    await().atMost(Duration.ofSeconds(2)).until(() -> !reports.isEmpty());
     assertThat(reports).hasSize(1);
     assertThat(adapter.pendingSize()).isZero();
   }
 
   @Test
   void cancelRemovesPending() {
-    adapter = new SimulatedInternalCrossingAdapter(seed(42, 0.0, 0.0), tracker);
+    adapter = new SimulatedInternalCrossingAdapter(seed(42, 0.0, 0.0), engine);
     adapter.onExecutionReport(reports::add);
-    var ack = adapter.submitOrder(instruction(100));
+    var ack = adapter.submitOrder(instruction(Side.BUY, 100));
     assertThat(adapter.pendingSize()).isEqualTo(1);
     var cancel = adapter.cancelOrder(ack.exchangeOrderId());
     assertThat(cancel.accepted()).isTrue();
@@ -109,13 +115,29 @@ class SimulatedInternalCrossingAdapterTest {
 
   @Test
   void capacityCheck() {
-    adapter = new SimulatedInternalCrossingAdapter(seedMax(42, 0.0, 0.0, 1), tracker);
+    adapter = new SimulatedInternalCrossingAdapter(seedMax(42, 0.0, 0.0, 1), engine);
     adapter.onExecutionReport(reports::add);
     adapter.start();
-    assertThat(adapter.submitOrder(instruction(100)).accepted()).isTrue();
-    var rejected = adapter.submitOrder(instruction(100));
+    assertThat(adapter.submitOrder(instruction(Side.BUY, 100)).accepted()).isTrue();
+    var rejected = adapter.submitOrder(instruction(Side.BUY, 100));
     assertThat(rejected.accepted()).isFalse();
     assertThat(rejected.reason()).contains("capacity");
+  }
+
+  @Test
+  void realCrossEmitsReportsForBothSides() {
+    adapter = new SimulatedInternalCrossingAdapter(seed(42, 0.0, 0.0), engine);
+    adapter.onExecutionReport(reports::add);
+    adapter.start();
+    // Resting SELL meets aggressing BUY → engine crosses at midpoint, both sides get a report.
+    adapter.submitOrder(instruction(Side.SELL, 100));
+    adapter.submitOrder(instruction(Side.BUY, 100));
+    await().atMost(Duration.ofSeconds(2)).until(() -> reports.size() >= 2);
+    assertThat(reports).hasSize(2);
+    assertThat(reports)
+        .allSatisfy(r -> assertThat(r.fillPrice()).isEqualByComparingTo("178.52"))
+        .allSatisfy(r -> assertThat(r.venue()).isEqualTo("INTERNAL_CROSS"));
+    assertThat(adapter.pendingSize()).isZero();
   }
 
   private static InternalCrossingConfig seed(long seed, double crossProb, double matchProb) {
@@ -127,11 +149,10 @@ class SimulatedInternalCrossingAdapterTest {
     return new InternalCrossingConfig("INTERNAL_CROSS", crossProb, 50, matchProb, 1, max, seed);
   }
 
-  private ExecutionInstruction instruction(int qty) {
+  private ExecutionInstruction instruction(Side side, int qty) {
     var order =
         new Order(
-            new OrderSignal(
-                "AAPL", Side.BUY, qty, OrderType.MARKET, null, null, "T", Instant.now()));
+            new OrderSignal("AAPL", side, qty, OrderType.MARKET, null, null, "T", Instant.now()));
     return new ExecutionInstruction(order, TimeInForce.DAY, null);
   }
 }

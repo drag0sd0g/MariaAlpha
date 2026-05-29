@@ -109,8 +109,12 @@ Trade-offs:
 - Subject to brokerage best-execution rules (Reg NMS in the US, MiFID II in the EU): the
   broker must demonstrate the internal print is at least as good as the lit market.
 
-In MariaAlpha, `SimulatedInternalCrossingAdapter` models a probabilistic synthetic counterparty
-book. Real systems hook into RFQ flow, axe lists, and the firm's prop book.
+In MariaAlpha, `SimulatedInternalCrossingAdapter` delegates to a real `InternalCrossingEngine`
+(issue 2.1.10) that maintains a per-symbol FIFO book and matches offsetting BUY/SELL interest at
+the NBBO midpoint. When the book has no opposite-side interest, the adapter can optionally inject
+a simulated counterparty (controlled by the `cross-probability-on-submit` /
+`match-probability-per-tick` knobs) so the venue stays useful in single-strategy demos. Real
+systems hook the same engine into RFQ flow, axe lists, and the firm's prop book.
 
 ### 2.4 Other terms you'll see
 
@@ -273,18 +277,21 @@ A hidden book with a periodic match loop. Behaviour:
 
 ### 4.4 `SimulatedInternalCrossingAdapter`
 
-A two-path matcher:
+A thin façade over `InternalCrossingEngine` (issue 2.1.10) — see
+[internal-crossing-engine-explainer.md](internal-crossing-engine-explainer.md) for the full
+write-up. The engine maintains a per-symbol FIFO book and matches offsetting BUY/SELL interest
+at the NBBO midpoint, capturing the spread without market impact. Resting interest is swept on a
+`tick-interval-ms` cadence so price-blocked LIMITs cross when the NBBO moves into range.
 
-- **Cross-on-submit** (fast path): on `submitOrder`, with probability
-  `cross-probability-on-submit` (default 0.6), schedule a fill after `fill-latency-ms`
-  (default 1 ms). Models the case where there's already opposite-side resting interest in
-  the firm.
-- **Pending fallback**: if the cross-on-submit RNG misses, the order goes to a pending pool.
-  A periodic task (default 50 ms tick) attempts matching with probability
-  `match-probability-per-tick` (default 0.30). Models contra-flow arriving later.
+The two probability knobs originally introduced as the 2.1.2 stub remain as a simulated-liquidity
+layer: `cross-probability-on-submit` and `match-probability-per-tick` control how often the
+adapter asks the engine to synthesize a counterparty when the book has no real opposite-side
+interest. Real matching is always tried first. Synthetic crosses are tagged as such on the
+`mariaalpha.execution.internal.crosses.total{synthetic="true"}` counter so dashboards can
+exclude them from the headline internalization rate.
 
-Always **full fill** (no partial-fill knob) and **no min-spread filter** (internal crossing
-is always eligible). Same midpoint formula as the dark pool.
+Stats and per-symbol book depth are exposed under
+`/api/execution/internal-crossing/{stats,book,recent}`.
 
 ### 4.5 Health and failover
 
