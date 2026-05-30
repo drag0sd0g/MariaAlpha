@@ -99,7 +99,7 @@ def _to_tca_input(payload: dict[str, object]) -> TcaInput:
     side_raw = payload.get("side")
     if side_raw not in ("BUY", "SELL"):
         raise ValueError(f"unexpected side: {side_raw!r}")
-    side = cast(str, side_raw)
+    side = cast("str", side_raw)
     computed_at_raw = payload.get("computedAt")
     if not isinstance(computed_at_raw, str):
         raise ValueError("computedAt missing or non-string")
@@ -110,15 +110,15 @@ def _to_tca_input(payload: dict[str, object]) -> TcaInput:
         strategy=str(payload.get("strategy") or "UNKNOWN"),
         symbol=str(payload["symbol"]),
         side=side,
-        quantity=float(cast(float, payload["quantity"])),
-        arrival_price=float(cast(float, payload["arrivalPrice"])),
-        realized_avg_price=float(cast(float, payload["realizedAvgPrice"])),
+        quantity=float(cast("float", payload["quantity"])),
+        arrival_price=float(cast("float", payload["arrivalPrice"])),
+        realized_avg_price=float(cast("float", payload["realizedAvgPrice"])),
         vwap_benchmark_price=float(
-            cast(float, payload.get("vwapBenchmarkPrice", payload["arrivalPrice"]))
+            cast("float", payload.get("vwapBenchmarkPrice", payload["arrivalPrice"]))
         ),
-        spread_cost_bps=float(cast(float, payload.get("spreadCostBps", 0) or 0)),
+        spread_cost_bps=float(cast("float", payload.get("spreadCostBps", 0) or 0)),
         commission_total=(
-            float(cast(float, commission_total)) if commission_total is not None else None
+            float(cast("float", commission_total)) if commission_total is not None else None
         ),
         computed_at=computed_at,
     )
