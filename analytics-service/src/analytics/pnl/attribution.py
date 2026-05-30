@@ -124,9 +124,7 @@ class PnlAttributionEngine:
             )
         # Realized PnL relative to VWAP benchmark (the desk benchmark we're attributing to).
         realized_pnl_usd = (tca.vwap_benchmark_price - tca.realized_avg_price) * signed_qty
-        residual_usd = realized_pnl_usd - (
-            spread_usd + timing_usd + market_usd + commission_usd
-        )
+        residual_usd = realized_pnl_usd - (spread_usd + timing_usd + market_usd + commission_usd)
 
         row = Attribution(
             order_id=tca.order_id,
@@ -157,9 +155,7 @@ class PnlAttributionEngine:
 
     # -- snapshots --------------------------------------------------------
 
-    def daily_summary(
-        self, strategy: str | None = None
-    ) -> list[dict[str, object]]:
+    def daily_summary(self, strategy: str | None = None) -> list[dict[str, object]]:
         """One row per (strategy, day) with summed component values."""
         with self._lock:
             rows: list[dict[str, object]] = []

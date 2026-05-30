@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import structlog
 from confluent_kafka import Consumer, KafkaError
@@ -79,9 +79,7 @@ class TcaConsumer:
             ("commission", attribution.commission_usd),
             ("residual", attribution.residual_usd),
         ):
-            PNL_ATTRIBUTION_USD.labels(
-                strategy=tca.strategy, component=component
-            ).observe(value)
+            PNL_ATTRIBUTION_USD.labels(strategy=tca.strategy, component=component).observe(value)
         fill = FillRecord(
             order_id=tca.order_id,
             strategy=tca.strategy,
@@ -99,9 +97,9 @@ class TcaConsumer:
 
 def _to_tca_input(payload: dict[str, object]) -> TcaInput:
     side_raw = payload.get("side")
-    side = side_raw if side_raw in ("BUY", "SELL") else None
-    if side is None:
+    if side_raw not in ("BUY", "SELL"):
         raise ValueError(f"unexpected side: {side_raw!r}")
+    side = cast(str, side_raw)
     computed_at_raw = payload.get("computedAt")
     if not isinstance(computed_at_raw, str):
         raise ValueError("computedAt missing or non-string")
@@ -112,12 +110,16 @@ def _to_tca_input(payload: dict[str, object]) -> TcaInput:
         strategy=str(payload.get("strategy") or "UNKNOWN"),
         symbol=str(payload["symbol"]),
         side=side,
-        quantity=float(payload["quantity"]),
-        arrival_price=float(payload["arrivalPrice"]),
-        realized_avg_price=float(payload["realizedAvgPrice"]),
-        vwap_benchmark_price=float(payload.get("vwapBenchmarkPrice", payload["arrivalPrice"])),
-        spread_cost_bps=float(payload.get("spreadCostBps", 0) or 0),
-        commission_total=float(commission_total) if commission_total is not None else None,
+        quantity=float(cast(float, payload["quantity"])),
+        arrival_price=float(cast(float, payload["arrivalPrice"])),
+        realized_avg_price=float(cast(float, payload["realizedAvgPrice"])),
+        vwap_benchmark_price=float(
+            cast(float, payload.get("vwapBenchmarkPrice", payload["arrivalPrice"]))
+        ),
+        spread_cost_bps=float(cast(float, payload.get("spreadCostBps", 0) or 0)),
+        commission_total=(
+            float(cast(float, commission_total)) if commission_total is not None else None
+        ),
         computed_at=computed_at,
     )
 

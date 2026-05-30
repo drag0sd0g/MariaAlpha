@@ -133,7 +133,7 @@ def test_metrics_endpoint_returns_prometheus_exposition(client: TestClient):
 
 
 def test_flow_toxicity_endpoint_returns_empty_until_fills_arrive(client: TestClient):
-    r = client.get("/api/analytics/flow/toxicity")
+    r = client.get("/v1/analytics/flow/toxicity")
     assert r.status_code == 200
     body = r.json()
     assert body["rows"] == []
@@ -151,7 +151,7 @@ def test_flow_toxicity_endpoint_returns_rows_after_tick(
     # Drive detector forward so the fill is consumed.
     toxicity._clock = lambda: 70.0  # type: ignore[assignment]
     toxicity.tick()
-    r = client.get("/api/analytics/flow/toxicity?strategy=VWAP")
+    r = client.get("/v1/analytics/flow/toxicity?strategy=VWAP")
     body = r.json()
     assert len(body["rows"]) == 1
     assert body["rows"][0]["strategy"] == "VWAP"
@@ -177,7 +177,7 @@ def _tca(order_id: str = "o1") -> TcaInput:
 
 
 def test_pnl_attribution_daily_endpoint_empty_initially(client: TestClient):
-    r = client.get("/api/analytics/pnl/attribution")
+    r = client.get("/v1/analytics/pnl/attribution")
     assert r.status_code == 200
     assert r.json() == {"daily": []}
 
@@ -187,14 +187,14 @@ def test_pnl_attribution_returns_daily_summary_after_attribution(
 ):
     attribution.attribute(_tca("o1"))
     attribution.attribute(_tca("o2"))
-    r = client.get("/api/analytics/pnl/attribution")
+    r = client.get("/v1/analytics/pnl/attribution")
     body = r.json()
     assert len(body["daily"]) == 1
     assert body["daily"][0]["orders"] == 2
 
 
 def test_pnl_attribution_order_endpoint_404_when_unknown(client: TestClient):
-    r = client.get("/api/analytics/pnl/attribution/nope")
+    r = client.get("/v1/analytics/pnl/attribution/nope")
     assert r.status_code == 404
 
 
@@ -202,7 +202,7 @@ def test_pnl_attribution_order_endpoint_returns_breakdown(
     client: TestClient, attribution: PnlAttributionEngine
 ):
     attribution.attribute(_tca("o1"))
-    r = client.get("/api/analytics/pnl/attribution/o1")
+    r = client.get("/v1/analytics/pnl/attribution/o1")
     body = r.json()
     assert body["orderId"] == "o1"
     assert "spreadUsd" in body and "marketUsd" in body
@@ -212,7 +212,7 @@ def test_pnl_attribution_by_strategy_endpoint(
     client: TestClient, attribution: PnlAttributionEngine
 ):
     attribution.attribute(_tca("o1"))
-    r = client.get("/api/analytics/pnl/attribution/by-strategy/VWAP")
+    r = client.get("/v1/analytics/pnl/attribution/by-strategy/VWAP")
     body = r.json()
     assert body["strategy"] == "VWAP"
     assert body["orders"] == 1
@@ -224,7 +224,7 @@ def test_pnl_attribution_by_strategy_endpoint(
 
 def test_publish_axe_via_post_creates_axe(client: TestClient):
     r = client.post(
-        "/api/analytics/axes",
+        "/v1/analytics/axes",
         json={
             "axe_id": "a1",
             "client_id": "CLNT_A",
@@ -243,7 +243,7 @@ def test_publish_axe_via_post_creates_axe(client: TestClient):
 
 def test_publish_axe_rejects_invalid_side(client: TestClient):
     r = client.post(
-        "/api/analytics/axes",
+        "/v1/analytics/axes",
         json={
             "axe_id": "a1",
             "client_id": "CLNT_A",
@@ -257,7 +257,7 @@ def test_publish_axe_rejects_invalid_side(client: TestClient):
 
 def test_publish_axe_rejects_non_positive_quantity(client: TestClient):
     r = client.post(
-        "/api/analytics/axes",
+        "/v1/analytics/axes",
         json={
             "axe_id": "a1",
             "client_id": "CLNT_A",
@@ -271,7 +271,7 @@ def test_publish_axe_rejects_non_positive_quantity(client: TestClient):
 
 def test_list_axes_returns_published_axes(client: TestClient):
     client.post(
-        "/api/analytics/axes",
+        "/v1/analytics/axes",
         json={
             "axe_id": "a1",
             "client_id": "CLNT_A",
@@ -280,7 +280,7 @@ def test_list_axes_returns_published_axes(client: TestClient):
             "quantity": 1000,
         },
     )
-    r = client.get("/api/analytics/axes?symbol=AAPL")
+    r = client.get("/v1/analytics/axes?symbol=AAPL")
     body = r.json()
     assert len(body["axes"]) == 1
     assert body["axes"][0]["axeId"] == "a1"
@@ -289,7 +289,7 @@ def test_list_axes_returns_published_axes(client: TestClient):
 
 def test_cancel_axe_removes_it(client: TestClient):
     client.post(
-        "/api/analytics/axes",
+        "/v1/analytics/axes",
         json={
             "axe_id": "a1",
             "client_id": "CLNT_A",
@@ -298,21 +298,21 @@ def test_cancel_axe_removes_it(client: TestClient):
             "quantity": 1000,
         },
     )
-    r = client.delete("/api/analytics/axes/a1")
+    r = client.delete("/v1/analytics/axes/a1")
     assert r.status_code == 204
-    r2 = client.delete("/api/analytics/axes/a1")
+    r2 = client.delete("/v1/analytics/axes/a1")
     assert r2.status_code == 404
 
 
 def test_axe_matches_endpoint_404_when_no_orders_seen(client: TestClient):
-    r = client.get("/api/analytics/axes/matches/nope")
+    r = client.get("/v1/analytics/axes/matches/nope")
     assert r.status_code == 404
 
 
 def test_axe_matches_endpoint_returns_recorded_matches(client: TestClient):
     # Publish a SELL axe, then route an opposing BUY order through the stub consumer.
     client.post(
-        "/api/analytics/axes",
+        "/v1/analytics/axes",
         json={
             "axe_id": "a1",
             "client_id": "CLNT_A",
@@ -323,7 +323,7 @@ def test_axe_matches_endpoint_returns_recorded_matches(client: TestClient):
     )
     stub = client.app.state.stub_orders  # type: ignore[attr-defined]
     stub.record(IncomingLeg("ORDER_1", "AAPL", "BUY", 400))
-    r = client.get("/api/analytics/axes/matches/ORDER_1")
+    r = client.get("/v1/analytics/axes/matches/ORDER_1")
     body = r.json()
     assert body["orderId"] == "ORDER_1"
     assert len(body["matches"]) == 1

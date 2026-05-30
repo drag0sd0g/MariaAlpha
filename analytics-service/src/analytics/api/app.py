@@ -65,7 +65,7 @@ def create_app(
         return {
             "status": "ready",
             "pendingToxicityFills": toxicity.pending_count(),
-            "marketDataSymbols": len(market_cache._history),  # type: ignore[attr-defined]
+            "marketDataSymbols": len(market_cache._history),
             "activeAxes": matcher.stats()["activeAxes"],
         }
 
@@ -77,7 +77,7 @@ def create_app(
 
     # --- 2.2.4 flow toxicity --------------------------------------------
 
-    @app.get("/api/analytics/flow/toxicity")
+    @app.get("/v1/analytics/flow/toxicity")
     def get_flow_toxicity(strategy: str | None = None) -> dict[str, Any]:
         return {
             "rows": toxicity.snapshot(strategy=strategy),
@@ -87,26 +87,26 @@ def create_app(
 
     # --- 2.2.5 PnL attribution ------------------------------------------
 
-    @app.get("/api/analytics/pnl/attribution")
+    @app.get("/v1/analytics/pnl/attribution")
     def get_pnl_attribution(strategy: str | None = None) -> dict[str, Any]:
         return {
             "daily": attribution.daily_summary(strategy=strategy),
         }
 
-    @app.get("/api/analytics/pnl/attribution/{order_id}")
+    @app.get("/v1/analytics/pnl/attribution/{order_id}")
     def get_order_pnl_attribution(order_id: str) -> dict[str, Any]:
         row = attribution.order_breakdown(order_id)
         if row is None:
             raise HTTPException(status_code=404, detail=f"no TCA seen for order {order_id}")
         return row
 
-    @app.get("/api/analytics/pnl/attribution/by-strategy/{strategy}")
+    @app.get("/v1/analytics/pnl/attribution/by-strategy/{strategy}")
     def get_strategy_distribution(strategy: str) -> dict[str, Any]:
         return attribution.strategy_distribution(strategy)
 
     # --- 2.2.6 axe matching ---------------------------------------------
 
-    @app.post("/api/analytics/axes", status_code=201)
+    @app.post("/v1/analytics/axes", status_code=201)
     def publish_axe(req: AxePublishRequest) -> dict[str, Any]:
         axe = matcher.publish(
             axe_id=req.axe_id,
@@ -129,25 +129,23 @@ def create_app(
             "refreshCount": axe.refresh_count,
         }
 
-    @app.delete("/api/analytics/axes/{axe_id}")
+    @app.delete("/v1/analytics/axes/{axe_id}")
     def cancel_axe(axe_id: str) -> Response:
         if not matcher.cancel(axe_id):
             raise HTTPException(status_code=404, detail=f"axe {axe_id} not found")
         return Response(status_code=204)
 
-    @app.get("/api/analytics/axes")
+    @app.get("/v1/analytics/axes")
     def list_axes(symbol: str | None = None, side: str | None = None) -> dict[str, Any]:
         return {
             "axes": matcher.snapshot(symbol=symbol, side=side),
             "stats": matcher.stats(),
         }
 
-    @app.get("/api/analytics/axes/matches/{order_id}")
+    @app.get("/v1/analytics/axes/matches/{order_id}")
     def axe_matches_for_order(order_id: str) -> dict[str, Any]:
         if orders_consumer is None:
-            raise HTTPException(
-                status_code=503, detail="orders consumer not running"
-            )
+            raise HTTPException(status_code=503, detail="orders consumer not running")
         matches = orders_consumer.last_matches(order_id)
         if matches is None:
             raise HTTPException(
