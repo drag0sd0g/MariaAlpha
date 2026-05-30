@@ -20,7 +20,7 @@ Phase 1 is complete. MariaAlpha ships as a working, end-to-end algorithmic tradi
 
 The Phase 1 acceptance test — `SimulatedHappyPathE2ETest` — boots the full Docker Compose stack (15 long-running services + a one-shot Kafka topics initializer) and traverses the complete Tick-to-Trade pipeline on every CI run. See [`docs/phase-1-completion.md`](docs/phase-1-completion.md) for the full record of what was built.
 
-Phase 2 work has begun landing on `main`: the Smart Order Router (issue 2.1.1), the advanced order-type handlers IOC / FOK / GTC / Iceberg (2.1.3, 2.1.4), the TWAP execution strategy (2.1.5), the Momentum / trend-following strategy (2.1.6), the Implementation Shortfall execution strategy (2.1.7), the POV (Percentage of Volume) execution strategy (2.1.8), the Close (Market-on-Close) execution strategy (2.1.9), the internal crossing / internalization engine (2.1.10), the sector / beta / ADV pre-trade risk checks (2.2.1 / 2.2.2 / 2.2.3), and the umbrella Helm chart for Kubernetes deployment (2.7.1) are all shipped. Remaining Phase 2 items — the Redis distributed position cache, regime classifier, Playwright UI e2e tests, and the docker image publish workflow — are tracked in [§11 of the Technical Design Document](docs/technical-design-document.md#phase-2-full-desk-workflows--sor--rich-analytics).
+Phase 2 work has begun landing on `main`: the Smart Order Router (issue 2.1.1), the advanced order-type handlers IOC / FOK / GTC / Iceberg (2.1.3, 2.1.4), the TWAP execution strategy (2.1.5), the Momentum / trend-following strategy (2.1.6), the Implementation Shortfall execution strategy (2.1.7), the POV (Percentage of Volume) execution strategy (2.1.8), the Close (Market-on-Close) execution strategy (2.1.9), the internal crossing / internalization engine (2.1.10), the sector / beta / ADV pre-trade risk checks (2.2.1 / 2.2.2 / 2.2.3), the Analytics Service with flow-toxicity / PnL attribution / axe matcher (2.2.4 / 2.2.5 / 2.2.6), and the umbrella Helm chart for Kubernetes deployment (2.7.1) are all shipped. Remaining Phase 2 items — the Redis distributed position cache, regime classifier, Playwright UI e2e tests, and the docker image publish workflow — are tracked in [§11 of the Technical Design Document](docs/technical-design-document.md#phase-2-full-desk-workflows--sor--rich-analytics).
 
 ## Prerequisites
 
@@ -89,6 +89,7 @@ Polling /actuator/health on every service...
   ✓ post-trade
   ✓ api-gateway
   ✓ ml-signal-service
+  ✓ analytics-service
   ✓ ui
   ✓ grafana
 ```

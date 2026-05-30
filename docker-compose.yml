@@ -149,6 +149,28 @@ services:
       retries: 5
       start_period: 15s
 
+  analytics-service:
+    build:
+      context: .
+      dockerfile: analytics-service/Dockerfile
+    image: mariaalpha/analytics-service:local
+    ports:
+      - "8095:8095"
+    environment:
+      ANALYTICS_KAFKA_BOOTSTRAP_SERVERS: kafka:9094
+      ANALYTICS_TOXICITY_THRESHOLD_BPS: ${ANALYTICS_TOXICITY_THRESHOLD_BPS:-5.0}
+      ANALYTICS_TOXICITY_MIN_OBSERVATIONS: ${ANALYTICS_TOXICITY_MIN_OBSERVATIONS:-10}
+      ANALYTICS_COMMISSION_BPS: ${ANALYTICS_COMMISSION_BPS:-0.5}
+    depends_on:
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8095/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   ml-signal-service:
     build:
       context: .
@@ -338,6 +360,8 @@ services:
       post-trade:
         condition: service_healthy
       market-data-gateway:
+        condition: service_healthy
+      analytics-service:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
