@@ -649,6 +649,13 @@ public interface ExchangeAdapter {
 
 Key endpoints: `/v1/analytics/pnl/daily`, `/v1/analytics/pnl/cumulative`, `/v1/analytics/performance`, `/v1/analytics/performance/{strategy}`, `/v1/analytics/tca/{orderId}`, `/v1/analytics/tca/summary`, `/v1/analytics/risk/alerts`. Phase 2 adds: `/v1/analytics/pnl/attribution`, `/v1/analytics/flow/toxicity`, `/v1/analytics/axes`.
 
+**Phase-2 sub-modules (delivered):**
+- **Flow toxicity detector (2.2.4)** — listens to `analytics.tca` fills, looks up post-fill market-data at configurable horizons (default 60s/300s/1800s) via the `MarketDataCache`, computes signed markout in bps (positive = adverse selection), and publishes `FLOW_TOXICITY` events to `analytics.risk-alerts` when the rolling mean breaches `ANALYTICS_TOXICITY_THRESHOLD_BPS`. Snapshot endpoint: `GET /api/analytics/flow/toxicity?strategy=`.
+- **PnL attribution (2.2.5)** — decomposes realised PnL per parent order into spread / market / commission / timing (placeholder) / residual using the Kissell-Glantz framework. State is kept in memory; `analytics.tca` replay rebuilds it after restart. Endpoints: `GET /api/analytics/pnl/attribution[?strategy=]`, `/{orderId}`, `/by-strategy/{strategy}`.
+- **Axe matcher (2.2.6)** — in-memory axe book with TTL + refresh-based confidence; matches incoming `orders.lifecycle` SUBMITTED orders against opposite-side axes, ranking by confidence × remaining-size. Endpoints: `POST/GET /api/analytics/axes`, `DELETE /api/analytics/axes/{axeId}`, `GET /api/analytics/axes/matches/{orderId}`.
+
+Exposed Prometheus metrics: `mariaalpha_analytics_toxicity_markout_bps`, `mariaalpha_analytics_toxicity_alerts_total`, `mariaalpha_analytics_pnl_attribution_usd`, `mariaalpha_analytics_axes_active`, `mariaalpha_analytics_axes_matches_total`. Scraped by Alloy at `analytics-service:8095/metrics`.
+
 #### 5.2.8 API Gateway
 
 | Property | Value |
@@ -1395,9 +1402,9 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 | [2.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/63) ✅ | Implement sector exposure risk check | Execution Engine |
 | [2.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/64) ✅ | Implement beta exposure risk check | Execution Engine |
 | [2.2.3](https://github.com/drag0sd0g/MariaAlpha/issues/65) ✅ | Implement ADV-relative sizing risk check | Execution Engine |
-| [2.2.4](https://github.com/drag0sd0g/MariaAlpha/issues/66) | Implement flow toxicity / adverse selection detector | Analytics Service |
-| [2.2.5](https://github.com/drag0sd0g/MariaAlpha/issues/67) | Implement PnL attribution (spread, hedging, market, timing) | Analytics Service |
-| [2.2.6](https://github.com/drag0sd0g/MariaAlpha/issues/68) | Implement client interest / axe matching model | Analytics Service |
+| [2.2.4](https://github.com/drag0sd0g/MariaAlpha/issues/66) ✅ | Implement flow toxicity / adverse selection detector | Analytics Service |
+| [2.2.5](https://github.com/drag0sd0g/MariaAlpha/issues/67) ✅ | Implement PnL attribution (spread, hedging, market, timing) | Analytics Service |
+| [2.2.6](https://github.com/drag0sd0g/MariaAlpha/issues/68) ✅ | Implement client interest / axe matching model | Analytics Service |
 | [2.3.1](https://github.com/drag0sd0g/MariaAlpha/issues/69) | Implement regime classifier (Random Forest) | ML Signal Service |
 | [2.3.2](https://github.com/drag0sd0g/MariaAlpha/issues/70) | Implement ML signal confirmation/veto logic in Strategy Engine | Strategy Engine |
 | [2.4.1](https://github.com/drag0sd0g/MariaAlpha/issues/71) | Implement inventory-aware RFQ pricing | Strategy Engine |
@@ -1412,8 +1419,8 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 | [2.6.3](https://github.com/drag0sd0g/MariaAlpha/issues/80) | Create Grafana Portfolio & Risk dashboard | Observability |
 | [2.6.4](https://github.com/drag0sd0g/MariaAlpha/issues/81) | Create Grafana Post-Trade & Quality dashboard | Observability |
 | [2.7.1](https://github.com/drag0sd0g/MariaAlpha/issues/82) ✅ | Create Helm charts for full Kubernetes deployment | Deployment |
-| [2.7.2](https://github.com/drag0sd0g/MariaAlpha/issues/83) | Implement Docker image publish workflow | CI/CD |
-| [2.7.3](https://github.com/drag0sd0g/MariaAlpha/issues/84) | Add mutation testing (PITest + mutmut) to CI | CI/CD |
+| [2.7.2](https://github.com/drag0sd0g/MariaAlpha/issues/83)✅ | Implement Docker image publish workflow | CI/CD |
+| [2.7.3](https://github.com/drag0sd0g/MariaAlpha/issues/84)✅ | Add mutation testing (PITest + mutmut) to CI | CI/CD |
 | [2.7.4](https://github.com/drag0sd0g/MariaAlpha/issues/85) | Introduce Redis for distributed position cache | Infrastructure |
 | [2.7.5](https://github.com/drag0sd0g/MariaAlpha/issues/86) | Create Bruno API collection with example requests | Developer Experience |
 

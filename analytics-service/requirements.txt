@@ -1,0 +1,7 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+confluent-kafka==2.8.0
+prometheus-client==0.22.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+structlog==25.1.0

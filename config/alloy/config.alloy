@@ -37,6 +37,16 @@ prometheus.scrape "ml_signal_service" {
   scrape_interval = "15s"
 }
 
+// Python analytics service (Phase 2, issues 2.2.4 / 2.2.5 / 2.2.6) exposes /metrics on 8095.
+prometheus.scrape "analytics_service" {
+  targets = [
+    {"__address__" = "analytics-service:8095", "service" = "analytics-service"},
+  ]
+  metrics_path    = "/metrics"
+  forward_to      = [prometheus.remote_write.default.receiver]
+  scrape_interval = "15s"
+}
+
 prometheus.remote_write "default" {
   endpoint {
     url = "http://prometheus:9090/api/v1/write"

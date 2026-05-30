@@ -1,0 +1,53 @@
+[project]
+name = "analytics-service"
+version = "0.1.0"
+description = "Analytics Service for MariaAlpha — flow toxicity, PnL attribution, axe matching"
+requires-python = ">=3.12"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "W",
+    "F",
+    "I",
+    "N",
+    "UP",
+    "B",
+    "SIM",
+    "TC",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["N806", "TC001", "TC002", "TC003"]
+"tests/conftest.py" = ["E402", "N806", "TC003"]
+"src/analytics/__main__.py" = ["E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["analytics"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = [
+    "confluent_kafka",
+    "confluent_kafka.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "--strict-markers --tb=short -q"
+markers = [
+    "integration: marks tests that require external services",
+]

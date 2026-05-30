@@ -44,6 +44,11 @@ spring:
               predicates:
                 - Path=/api/market-data/**
 
+            - id: analytics
+              uri: ${ANALYTICS_SERVICE_URL:http://localhost:8095}
+              predicates:
+                - Path=/api/analytics/**
+
 mariaalpha:
   gateway:
     downstreams:
@@ -66,7 +71,7 @@ mariaalpha:
       analytics-service:
         url: ${ANALYTICS_SERVICE_URL:http://localhost:8095}
         management-url: ${ANALYTICS_SERVICE_MANAGEMENT_URL:http://localhost:8095}
-        required: false
+        required: true
 
     security:
       api-key: ${MARIAALPHA_API_KEY:}

@@ -45,6 +45,7 @@ test-e2e:
 # Run Python tests
 test-python:
     cd ml-signal-service && pytest
+    cd analytics-service && .venv/bin/pytest tests/
 
 # Run mutation testing (Java PITest + Python mutmut) — slow; CI runs this weekly
 mutation:
@@ -66,6 +67,7 @@ check:
     ruff check .
     ruff format --check .
     cd ml-signal-service && ruff check src/ tests/ && mypy src/
+    cd analytics-service && .venv/bin/ruff check src/ tests/
 
 # Auto-fix all formatting and lint violations
 fix:
@@ -73,6 +75,7 @@ fix:
     ruff check --fix .
     ruff format .
     cd ml-signal-service && ruff check --fix src/ tests/ && ruff format src/ tests/
+    cd analytics-service && .venv/bin/ruff check --fix src/ tests/ && .venv/bin/ruff format src/ tests/
 
 # Build all Docker images (UI + every Java/Python service)
 docker-build:
@@ -97,6 +100,7 @@ verify:
     check post-trade            http://localhost:8089/actuator/health/liveness
     check api-gateway           http://localhost:8091/actuator/health/liveness
     check ml-signal-service     http://localhost:8090/health
+    check analytics-service     http://localhost:8095/health
     check ui                    http://localhost:5173/
     check grafana               http://localhost:3001/api/health
 
