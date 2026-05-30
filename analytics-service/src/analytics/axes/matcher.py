@@ -257,7 +257,7 @@ class AxeMatcher:
                         "refreshCount": axe.refresh_count,
                     }
                 )
-            rows.sort(key=lambda r: -float(r["confidence"]))
+            rows.sort(key=lambda r: -float(r["confidence"]))  # type: ignore[arg-type]
             return rows
 
     def stats(self) -> dict[str, object]:

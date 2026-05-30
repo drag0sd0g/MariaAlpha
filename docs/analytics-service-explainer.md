@@ -52,7 +52,7 @@ The detector advances by **either** an `on_fill` push **or** a `tick()` poll
 event is published to `analytics.risk-alerts`. A 60-second cooldown per
 (strategy, horizon) prevents alert storms.
 
-Snapshots are read at `GET /api/analytics/flow/toxicity[?strategy=]`.
+Snapshots are read at `GET /v1/analytics/flow/toxicity[?strategy=]`.
 
 ### PnL attribution (2.2.5)
 
@@ -70,7 +70,7 @@ the `analytics.tca` stream into five USD components:
 
 State is in-memory; `analytics.tca` replay rebuilds it after restart.
 
-Surfaced at `GET /api/analytics/pnl/attribution[?strategy=]`, `/{orderId}`,
+Surfaced at `GET /v1/analytics/pnl/attribution[?strategy=]`, `/{orderId}`,
 `/by-strategy/{strategy}` (min/median/max/sum per component).
 
 ### Axe matcher (2.2.6)
@@ -91,10 +91,10 @@ debited immediately so concurrent callers cannot double-fill. Fully-consumed
 axes are auto-removed.
 
 Surfaced at:
-- `POST /api/analytics/axes` — publish or refresh (returns 201)
-- `DELETE /api/analytics/axes/{axeId}` — cancel (204 / 404)
-- `GET /api/analytics/axes[?symbol=&side=]` — snapshot + stats
-- `GET /api/analytics/axes/matches/{orderId}` — last match suggestions for an order
+- `POST /v1/analytics/axes` — publish or refresh (returns 201)
+- `DELETE /v1/analytics/axes/{axeId}` — cancel (204 / 404)
+- `GET /v1/analytics/axes[?symbol=&side=]` — snapshot + stats
+- `GET /v1/analytics/axes/matches/{orderId}` — last match suggestions for an order
 
 ## Prometheus metrics
 
@@ -125,11 +125,14 @@ All knobs are environment-variable driven with the `ANALYTICS_` prefix:
 
 ## Wiring
 
-- **API Gateway** — `/api/analytics/**` routed to `ANALYTICS_SERVICE_URL`
-  (`http://analytics-service:8095` in compose). Listed as a *required*
-  downstream so the gateway's aggregate health probe pings
-  `/actuator/health` (FastAPI returns `{"status": "UP"}` for Spring-Boot
-  compatibility).
+- **API Gateway** — `/api/analytics/**` (client-facing) is rewritten to
+  `/v1/analytics/**` by `RouteConfiguration#analyticsRoute` and proxied to
+  `ANALYTICS_SERVICE_URL` (`http://analytics-service:8095` in compose), so the
+  FastAPI app serves `/v1/analytics/*` routes. Listed as a *required* downstream
+  so the gateway's aggregate health probe pings `/actuator/health` (FastAPI
+  returns `{"status": "UP"}` for Spring-Boot compatibility). Requires the
+  matching `ANALYTICS_SERVICE_MANAGEMENT_URL` env var so the gateway doesn't
+  fall back to its own loopback.
 - **Kafka topics consumed**: `analytics.tca`, `market-data.ticks`,
   `orders.lifecycle`.
 - **Kafka topic produced**: `analytics.risk-alerts` (FLOW_TOXICITY events).
@@ -143,5 +146,5 @@ All knobs are environment-variable driven with the `ANALYTICS_` prefix:
 - `cd analytics-service && .venv/bin/pytest tests/` — ~58 unit and FastAPI
   TestClient integration tests cover all three engines plus the REST surface.
 - `cd e2e-tests && ../gradlew test --tests AnalyticsServiceE2ETest` —
-  Testcontainers compose-stack test that exercises `/api/analytics/axes` and
+  Testcontainers compose-stack test that exercises `/v1/analytics/axes` and
   the toxicity/PnL empty-state JSON through the API Gateway.

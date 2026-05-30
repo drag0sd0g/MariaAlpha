@@ -12,7 +12,7 @@ from analytics.axes.matcher import IncomingLeg
 from analytics.metrics import AXES_MATCHES
 
 if TYPE_CHECKING:
-    from analytics.axes.matcher import AxeMatcher
+    from analytics.axes.matcher import AxeMatcher, MatchSuggestion
     from analytics.config import Settings
 
 logger = structlog.get_logger()
@@ -96,7 +96,7 @@ class OrdersConsumer:
         self._consumer.close()
 
 
-def _suggestion_dict(s) -> dict[str, object]:
+def _suggestion_dict(s: MatchSuggestion) -> dict[str, object]:
     return {
         "axeId": s.axe_id,
         "clientId": s.client_id,

@@ -378,6 +378,7 @@ services:
       POST_TRADE_URL: http://post-trade:8088
       POST_TRADE_MANAGEMENT_URL: http://post-trade:8089
       ANALYTICS_SERVICE_URL: http://analytics-service:8095
+      ANALYTICS_SERVICE_MANAGEMENT_URL: http://analytics-service:8095
       MANAGEMENT_PORT: 8091
     ports:
       - "8080:8080"

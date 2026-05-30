@@ -13,9 +13,7 @@ def _matcher(default_ttl: int = 3600, min_match: int = 1):
     def now() -> float:
         return clock[0]
 
-    m = AxeMatcher(
-        default_ttl_seconds=default_ttl, min_match_quantity=min_match, clock=now
-    )
+    m = AxeMatcher(default_ttl_seconds=default_ttl, min_match_quantity=min_match, clock=now)
     return m, clock
 
 

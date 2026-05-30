@@ -185,9 +185,7 @@ class FlowToxicityDetector:
 
     # -- snapshots --------------------------------------------------------
 
-    def snapshot(
-        self, strategy: str | None = None
-    ) -> list[dict[str, object]]:
+    def snapshot(self, strategy: str | None = None) -> list[dict[str, object]]:
         """Return per-(strategy, horizon) toxicity rows, sorted by mean markout descending."""
         with self._lock:
             keys: Iterable[tuple[str, int]]
@@ -206,11 +204,10 @@ class FlowToxicityDetector:
                         "meanMarkoutBps": round(stats.mean(), 4),
                         "stdevMarkoutBps": round(stats.stdev(), 4),
                         "observations": stats.count(),
-                        "toxic": stats.count() >= self._min_obs
-                        and stats.mean() >= self._threshold,
+                        "toxic": stats.count() >= self._min_obs and stats.mean() >= self._threshold,
                     }
                 )
-            rows.sort(key=lambda r: -float(r["meanMarkoutBps"]))
+            rows.sort(key=lambda r: -float(r["meanMarkoutBps"]))  # type: ignore[arg-type]
             return rows
 
     def pending_count(self) -> int:

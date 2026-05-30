@@ -65,9 +65,7 @@ def test_explicit_commission_total_overrides_bps_estimate():
     row = eng.attribute(_tca(commission_total=2.50))
     assert row.commission_usd == pytest.approx(-2.50)
     # Sign forced negative even if caller passed positive number.
-    row2 = eng.attribute(
-        _tca(order_id="o2", commission_total=-7.0)
-    )
+    row2 = eng.attribute(_tca(order_id="o2", commission_total=-7.0))
     assert row2.commission_usd == pytest.approx(-7.0)
 
 
@@ -92,9 +90,7 @@ def test_daily_summary_rolls_up_per_strategy_per_day():
     rows = eng.daily_summary()
     # 3 unique (strategy, day) buckets.
     assert len(rows) == 3
-    vwap_d1 = next(
-        r for r in rows if r["strategy"] == "VWAP" and r["date"] == "2026-05-30"
-    )
+    vwap_d1 = next(r for r in rows if r["strategy"] == "VWAP" and r["date"] == "2026-05-30")
     assert vwap_d1["orders"] == 2
 
 
