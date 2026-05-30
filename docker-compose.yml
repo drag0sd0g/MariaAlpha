@@ -181,6 +181,7 @@ services:
     environment:
       ML_SIGNAL_KAFKA_BOOTSTRAP_SERVERS: kafka:9094
       ML_SIGNAL_SIGNAL_MODEL_PATH: /app/ml-models/signal_model.joblib
+      ML_SIGNAL_REGIME_MODEL_PATH: /app/ml-models/regime_model.joblib
     depends_on:
       kafka:
         condition: service_healthy

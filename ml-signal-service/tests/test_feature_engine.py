@@ -126,3 +126,31 @@ class TestFeatureEngineListeners:
         feature_engine.remove_listener(q)
         _feed_n_bars(feature_engine, "AAPL", 6)
         assert q.empty()
+
+
+class TestGetBars:
+    def test_unknown_symbol_returns_empty(self, feature_engine: FeatureEngine) -> None:
+        assert feature_engine.get_bars("UNKNOWN") == []
+
+    def test_returns_completed_bars(self, feature_engine: FeatureEngine) -> None:
+        _feed_n_bars(feature_engine, "AAPL", 6)
+        bars = feature_engine.get_bars("AAPL")
+        # 7 ticks at bar boundaries → 6 completed bars (the last is still open).
+        assert len(bars) == 6
+        assert bars[0].close > 0
+
+    def test_n_truncates_to_most_recent(self, feature_engine: FeatureEngine) -> None:
+        _feed_n_bars(feature_engine, "AAPL", 10)
+        bars = feature_engine.get_bars("AAPL", n=3)
+        assert len(bars) == 3
+        # Truncation must keep the *most recent* bars.
+        full = feature_engine.get_bars("AAPL")
+        assert bars == full[-3:]
+
+    def test_returns_snapshot_not_live_view(self, feature_engine: FeatureEngine) -> None:
+        """The list returned must not mutate when new bars arrive."""
+        _feed_n_bars(feature_engine, "AAPL", 6)
+        snapshot = feature_engine.get_bars("AAPL")
+        before = len(snapshot)
+        _feed_n_bars(feature_engine, "AAPL", 3, start_price=200)
+        assert len(snapshot) == before

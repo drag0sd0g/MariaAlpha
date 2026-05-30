@@ -13,6 +13,11 @@ dependencies {
     testImplementation("org.awaitility:awaitility:4.2.2")
     testImplementation("ch.qos.logback:logback-classic:1.5.32")
     testImplementation("org.codehaus.janino:janino:3.1.12")
+    // Regime classifier (issue 2.3.1) e2e calls GetRegime directly over gRPC.
+    testImplementation(project(":proto"))
+    testImplementation(libs.grpc.netty.shaded)
+    testImplementation(libs.grpc.stub)
+    testImplementation(libs.grpc.protobuf)
 }
 
 

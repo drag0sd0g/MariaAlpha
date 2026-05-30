@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse
 from prometheus_client import generate_latest
 
@@ -14,12 +14,14 @@ from ml_signal.metrics import FEATURE_STALENESS
 if TYPE_CHECKING:
     from ml_signal.config import Settings
     from ml_signal.features.engine import FeatureEngine
+    from ml_signal.model.regime_model import RegimeModel
     from ml_signal.model.signal_model import SignalModel
 
 
 def create_app(
     feature_engine: FeatureEngine,
     signal_model: SignalModel,
+    regime_model: RegimeModel,
     settings: Settings,
 ) -> FastAPI:
     """Create and configure the FastAPI application."""
@@ -36,11 +38,13 @@ def create_app(
     @app.get("/ready")
     def ready() -> dict[str, Any]:
         symbols_with_features = feature_engine.symbols_with_features()
-        model_loaded = signal_model.is_loaded
-        is_ready = model_loaded and len(symbols_with_features) > 0
+        signal_loaded = signal_model.is_loaded
+        regime_loaded = regime_model.is_loaded
+        is_ready = signal_loaded and len(symbols_with_features) > 0
         return {
             "status": "ready" if is_ready else "not_ready",
-            "model_loaded": model_loaded,
+            "model_loaded": signal_loaded,
+            "regime_model_loaded": regime_loaded,
             "symbols_with_features": symbols_with_features,
         }
 
@@ -53,8 +57,15 @@ def create_app(
         return generate_latest()
 
     @app.post("/v1/models/reload")
-    def reload_model(path: str | None = None) -> dict[str, Any]:
-        result = signal_model.reload(path)
-        return result
+    def reload_model(path: str | None = None, model: str = "signal") -> dict[str, Any]:
+        """Hot-reload a model artifact. `model=signal` (default) or `model=regime`."""
+        if model == "signal":
+            return signal_model.reload(path)
+        if model == "regime":
+            return regime_model.reload(path)
+        raise HTTPException(
+            status_code=400,
+            detail=f"unknown model '{model}' — expected 'signal' or 'regime'",
+        )
 
     return app

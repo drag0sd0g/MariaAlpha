@@ -32,6 +32,23 @@ MODEL_INFO = Info(
     "Currently loaded model metadata",
 )
 
+REGIME_MODEL_INFO = Info(
+    "mariaalpha_ml_regime_model",
+    "Currently loaded regime classifier metadata",
+)
+
+REGIME_PREDICTIONS = Counter(
+    "mariaalpha_ml_regime_predictions_total",
+    "Regime predictions served, labelled by symbol and regime",
+    ["symbol", "regime"],
+)
+
+REGIME_CONFIDENCE = Histogram(
+    "mariaalpha_ml_regime_confidence",
+    "Confidence of the predicted regime class",
+    buckets=[0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+)
+
 GRPC_REQUESTS = Counter(
     "mariaalpha_ml_grpc_requests_total",
     "gRPC requests by method",
