@@ -414,4 +414,62 @@
         <Class name="com.mariaalpha.executionengine.crossing.InternalCrossingMetrics"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
+    <!-- RFQ pricing engine (issues 2.4.1, 2.4.2) -->
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.rfq.RfqPricingConfig"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.rfq.RfqSymbolReferenceConfig"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.rfq.RfqSymbolReferenceData"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.rfq.MarketStateCache"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.rfq.VolatilityTracker"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.rfq.PositionLookup"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.rfq.RfqPricingEngine"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.rfq.RfqController"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.rfq.RfqMetrics"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.rfq.RfqQuoteResponse"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.rfq.RfqQuote"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <!-- ML signal gate (issue 2.3.2) -->
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.config.MlConfig"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.ml.MlSignalGate"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.ml.MlGateDecision"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
 </FindBugsFilter>

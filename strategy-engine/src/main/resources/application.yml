@@ -26,7 +26,60 @@ strategy-engine:
   ml:
     host: ${ML_SERVICE_HOST:localhost}
     port: ${ML_SERVICE_PORT:50051}
+    # FR-12 / TDD §5.2.2: high-confidence ML signals confirm or veto the strategy signal.
     confidence-threshold: 0.7
+    # STRICT (default) suppresses contradictions; PERMISSIVE warns but proceeds; OFF disables.
+    veto-mode: STRICT
+    # When true a high-confidence NEUTRAL prediction also suppresses any sided signal.
+    neutral-suppress: false
+    # SCALED multiplies the strategy quantity by clamp(recommendedSize/sizingNeutralFraction, lower, upper)
+    # when ML agrees with high confidence; NONE leaves quantity untouched.
+    sizing-mode: NONE
+    sizing-neutral-fraction: 0.20
+    sizing-lower-bound: 0.50
+    sizing-upper-bound: 1.50
+  # Issues 2.4.1 / 2.4.2 — inventory-aware + vol/ADV-relative RFQ pricing.
+  rfq:
+    base-spread-bps: 4.0
+    inventory-lambda: 1.0
+    inventory-neutral-notional: 1000000
+    inventory-max-skew-bps: 30.0
+    vol-scalar: 0.50
+    adv-scalar: 0.30
+    quote-validity-ms: 10000
+    order-manager-base-url: ${ORDER_MANAGER_BASE_URL:http://localhost:8086}
+    position-lookup-timeout-ms: 500
+    volatility-window-size: 30
+    reference-data:
+      defaults:
+        sector: UNKNOWN
+        beta: 1.0
+        adv: 0
+      symbols:
+        - symbol: AAPL
+          sector: TECH
+          beta: 1.20
+          adv: 60000000
+        - symbol: MSFT
+          sector: TECH
+          beta: 0.95
+          adv: 25000000
+        - symbol: GOOGL
+          sector: TECH
+          beta: 1.05
+          adv: 25000000
+        - symbol: AMZN
+          sector: CONSUMER_DISCRETIONARY
+          beta: 1.20
+          adv: 45000000
+        - symbol: TSLA
+          sector: AUTOMOTIVE
+          beta: 1.80
+          adv: 90000000
+        - symbol: NVDA
+          sector: TECH
+          beta: 1.65
+          adv: 250000000
 
 management:
   server:

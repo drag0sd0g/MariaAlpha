@@ -1405,7 +1405,7 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 | [2.2.4](https://github.com/drag0sd0g/MariaAlpha/issues/66) ✅ | Implement flow toxicity / adverse selection detector | Analytics Service |
 | [2.2.5](https://github.com/drag0sd0g/MariaAlpha/issues/67) ✅ | Implement PnL attribution (spread, hedging, market, timing) | Analytics Service |
 | [2.2.6](https://github.com/drag0sd0g/MariaAlpha/issues/68) ✅ | Implement client interest / axe matching model | Analytics Service |
-| [2.3.1](https://github.com/drag0sd0g/MariaAlpha/issues/69) | Implement regime classifier (Random Forest) | ML Signal Service |
+| [2.3.1](https://github.com/drag0sd0g/MariaAlpha/issues/69) ✅| Implement regime classifier (Random Forest) | ML Signal Service |
 | [2.3.2](https://github.com/drag0sd0g/MariaAlpha/issues/70) | Implement ML signal confirmation/veto logic in Strategy Engine | Strategy Engine |
 | [2.4.1](https://github.com/drag0sd0g/MariaAlpha/issues/71) | Implement inventory-aware RFQ pricing | Strategy Engine |
 | [2.4.2](https://github.com/drag0sd0g/MariaAlpha/issues/72) | Implement volatility-adjusted and ADV-relative spread pricing | Strategy Engine |

@@ -244,6 +244,8 @@ services:
       ML_SERVICE_HOST: ml-signal-service
       ML_SERVICE_PORT: 50051
       MANAGEMENT_PORT: 8083
+      # RFQ pricing (2.4.1) reads positions from order-manager; falls back to flat on timeout.
+      ORDER_MANAGER_BASE_URL: http://order-manager:8086
     ports:
       - "8082:8082"
       - "8083:8083"

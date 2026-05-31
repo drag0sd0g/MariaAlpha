@@ -223,6 +223,67 @@ class SimulatedHappyPathE2ETest {
     }
 
     @Test
+    void rfqQuoteReturnsTwoWayBookAndAcceptPublishesOrderSignal() throws Exception {
+        // The simulator is publishing AAPL ticks into market-data.ticks, so the strategy-engine's
+        // MarketStateCache populates within a few seconds of stack startup. Poll the RFQ endpoint
+        // until the gateway accepts the request (it 503s while no book is available).
+        var quote = await().atMost(45, TimeUnit.SECONDS)
+                .pollInterval(Duration.ofSeconds(1))
+                .ignoreExceptions()
+                .until(this::requestRfqQuoteForAapl, Objects::nonNull);
+
+        assertThat(quote.get("symbol").asText()).isEqualTo("AAPL");
+        assertThat(quote.get("quantity").asInt()).isEqualTo(100);
+        var bid = new BigDecimal(quote.get("bid").asText());
+        var ask = new BigDecimal(quote.get("ask").asText());
+        assertThat(bid).as("bid < ask").isLessThan(ask);
+        assertThat(quote.get("breakdown").get("baseHalfSpreadBps").asDouble())
+                .as("base half-spread comes from application.yml")
+                .isEqualTo(2.0);
+        // 2.4.2: per-symbol ADV is wired (AAPL → 60M), so we expect ADV widening to be reported (>=0)
+        assertThat(quote.get("breakdown").get("advShares").asLong()).isEqualTo(60_000_000L);
+
+        // Accept BUY at the quoted ask → strategy-engine publishes an OrderSignal with strategyName=RFQ.
+        var acceptBody = MAPPER.writeValueAsString(Map.of(
+                "quoteId", quote.get("quoteId").asText(),
+                "side", "BUY",
+                "price", quote.get("ask").asText()));
+        var resp = httpPostAndCheck("/api/rfq/accept", acceptBody);
+        assertThat(resp.get("status").asText()).isEqualTo("ACCEPTED");
+    }
+
+    private JsonNode requestRfqQuoteForAapl() throws Exception {
+        var requestBody = "{\"symbol\":\"AAPL\",\"quantity\":100}";
+        HttpResponse<String> response = httpClient.send(HttpRequest.newBuilder()
+                        .uri(URI.create(baseUrl + "/api/rfq/quote"))
+                        .header("X-API-Key", API_KEY)
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                        .timeout(Duration.ofSeconds(5))
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200) {
+            return null;
+        }
+        return MAPPER.readTree(response.body());
+    }
+
+    private JsonNode httpPostAndCheck(String requestPath, String requestBody) throws Exception {
+        HttpResponse<String> response = httpClient.send(HttpRequest.newBuilder()
+                        .uri(URI.create(baseUrl + requestPath))
+                        .header("X-API-Key", API_KEY)
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                        .timeout(Duration.ofSeconds(5))
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode())
+                .as("POST %s body=%s → %s", requestPath, requestBody, response.body())
+                .isEqualTo(200);
+        return MAPPER.readTree(response.body());
+    }
+
+    @Test
     void simulatedMomentumUptrendReachesGooglOrderWithFill() throws Exception {
         bindMomentumToGoogl();
 

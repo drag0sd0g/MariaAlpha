@@ -1,16 +1,12 @@
 package com.mariaalpha.strategyengine.service;
 
-import com.mariaalpha.proto.signal.Direction;
-import com.mariaalpha.strategyengine.config.MlConfig;
 import com.mariaalpha.strategyengine.metrics.StrategyMetrics;
+import com.mariaalpha.strategyengine.ml.MlGateDecision;
 import com.mariaalpha.strategyengine.ml.MlSignalClient;
-import com.mariaalpha.strategyengine.ml.MlSignalResult;
+import com.mariaalpha.strategyengine.ml.MlSignalGate;
 import com.mariaalpha.strategyengine.model.MarketTick;
-import com.mariaalpha.strategyengine.model.OrderSignal;
-import com.mariaalpha.strategyengine.model.Side;
 import com.mariaalpha.strategyengine.publisher.SignalPublisher;
 import com.mariaalpha.strategyengine.routing.SymbolStrategyRouter;
-import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -22,21 +18,21 @@ public class StrategyEvaluationService {
 
   private final SymbolStrategyRouter router;
   private final MlSignalClient mlClient;
+  private final MlSignalGate mlGate;
   private final SignalPublisher signalPublisher;
   private final StrategyMetrics metrics;
-  private final double confidenceThreshold;
 
   public StrategyEvaluationService(
       SymbolStrategyRouter router,
       MlSignalClient mlClient,
+      MlSignalGate mlGate,
       SignalPublisher signalPublisher,
-      StrategyMetrics metrics,
-      MlConfig mlConfig) {
+      StrategyMetrics metrics) {
     this.router = router;
     this.mlClient = mlClient;
+    this.mlGate = mlGate;
     this.signalPublisher = signalPublisher;
     this.metrics = metrics;
-    this.confidenceThreshold = mlConfig.confidenceThreshold();
   }
 
   public void evaluate(MarketTick tick) {
@@ -54,46 +50,29 @@ public class StrategyEvaluationService {
     if (signalOptional.isEmpty()) {
       return;
     }
-
-    var signal = signalOptional.get();
+    var strategySignal = signalOptional.get();
 
     long mlStart = System.currentTimeMillis();
     var mlResult = mlClient.getSignal(tick.symbol());
     metrics.recordMlLatency(System.currentTimeMillis() - mlStart);
 
-    if (shouldSuppress(signal, mlResult)) {
+    var decision = mlGate.decide(strategySignal, mlResult);
+    metrics.recordMlDecision(decision.outcome(), strategy.name(), strategySignal.side());
+
+    if (decision.signal().isEmpty()) {
       LOG.info(
-          "ML signal contradicts strategy for {} (confidence={}) — suppressing",
-          tick.symbol(),
-          mlResult.map(r -> String.valueOf(r.confidence())).orElse("n/a"));
+          "ML gate {} — suppressing strategy {} for {}",
+          decision.outcome(),
+          strategy.name(),
+          tick.symbol());
       return;
     }
-
-    signalPublisher.publish(signal);
-    metrics.recordSignal(strategy.name(), signal.side());
-  }
-
-  /**
-   * Returns {@code true} only when the ML result has high confidence AND its direction contradicts
-   * the strategy signal. In all other cases (ML unavailable, low confidence, agrees, or NEUTRAL)
-   * the signal is allowed through.
-   */
-  private boolean shouldSuppress(OrderSignal signal, Optional<MlSignalResult> mlResult) {
-    if (mlResult.isEmpty()) {
-      return false; // ML unavailable, proceed
+    var publishable = decision.signal().get();
+    if (decision.outcome() == MlGateDecision.Outcome.CONFIRMED) {
+      metrics.recordMlQuantityScale(strategy.name(), decision.quantityScale());
     }
-    var mlSignalResult = mlResult.get();
-    if (mlSignalResult.confidence() <= confidenceThreshold) {
-      return false; // low confidence, proceed regardless of direction
-    }
-    return !directionsAgree(signal.side(), mlSignalResult.direction());
-  }
 
-  private static boolean directionsAgree(Side side, Direction direction) {
-    if (direction == Direction.NEUTRAL) {
-      return true; // NEUTRAL never contradicts
-    }
-    return (side == Side.BUY && direction == Direction.LONG)
-        || (side == Side.SELL && direction == Direction.SHORT);
+    signalPublisher.publish(publishable);
+    metrics.recordSignal(strategy.name(), publishable.side());
   }
 }

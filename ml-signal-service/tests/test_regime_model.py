@@ -100,9 +100,7 @@ class TestRegimeModel:
         model = RegimeModel(str(trained_model_path))
         assert model.version == "regime-test-v1"
 
-    def test_reload_replaces_model(
-        self, tmp_path: Path, trained_model_path: Path
-    ) -> None:
+    def test_reload_replaces_model(self, tmp_path: Path, trained_model_path: Path) -> None:
         model = RegimeModel(str(tmp_path / "nonexistent.joblib"))
         assert not model.is_loaded
 

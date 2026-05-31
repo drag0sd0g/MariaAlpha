@@ -2,6 +2,7 @@ package com.mariaalpha.strategyengine.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mariaalpha.strategyengine.model.MarketTick;
+import com.mariaalpha.strategyengine.rfq.MarketStateCache;
 import com.mariaalpha.strategyengine.service.StrategyEvaluationService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
@@ -16,17 +17,22 @@ public class TickConsumer {
 
   private final ObjectMapper objectMapper;
   private final StrategyEvaluationService strategyEvaluationService;
+  private final MarketStateCache marketStateCache;
 
   public TickConsumer(
-      ObjectMapper objectMapper, StrategyEvaluationService strategyEvaluationService) {
+      ObjectMapper objectMapper,
+      StrategyEvaluationService strategyEvaluationService,
+      MarketStateCache marketStateCache) {
     this.objectMapper = objectMapper;
     this.strategyEvaluationService = strategyEvaluationService;
+    this.marketStateCache = marketStateCache;
   }
 
   @KafkaListener(topics = "${strategy-engine.kafka.ticks-topic}")
   public void onTick(ConsumerRecord<String, String> record) {
     try {
       var tick = objectMapper.readValue(record.value(), MarketTick.class);
+      marketStateCache.onTick(tick);
       strategyEvaluationService.evaluate(tick);
     } catch (Exception e) {
       LOG.error(
