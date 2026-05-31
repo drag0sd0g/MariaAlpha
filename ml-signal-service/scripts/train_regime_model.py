@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -53,12 +54,20 @@ WINDOW = MIN_BARS_FOR_REGIME  # 60 bars per training sample
 DEFAULT_SAMPLES_PER_CLASS = 2_000
 
 # Per-class generator parameters. Drifts and vols are per-bar, in log space.
-_GENERATOR_PARAMS: dict[int, dict[str, float]] = {
-    REGIME_TRENDING_UP: {"drift": 0.0010, "sigma": 0.0030, "ar1": 0.0, "kind": "gbm"},
-    REGIME_TRENDING_DOWN: {"drift": -0.0010, "sigma": 0.0030, "ar1": 0.0, "kind": "gbm"},
-    REGIME_MEAN_REVERTING: {"drift": 0.0, "sigma": 0.0025, "ar1": -0.40, "kind": "ar1"},
-    REGIME_HIGH_VOLATILITY: {"drift": 0.0, "sigma": 0.0120, "ar1": 0.0, "kind": "gbm"},
-    REGIME_LOW_VOLATILITY: {"drift": 0.0, "sigma": 0.0006, "ar1": 0.0, "kind": "gbm"},
+@dataclass(frozen=True)
+class _GeneratorParams:
+    drift: float
+    sigma: float
+    ar1: float
+    kind: str  # "gbm" or "ar1"
+
+
+_GENERATOR_PARAMS: dict[int, _GeneratorParams] = {
+    REGIME_TRENDING_UP: _GeneratorParams(drift=0.0010, sigma=0.0030, ar1=0.0, kind="gbm"),
+    REGIME_TRENDING_DOWN: _GeneratorParams(drift=-0.0010, sigma=0.0030, ar1=0.0, kind="gbm"),
+    REGIME_MEAN_REVERTING: _GeneratorParams(drift=0.0, sigma=0.0025, ar1=-0.40, kind="ar1"),
+    REGIME_HIGH_VOLATILITY: _GeneratorParams(drift=0.0, sigma=0.0120, ar1=0.0, kind="gbm"),
+    REGIME_LOW_VOLATILITY: _GeneratorParams(drift=0.0, sigma=0.0006, ar1=0.0, kind="gbm"),
 }
 
 
@@ -70,28 +79,22 @@ def _generate_path(
 ) -> np.ndarray:
     """Generate a single synthetic close-price path of length n_bars under the regime."""
     params = _GENERATOR_PARAMS[regime]
-    drift = params["drift"]
-    sigma = params["sigma"]
-    kind = params["kind"]
-
     # Sprinkle a small parameter jitter so the model sees variation within each class.
-    drift = drift * float(rng.uniform(0.7, 1.3))
-    sigma = sigma * float(rng.uniform(0.7, 1.3))
+    drift = params.drift * float(rng.uniform(0.7, 1.3))
+    sigma = params.sigma * float(rng.uniform(0.7, 1.3))
 
-    if kind == "gbm":
-        shocks = rng.normal(loc=drift, scale=sigma, size=n_bars - 1)
-        log_returns = shocks
-    elif kind == "ar1":
+    if params.kind == "gbm":
+        log_returns = rng.normal(loc=drift, scale=sigma, size=n_bars - 1)
+    elif params.kind == "ar1":
         # AR(1) returns with negative coefficient → mean-reverting behaviour.
-        ar1 = params["ar1"]
         log_returns = np.zeros(n_bars - 1, dtype=np.float64)
         prev = 0.0
         for i in range(n_bars - 1):
             innovation = rng.normal(loc=0.0, scale=sigma)
-            log_returns[i] = ar1 * prev + innovation
+            log_returns[i] = params.ar1 * prev + innovation
             prev = log_returns[i]
     else:
-        raise ValueError(f"unknown generator kind: {kind}")
+        raise ValueError(f"unknown generator kind: {params.kind}")
 
     start_log = np.log(start_price)
     log_prices = np.concatenate([[start_log], start_log + np.cumsum(log_returns)])
