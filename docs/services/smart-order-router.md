@@ -278,7 +278,7 @@ A hidden book with a periodic match loop. Behaviour:
 ### 4.4 `SimulatedInternalCrossingAdapter`
 
 A thin façade over `InternalCrossingEngine` (issue 2.1.10) — see
-[internal-crossing-engine-explainer.md](internal-crossing-engine-explainer.md) for the full
+[`internal-crossing-engine.md`](internal-crossing-engine.md) for the full
 write-up. The engine maintains a per-symbol FIFO book and matches offsetting BUY/SELL interest
 at the NBBO midpoint, capturing the spread without market impact. Resting interest is swept on a
 `tick-interval-ms` cadence so price-blocked LIMITs cross when the NBBO moves into range.

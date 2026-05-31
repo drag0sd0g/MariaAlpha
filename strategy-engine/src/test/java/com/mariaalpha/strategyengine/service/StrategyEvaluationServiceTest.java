@@ -1,14 +1,21 @@
 package com.mariaalpha.strategyengine.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.doubleThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.mariaalpha.proto.signal.Direction;
 import com.mariaalpha.strategyengine.config.MlConfig;
+import com.mariaalpha.strategyengine.config.MlConfig.SizingMode;
+import com.mariaalpha.strategyengine.config.MlConfig.VetoMode;
 import com.mariaalpha.strategyengine.metrics.StrategyMetrics;
+import com.mariaalpha.strategyengine.ml.MlGateDecision;
 import com.mariaalpha.strategyengine.ml.MlSignalClient;
+import com.mariaalpha.strategyengine.ml.MlSignalGate;
 import com.mariaalpha.strategyengine.ml.MlSignalResult;
 import com.mariaalpha.strategyengine.model.DataSource;
 import com.mariaalpha.strategyengine.model.EventType;
@@ -25,6 +32,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -46,9 +54,11 @@ public class StrategyEvaluationServiceTest {
 
   @BeforeEach
   void setUp() {
-    underTest =
-        new StrategyEvaluationService(
-            router, mlClient, signalPublisher, metrics, new MlConfig("localhost", 50051, 0.7));
+    var config =
+        new MlConfig(
+            "localhost", 50051, 0.7, VetoMode.STRICT, false, SizingMode.NONE, 0.2, 0.5, 1.5);
+    var gate = new MlSignalGate(config);
+    underTest = new StrategyEvaluationService(router, mlClient, gate, signalPublisher, metrics);
     when(router.getActiveStrategy(SYMBOL)).thenReturn(Optional.of(strategy));
   }
 
@@ -67,33 +77,83 @@ public class StrategyEvaluationServiceTest {
     underTest.evaluate(tick(SYMBOL));
     verify(signalPublisher).publish(BUY_SIGNAL);
     verify(metrics).recordSignal("VWAP", Side.BUY);
+    verify(metrics).recordMlDecision(MlGateDecision.Outcome.NO_ML, "VWAP", Side.BUY);
   }
 
   @Test
   void evaluateSuppressesSignalWhenMlHighConfidenceContradicts() {
+    when(strategy.name()).thenReturn("VWAP");
     when(strategy.evaluate(SYMBOL)).thenReturn(Optional.of(BUY_SIGNAL));
     when(mlClient.getSignal(SYMBOL))
-        .thenReturn(Optional.of(new MlSignalResult(Direction.SHORT, 0.9)));
+        .thenReturn(Optional.of(new MlSignalResult(Direction.SHORT, 0.9, 0.0)));
     underTest.evaluate(tick(SYMBOL));
     verify(signalPublisher, never()).publish(any());
+    verify(metrics).recordMlDecision(MlGateDecision.Outcome.VETOED, "VWAP", Side.BUY);
   }
 
   @Test
   void evaluateProceedsWhenMlHighConfidenceAgrees() {
+    when(strategy.name()).thenReturn("VWAP");
     when(strategy.evaluate(SYMBOL)).thenReturn(Optional.of(BUY_SIGNAL));
     when(mlClient.getSignal(SYMBOL))
-        .thenReturn(Optional.of(new MlSignalResult(Direction.LONG, 0.85)));
+        .thenReturn(Optional.of(new MlSignalResult(Direction.LONG, 0.85, 0.0)));
     underTest.evaluate(tick(SYMBOL));
     verify(signalPublisher).publish(BUY_SIGNAL);
+    verify(metrics).recordMlDecision(MlGateDecision.Outcome.CONFIRMED, "VWAP", Side.BUY);
   }
 
   @Test
   void evaluateProceedsWhenMlLowConfidenceEvenIfContradicts() {
+    when(strategy.name()).thenReturn("VWAP");
     when(strategy.evaluate(SYMBOL)).thenReturn(Optional.of(BUY_SIGNAL));
     when(mlClient.getSignal(SYMBOL))
-        .thenReturn(Optional.of(new MlSignalResult(Direction.SHORT, 0.5)));
+        .thenReturn(Optional.of(new MlSignalResult(Direction.SHORT, 0.5, 0.0)));
     underTest.evaluate(tick(SYMBOL));
     verify(signalPublisher).publish(BUY_SIGNAL);
+    verify(metrics).recordMlDecision(MlGateDecision.Outcome.LOW_CONFIDENCE, "VWAP", Side.BUY);
+  }
+
+  @Test
+  void evaluatePermissiveModePublishesContradictionButTagsOverridden() {
+    var permissiveConfig =
+        new MlConfig(
+            "localhost", 50051, 0.7, VetoMode.PERMISSIVE, false, SizingMode.NONE, 0.2, 0.5, 1.5);
+    var permissiveGate = new MlSignalGate(permissiveConfig);
+    var permissiveService =
+        new StrategyEvaluationService(router, mlClient, permissiveGate, signalPublisher, metrics);
+
+    when(strategy.name()).thenReturn("VWAP");
+    when(strategy.evaluate(SYMBOL)).thenReturn(Optional.of(BUY_SIGNAL));
+    when(mlClient.getSignal(SYMBOL))
+        .thenReturn(Optional.of(new MlSignalResult(Direction.SHORT, 0.9, 0.0)));
+
+    permissiveService.evaluate(tick(SYMBOL));
+
+    verify(signalPublisher).publish(BUY_SIGNAL);
+    verify(metrics).recordMlDecision(MlGateDecision.Outcome.OVERRIDDEN, "VWAP", Side.BUY);
+  }
+
+  @Test
+  void evaluateScalesQuantityWhenSizingModeScaledAndMlAgrees() {
+    var sizingConfig =
+        new MlConfig(
+            "localhost", 50051, 0.7, VetoMode.STRICT, false, SizingMode.SCALED, 0.20, 0.50, 1.50);
+    var sizingGate = new MlSignalGate(sizingConfig);
+    var sizingService =
+        new StrategyEvaluationService(router, mlClient, sizingGate, signalPublisher, metrics);
+
+    when(strategy.name()).thenReturn("VWAP");
+    when(strategy.evaluate(SYMBOL)).thenReturn(Optional.of(BUY_SIGNAL));
+    // recommendedSize=0.30 → scale = 0.30 / 0.20 = 1.5x → 100 * 1.5 = 150
+    when(mlClient.getSignal(SYMBOL))
+        .thenReturn(Optional.of(new MlSignalResult(Direction.LONG, 0.85, 0.30)));
+
+    sizingService.evaluate(tick(SYMBOL));
+
+    var captor = ArgumentCaptor.forClass(OrderSignal.class);
+    verify(signalPublisher).publish(captor.capture());
+    assertThat(captor.getValue().quantity()).isEqualTo(150);
+    verify(metrics).recordMlQuantityScale(eq("VWAP"), doubleThat(d -> Math.abs(d - 1.5) < 1e-9));
   }
 
   private static MarketTick tick(String symbol) {

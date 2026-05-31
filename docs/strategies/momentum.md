@@ -184,4 +184,4 @@ These are deliberate scope cuts for the MVP, in the same spirit as the VWAP/TWAP
 - **Jegadeesh & Titman (1993)**: "Returns to Buying Winners and Selling Losers" — the foundational academic evidence for cross-sectional momentum.
 - **Moskowitz, Ooi & Pedersen (2012)**: "Time Series Momentum" — trend-following across asset classes.
 - **Kaufman (2013)**: "Trading Systems and Methods" — practical coverage of moving-average crossover and RSI systems.
-- [`vwap-strategy-explainer.md`](vwap-strategy-explainer.md), [`twap-strategy-explainer.md`](twap-strategy-explainer.md), and [`implementation-shortfall-strategy-explainer.md`](implementation-shortfall-strategy-explainer.md) — the sibling *execution* strategies this one complements.
+- [`vwap.md`](vwap.md), [`twap.md`](twap.md), and [`implementation-shortfall.md`](implementation-shortfall.md) — the sibling *execution* strategies this one complements.

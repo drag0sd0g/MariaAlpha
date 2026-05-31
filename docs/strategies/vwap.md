@@ -191,14 +191,14 @@ All times are converted to `America/New_York` (US Eastern Time) since the primar
 | Benchmark tracking | Better for volume-weighted benchmark | Better for time-weighted benchmark |
 | Market impact | Lower (trades with the crowd) | Higher (may trade against thin volume) |
 
-MariaAlpha implements TWAP as a separate strategy (issue 2.1.5) which simply divides the target quantity into equal slices across evenly-spaced intervals. See [`twap-strategy-explainer.md`](twap-strategy-explainer.md) for the design and how it reuses the same `TradingStrategy` plumbing as VWAP.
+MariaAlpha implements TWAP as a separate strategy (issue 2.1.5) which simply divides the target quantity into equal slices across evenly-spaced intervals. See [`twap.md`](twap.md) for the design and how it reuses the same `TradingStrategy` plumbing as VWAP.
 
-VWAP and TWAP are *execution* algorithms — they work a pre-decided parent order into the market. The [Momentum / trend-following strategy](momentum-strategy-explainer.md) (issue 2.1.6) is the complementary *alpha* strategy on the same `TradingStrategy` interface: it decides **whether** to hold a position at all, based on EMA crossovers, RSI, and volume confirmation.
+VWAP and TWAP are *execution* algorithms — they work a pre-decided parent order into the market. The [Momentum / trend-following strategy](momentum.md) (issue 2.1.6) is the complementary *alpha* strategy on the same `TradingStrategy` interface: it decides **whether** to hold a position at all, based on EMA crossovers, RSI, and volume confirmation.
 
 ## 7. Further Reading
 
 - **Almgren & Chriss (2000)**: "Optimal Execution of Portfolio Transactions" -- foundational paper on optimal trade execution
 - **Kissell & Glantz (2003)**: "Optimal Trading Strategies" -- comprehensive coverage of VWAP, TWAP, and implementation shortfall algorithms
 - **Johnson (2010)**: "Algorithmic Trading & DMA" -- practical guide to execution algorithms including VWAP
-- [`twap-strategy-explainer.md`](twap-strategy-explainer.md) and [`implementation-shortfall-strategy-explainer.md`](implementation-shortfall-strategy-explainer.md) -- the sibling *execution* strategies on the same `TradingStrategy` interface (equal-time and front-loaded slicing)
-- [`momentum-strategy-explainer.md`](momentum-strategy-explainer.md) -- the complementary trend-following *alpha* strategy
+- [`twap.md`](twap.md) and [`implementation-shortfall.md`](implementation-shortfall.md) -- the sibling *execution* strategies on the same `TradingStrategy` interface (equal-time and front-loaded slicing)
+- [`momentum.md`](momentum.md) -- the complementary trend-following *alpha* strategy

@@ -206,7 +206,7 @@ Rejects parents whose share count exceeds `max-adv-participation × ADV(symbol)`
 
 ### Stage 4: Routing
 
-The `SmartOrderRouter` interface allows for venue selection logic — choosing between multiple exchanges or dark pools based on order characteristics, market conditions, or historical fill quality. Issue 2.1.1 introduced `ScoredSmartOrderRouter`, which weighs each configured venue across four scorers (latency, fees, information-leakage, liquidity / price-improvement) and writes the full breakdown to the `routing.decisions` Kafka topic. The legacy `DirectRouter` remains as a pass-through fallback. See `docs/smart-order-router-explainer.md` for the scoring model.
+The `SmartOrderRouter` interface allows for venue selection logic — choosing between multiple exchanges or dark pools based on order characteristics, market conditions, or historical fill quality. Issue 2.1.1 introduced `ScoredSmartOrderRouter`, which weighs each configured venue across four scorers (latency, fees, information-leakage, liquidity / price-improvement) and writes the full breakdown to the `routing.decisions` Kafka topic. The legacy `DirectRouter` remains as a pass-through fallback. See [`smart-order-router.md`](smart-order-router.md) for the scoring model.
 
 Iceberg child slices flow through the same router — each child is routed independently, so a multi-venue split across an ICEBERG parent is possible.
 

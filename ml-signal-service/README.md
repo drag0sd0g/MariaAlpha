@@ -2,7 +2,7 @@
 
 Python microservice that consumes market data ticks from Kafka, computes technical indicator features, and serves directional predictions (LONG / SHORT / NEUTRAL) via gRPC. The strategy engine calls this service before acting on each order signal — if the ML model contradicts the signal with high confidence, the signal is suppressed.
 
-See [ml-signal-service-explainer.md](../docs/ml-signal-service-explainer.md) for an in-depth technical walkthrough.
+See [`ml-signal-service.md`](../docs/services/ml-signal-service.md) for an in-depth technical walkthrough.
 
 ## Interfaces
 

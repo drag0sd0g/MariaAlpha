@@ -4,6 +4,7 @@ import ConnectionStatus from "@/components/ConnectionStatus";
 import ComingSoon from "@/components/ComingSoon";
 import Dashboard from "@/pages/Dashboard";
 import OrderEntry from "@/pages/OrderEntry";
+import Rfq from "@/pages/Rfq";
 
 export default function App() {
   return (
@@ -14,7 +15,7 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="orders" element={<OrderEntry />} />
           <Route path="market-data" element={<ComingSoon page="Market Data" />} />
-          <Route path="rfq" element={<ComingSoon page="RFQ" />} />
+          <Route path="rfq" element={<Rfq />} />
           <Route path="strategies" element={<ComingSoon page="Strategy Control" />} />
           <Route path="analytics" element={<ComingSoon page="Analytics" />} />
           <Route path="reconciliation" element={<ComingSoon page="Reconciliation" />} />

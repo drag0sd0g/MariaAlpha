@@ -53,6 +53,7 @@ OUTPUT_PATH = Path(__file__).parent.parent.parent / "ml-models" / "regime_model.
 WINDOW = MIN_BARS_FOR_REGIME  # 60 bars per training sample
 DEFAULT_SAMPLES_PER_CLASS = 2_000
 
+
 # Per-class generator parameters. Drifts and vols are per-bar, in log space.
 @dataclass(frozen=True)
 class _GeneratorParams:

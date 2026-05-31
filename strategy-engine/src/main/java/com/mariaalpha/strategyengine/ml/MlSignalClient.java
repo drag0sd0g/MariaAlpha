@@ -58,7 +58,10 @@ public class MlSignalClient {
             var response =
                 stub.withDeadlineAfter(DEADLINE_MS, TimeUnit.MILLISECONDS).getSignal(request);
             return Optional.of(
-                new MlSignalResult(response.getDirection(), response.getConfidence()));
+                new MlSignalResult(
+                    response.getDirection(),
+                    response.getConfidence(),
+                    response.getRecommendedPositionSize()));
           });
     } catch (CallNotPermittedException e) {
       LOG.debug("ML circuit breaker OPEN - skipping call for {}", symbol);

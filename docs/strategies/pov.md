@@ -185,7 +185,7 @@ These mirror VWAP/TWAP/IS's MVP limitations and are deliberate scope cuts:
 - **Kissell & Glantz (2003)**: "Optimal Trading Strategies" — comprehensive coverage including a chapter on volume-participation algorithms.
 - **Johnson (2010)**: "Algorithmic Trading & DMA" — practical guide that walks through POV alongside VWAP / TWAP / IS, including the reactive-vs-scheduled trade-off.
 - **Almgren & Chriss (2000)**: "Optimal Execution of Portfolio Transactions" — the framework whose constant-impact-rate idea POV implements as a discrete on-tape heuristic.
-- [`vwap-strategy-explainer.md`](vwap-strategy-explainer.md) — the schedule-driven sibling that assumes a known volume profile.
-- [`twap-strategy-explainer.md`](twap-strategy-explainer.md) — the schedule-driven sibling that ignores volume entirely.
-- [`implementation-shortfall-strategy-explainer.md`](implementation-shortfall-strategy-explainer.md) — the front-loaded schedule strategy at the opposite end of the patient/aggressive spectrum.
-- [`tca-methodology.md`](tca-methodology.md) — how the achieved participation, slippage, and VWAP-benchmark are measured post-trade.
+- [`vwap.md`](vwap.md) — the schedule-driven sibling that assumes a known volume profile.
+- [`twap.md`](twap.md) — the schedule-driven sibling that ignores volume entirely.
+- [`implementation-shortfall.md`](implementation-shortfall.md) — the front-loaded schedule strategy at the opposite end of the patient/aggressive spectrum.
+- [`tca-methodology`](../guides/tca-methodology.md) — how the achieved participation, slippage, and VWAP-benchmark are measured post-trade.

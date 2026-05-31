@@ -26,7 +26,7 @@ That trade-off is deliberate and is exactly when you reach for TWAP over VWAP:
 - **Predictability and simplicity** — the schedule is trivial to reason about ("a slice every five minutes"), which matters for compliance, client communication, and debugging.
 - **Lower information leakage from profile-chasing** — TWAP does not lean into the open/close volume spikes the way VWAP does, so its footprint is flatter and more uniform.
 
-The cost is that TWAP can trade *against* thin liquidity (it will try to do its scheduled slice even when little is trading), so its market impact can be **higher** than VWAP on names with a strong, predictable volume shape. See the comparison table in [`vwap-strategy-explainer.md` §6](vwap-strategy-explainer.md#6-vwap-vs-twap).
+The cost is that TWAP can trade *against* thin liquidity (it will try to do its scheduled slice even when little is trading), so its market impact can be **higher** than VWAP on names with a strong, predictable volume shape. See the comparison table in [`vwap.md` §6](vwap.md#6-vwap-vs-twap).
 
 ## 3. The TWAP Slicing Algorithm
 
@@ -162,6 +162,6 @@ These mirror VWAP's MVP limitations and are deliberate scope cuts:
 - **Almgren & Chriss (2000)**: "Optimal Execution of Portfolio Transactions" — foundational paper on optimal trade execution.
 - **Kissell & Glantz (2003)**: "Optimal Trading Strategies" — comprehensive coverage of VWAP, TWAP, and implementation shortfall algorithms.
 - **Johnson (2010)**: "Algorithmic Trading & DMA" — practical guide to execution algorithms including TWAP.
-- [`vwap-strategy-explainer.md`](vwap-strategy-explainer.md) — the sibling strategy this one mirrors.
-- [`implementation-shortfall-strategy-explainer.md`](implementation-shortfall-strategy-explainer.md) — the front-loaded execution strategy that *also* mirrors TWAP's slicing but skews the allocations early (TWAP is IS at `urgency = 0`).
-- [`momentum-strategy-explainer.md`](momentum-strategy-explainer.md) — the trend-following *alpha* strategy that complements these *execution* algorithms.
+- [`vwap.md`](vwap.md) — the sibling strategy this one mirrors.
+- [`implementation-shortfall.md`](implementation-shortfall.md) — the front-loaded execution strategy that *also* mirrors TWAP's slicing but skews the allocations early (TWAP is IS at `urgency = 0`).
+- [`momentum.md`](momentum.md) — the trend-following *alpha* strategy that complements these *execution* algorithms.
