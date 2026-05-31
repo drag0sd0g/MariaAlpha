@@ -662,8 +662,8 @@ A non-obvious operational consideration: **positions cannot be sharded**. Two re
 
 ## References
 
-- **TDD:** [docs/technical-design-document.md](technical-design-document.md) — §3.5 (FR-25..28), §5.2.5, §5.4 (ERD), §7.3 (idempotency), §8.2 (metrics), §10.2 (K8s sizing).
+- **TDD:** [docs/technical-design-document.md](../technical-design-document.md) — §3.5 (FR-25..28), §5.2.5, §5.4 (ERD), §7.3 (idempotency), §8.2 (metrics), §10.2 (K8s sizing).
 - **Plan:** `local/plan-1.6.1-1.6.5-order-manager.md` — the implementation plan this module was built from.
-- **Sibling explainers:** [docs/execution-engine-explainer.md](execution-engine-explainer.md), [docs/vwap-strategy-explainer.md](vwap-strategy-explainer.md), [docs/ml-signal-service-explainer.md](ml-signal-service-explainer.md).
-- **Source root:** [order-manager/src/main/java/com/mariaalpha/ordermanager/](../order-manager/src/main/java/com/mariaalpha/ordermanager/).
-- **Liquibase changesets:** [order-manager/src/main/resources/db/changelog/changesets/](../order-manager/src/main/resources/db/changelog/changesets/).
+- **Sibling explainers:** [`execution-engine.md`](execution-engine.md), [`vwap.md`](../strategies/vwap.md), [`ml-signal-service.md`](ml-signal-service.md).
+- **Source root:** [order-manager/src/main/java/com/mariaalpha/ordermanager/](../../order-manager/src/main/java/com/mariaalpha/ordermanager/).
+- **Liquibase changesets:** [order-manager/src/main/resources/db/changelog/changesets/](../../order-manager/src/main/resources/db/changelog/changesets/).

@@ -463,7 +463,7 @@ ui/src/
 
 ### REST endpoints consumed
 
-All REST calls go through `api()` in [src/lib/api.ts](../ui/src/lib/api.ts). The function:
+All REST calls go through `api()` in [src/lib/api.ts](../../ui/src/lib/api.ts). The function:
 
 1. Resolves the API key with **runtime-config-first** precedence: reads `window.MA_CONFIG.apiKey`
    (rendered into `/config.js` at pod start by the Helm UI subchart's init container reading
@@ -492,7 +492,7 @@ Vite dev server proxy forwards `/api` and `/ws` to `http://localhost:8080`. In p
 
 ### WebSocket endpoints consumed
 
-WebSocket URLs are constructed in [src/lib/wsUrl.ts](../ui/src/lib/wsUrl.ts). The API key is
+WebSocket URLs are constructed in [src/lib/wsUrl.ts](../../ui/src/lib/wsUrl.ts). The API key is
 appended as a `?apiKey=...` query parameter because the `Authorization` header cannot be set on
 browser WebSocket connections.
 
@@ -512,7 +512,7 @@ other string is a compile-time error.
 
 ### `useWebSocket` hook
 
-[src/hooks/useWebSocket.ts](../ui/src/hooks/useWebSocket.ts) manages the full lifecycle of a single
+[src/hooks/useWebSocket.ts](../../ui/src/hooks/useWebSocket.ts) manages the full lifecycle of a single
 WebSocket connection:
 
 - Opens a connection on mount; closes cleanly (code 1000) on unmount.
@@ -527,7 +527,7 @@ WebSocket connection:
 
 ### `ConnectionStatus` overlay
 
-[src/components/ConnectionStatus.tsx](../ui/src/components/ConnectionStatus.tsx) is rendered
+[src/components/ConnectionStatus.tsx](../../ui/src/components/ConnectionStatus.tsx) is rendered
 unconditionally in `App.tsx` above the router and sits at `z-50` as a fixed top banner. It reads
 from `connectionStore` and applies a 5-second debounce before showing the red "Disconnected" banner,
 avoiding flicker during brief transient disconnects. An amber "Reconnecting…" state is shown
@@ -579,12 +579,12 @@ converts to a permanent `error` state.
 
 ## Testing
 
-Tests live alongside the source in [src/pages/](../ui/src/pages/) and [src/hooks/](../ui/src/hooks/).
+Tests live alongside the source in [src/pages/](../../ui/src/pages/) and [src/hooks/](../../ui/src/hooks/).
 
 ### Approach
 
 **REST API mocking** is handled by [MSW v2](https://mswjs.io/) (Mock Service Worker). The default
-handlers in [src/test/mockServer.ts](../ui/src/test/mockServer.ts) return plausible fixture data
+handlers in [src/test/mockServer.ts](../../ui/src/test/mockServer.ts) return plausible fixture data
 for every endpoint. Individual tests can override handlers for specific scenarios (error cases,
 empty responses).
 
@@ -592,7 +592,7 @@ empty responses).
 in the `useWebSocket` tests. This lets tests drive `onopen`, `onmessage`, and `onclose` events
 synchronously without a real server.
 
-**Environment stubs** in [src/test/setup.ts](../ui/src/test/setup.ts) set
+**Environment stubs** in [src/test/setup.ts](../../ui/src/test/setup.ts) set
 `VITE_MARIAALPHA_API_KEY` to `test-key` so `api()` and `buildWsUrl()` do not fail during tests.
 
 **ResizeObserver polyfill** is needed because jsdom does not implement it and Recharts'
@@ -627,7 +627,7 @@ VITE_MARIAALPHA_API_KEY=your-key-here
 # VITE_API_BASE_URL=    # leave blank to use Vite proxy
 ```
 
-The Vite proxy ([vite.config.ts](../ui/vite.config.ts)) forwards:
+The Vite proxy ([vite.config.ts](../../ui/vite.config.ts)) forwards:
 - `/api/**` → `http://localhost:8080` (API Gateway REST)
 - `/ws/**` → `ws://localhost:8080` (API Gateway WebSocket, with `ws: true`)
 
@@ -660,7 +660,7 @@ preferred. In the docker-compose stack the UI is served by the Vite dev server o
 
 ## Type System
 
-[src/types/api.ts](../ui/src/types/api.ts) defines TypeScript interfaces that mirror every Java DTO
+[src/types/api.ts](../../ui/src/types/api.ts) defines TypeScript interfaces that mirror every Java DTO
 consumed from the backend. The mapping is intentional: field names match exactly (Java's Jackson
 uses camelCase by default), and optional fields in the Java record/class are typed as optional in
 TypeScript.

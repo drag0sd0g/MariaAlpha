@@ -8,8 +8,15 @@ Scan the entire codebase
 Ask questions
 
 ## A deep dive into the MariaAlpha components
-@import docs/order-manager-explainer.md
-@import docs/ml-signal-service-explainer.md
-@import docs/execution-engine-explainer.md
-@import docs/internal-crossing-engine-explainer.md
-@import docs/analytics-service-explainer.md
+@import docs/services/strategy-engine.md
+@import docs/services/order-manager.md
+@import docs/services/ml-signal-service.md
+@import docs/services/execution-engine.md
+@import docs/services/internal-crossing-engine.md
+@import docs/services/analytics-service.md
+@import docs/services/smart-order-router.md
+@import docs/services/api-gateway.md
+@import docs/services/ui.md
+
+## Documentation index
+@import docs/README.md

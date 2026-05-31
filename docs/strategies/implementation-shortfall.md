@@ -185,7 +185,7 @@ These mirror VWAP/TWAP's MVP limitations and are deliberate scope cuts:
 - **Almgren & Chriss (2000)**: "Optimal Execution of Portfolio Transactions" — the optimal-trajectory framework whose `sinh` holdings curve this strategy front-loads along.
 - **Kissell & Glantz (2003)**: "Optimal Trading Strategies" — comprehensive coverage of VWAP, TWAP, and implementation shortfall algorithms.
 - **Johnson (2010)**: "Algorithmic Trading & DMA" — practical guide to execution algorithms including IS.
-- [`twap-strategy-explainer.md`](twap-strategy-explainer.md) — the sibling execution strategy this one mirrors (IS at `urgency = 0`).
-- [`vwap-strategy-explainer.md`](vwap-strategy-explainer.md) — the volume-profile execution strategy.
-- [`momentum-strategy-explainer.md`](momentum-strategy-explainer.md) — the trend-following *alpha* strategy that complements these *execution* algorithms.
-- [`tca-methodology.md`](tca-methodology.md) — how `impl_shortfall_bps` is measured post-trade, closing the loop on what IS optimizes.
+- [`twap.md`](twap.md) — the sibling execution strategy this one mirrors (IS at `urgency = 0`).
+- [`vwap.md`](vwap.md) — the volume-profile execution strategy.
+- [`momentum.md`](momentum.md) — the trend-following *alpha* strategy that complements these *execution* algorithms.
+- [`tca-methodology`](../guides/tca-methodology.md) — how `impl_shortfall_bps` is measured post-trade, closing the loop on what IS optimizes.

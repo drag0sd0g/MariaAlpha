@@ -184,6 +184,6 @@ These mirror the other execution algorithms' MVP limitations and are deliberate 
 - **Madhavan (2000)**: "Market Microstructure: A Survey" — comprehensive coverage of auction mechanics including the closing auction.
 - **Kissell & Glantz (2003)**: "Optimal Trading Strategies" — covers Close / MOC algorithms alongside VWAP / TWAP / IS.
 - **Johnson (2010)**: "Algorithmic Trading & DMA" — practical guide to MOC behaviour across major exchanges including NYSE / Nasdaq cutoff semantics.
-- [`twap-strategy-explainer.md`](twap-strategy-explainer.md) — the equal-time-slicing schedule that the Close strategy's pre-close working portion mirrors.
-- [`vwap-strategy-explainer.md`](vwap-strategy-explainer.md), [`implementation-shortfall-strategy-explainer.md`](implementation-shortfall-strategy-explainer.md), [`pov-strategy-explainer.md`](pov-strategy-explainer.md) — the four other execution strategies Close sits alongside in the registry.
-- [`tca-methodology.md`](tca-methodology.md) — how slippage against the closing benchmark is measured post-trade.
+- [`twap.md`](twap.md) — the equal-time-slicing schedule that the Close strategy's pre-close working portion mirrors.
+- [`vwap.md`](vwap.md), [`implementation-shortfall.md`](implementation-shortfall.md), [`pov.md`](pov.md) — the four other execution strategies Close sits alongside in the registry.
+- [`tca-methodology`](../guides/tca-methodology.md) — how slippage against the closing benchmark is measured post-trade.
