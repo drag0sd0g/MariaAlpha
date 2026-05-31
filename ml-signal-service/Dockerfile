@@ -21,6 +21,7 @@ COPY ml-models/ /app/ml-models/
 
 ENV PYTHONPATH="/app/src:/app/proto"
 ENV ML_SIGNAL_SIGNAL_MODEL_PATH="/app/ml-models/signal_model.joblib"
+ENV ML_SIGNAL_REGIME_MODEL_PATH="/app/ml-models/regime_model.joblib"
 
 EXPOSE 8090 50051
 

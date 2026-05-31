@@ -155,6 +155,20 @@ class FeatureEngine:
         with self._lock:
             return self._features.get(symbol)
 
+    def get_bars(self, symbol: str, n: int | None = None) -> list[Bar]:
+        """Thread-safe snapshot of the most recent completed bars for a symbol.
+
+        Used by the regime classifier, which works on a longer rolling window
+        than the signal model. Returns an empty list if the symbol is unknown.
+        """
+        with self._lock:
+            bars = self._bars.get(symbol)
+            if not bars:
+                return []
+            if n is None or n >= len(bars):
+                return list(bars)
+            return list(bars[-n:])
+
     def symbols_with_features(self) -> list[str]:
         """Return symbols that have feature vectors available."""
         with self._lock:

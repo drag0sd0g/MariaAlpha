@@ -31,6 +31,7 @@ from ml_signal.config import Settings  # noqa: E402
 from ml_signal.consumer.tick_consumer import TickConsumer  # noqa: E402
 from ml_signal.features.engine import FeatureEngine  # noqa: E402
 from ml_signal.grpc_server.servicer import SignalServicer  # noqa: E402
+from ml_signal.model.regime_model import RegimeModel  # noqa: E402
 from ml_signal.model.signal_model import SignalModel  # noqa: E402
 
 logger = structlog.get_logger()
@@ -42,12 +43,14 @@ def main() -> None:
         "starting_ml_signal_service",
         grpc_port=settings.grpc_port,
         api_port=settings.api_port,
-        model_path=settings.signal_model_path,
+        signal_model_path=settings.signal_model_path,
+        regime_model_path=settings.regime_model_path,
     )
 
     # Core components
     feature_engine = FeatureEngine(settings)
     signal_model = SignalModel(settings.signal_model_path)
+    regime_model = RegimeModel(settings.regime_model_path)
 
     # Kafka consumer (daemon thread — dies when main thread exits)
     consumer = TickConsumer(settings, feature_engine)
@@ -56,14 +59,14 @@ def main() -> None:
 
     # gRPC server
     grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=settings.grpc_max_workers))
-    servicer = SignalServicer(feature_engine, signal_model)
+    servicer = SignalServicer(feature_engine, signal_model, regime_model)
     signal_pb2_grpc.add_SignalServiceServicer_to_server(servicer, grpc_server)
     grpc_server.add_insecure_port(f"[::]:{settings.grpc_port}")
     grpc_server.start()
     logger.info("grpc_server_started", port=settings.grpc_port)
 
     # FastAPI (blocks on main thread)
-    app = create_app(feature_engine, signal_model, settings)
+    app = create_app(feature_engine, signal_model, regime_model, settings)
     uvicorn.run(app, host="0.0.0.0", port=settings.api_port, log_level="info")
 
 

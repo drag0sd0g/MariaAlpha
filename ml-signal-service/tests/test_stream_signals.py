@@ -17,6 +17,7 @@ from lightgbm import LGBMClassifier
 
 from ml_signal.features.engine import FEATURE_NAMES, FeatureEngine
 from ml_signal.grpc_server.servicer import SignalServicer
+from ml_signal.model.regime_model import RegimeModel
 from ml_signal.model.signal_model import SignalModel
 
 
@@ -33,10 +34,12 @@ def model_and_engine(settings, tmp_path: Path) -> tuple[SignalModel, FeatureEngi
 
 
 @pytest.fixture
-def stream_setup(model_and_engine: tuple[SignalModel, FeatureEngine]):
+def stream_setup(model_and_engine: tuple[SignalModel, FeatureEngine], tmp_path: Path):
     signal_model, feature_engine = model_and_engine
+    # StreamSignals doesn't touch the regime model, so an unloaded stub suffices.
+    regime_model = RegimeModel(str(tmp_path / "regime-absent.joblib"))
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=4))
-    servicer = SignalServicer(feature_engine, signal_model)
+    servicer = SignalServicer(feature_engine, signal_model, regime_model)
     signal_pb2_grpc.add_SignalServiceServicer_to_server(servicer, server)
     port = server.add_insecure_port("[::]:0")
     server.start()
