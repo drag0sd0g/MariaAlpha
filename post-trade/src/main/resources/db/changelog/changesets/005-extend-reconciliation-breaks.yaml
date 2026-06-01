@@ -1,0 +1,47 @@
+databaseChangeLog:
+  - changeSet:
+      id: post-trade-005-extend-reconciliation-breaks
+      author: mariaalpha
+      changes:
+        - addColumn:
+            tableName: reconciliation_breaks
+            columns:
+              - column:
+                  name: symbol
+                  type: varchar(16)
+              - column:
+                  name: description
+                  type: varchar(512)
+              - column:
+                  name: internal_qty
+                  type: decimal(18,8)
+              - column:
+                  name: external_qty
+                  type: decimal(18,8)
+              - column:
+                  name: internal_price
+                  type: decimal(18,8)
+              - column:
+                  name: external_price
+                  type: decimal(18,8)
+              - column:
+                  name: notional
+                  type: decimal(18,8)
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: true
+        # 2.6.1: MISSING_FILL breaks may not have an internal orderId (Alpaca reported a fill we
+        # never recorded). Drop the NOT NULL so those rows can persist with order_id = NULL.
+        - dropNotNullConstraint:
+            tableName: reconciliation_breaks
+            columnName: order_id
+            columnDataType: uuid
+        - createIndex:
+            indexName: idx_reconciliation_breaks_created_at
+            tableName: reconciliation_breaks
+            columns:
+              - column:
+                  name: created_at

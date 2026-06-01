@@ -3,15 +3,19 @@ package com.mariaalpha.ordermanager.controller;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
+import com.mariaalpha.ordermanager.controller.dto.FillForReconResponse;
 import com.mariaalpha.ordermanager.controller.dto.FillResponse;
 import com.mariaalpha.ordermanager.controller.dto.OrderResponse;
 import com.mariaalpha.ordermanager.model.OrderStatus;
 import com.mariaalpha.ordermanager.repository.FillRepository;
 import com.mariaalpha.ordermanager.repository.OrderRepository;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -53,6 +57,22 @@ public class OrderController {
         .search(symbol, status, strategy, from, to, PageRequest.of(0, clamped))
         .stream()
         .map(OrderResponse::of)
+        .toList();
+  }
+
+  /**
+   * Returns every fill recorded on a calendar date (UTC). Powers the post-trade EOD reconciliation
+   * engine (issue 2.6.1). Each row is enriched with the parent order's {@code clientOrderId} and
+   * {@code exchangeOrderId} so the consumer can match against external venue activity without a
+   * follow-up call.
+   */
+  @GetMapping("/fills/by-date")
+  public List<FillForReconResponse> fillsByDate(
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+    Instant from = date.atStartOfDay(ZoneOffset.UTC).toInstant();
+    Instant to = date.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+    return fillRepository.findFillsBetween(from, to).stream()
+        .map(FillForReconResponse::of)
         .toList();
   }
 

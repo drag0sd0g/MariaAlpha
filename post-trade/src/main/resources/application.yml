@@ -43,12 +43,31 @@ post-trade:
     orders-lifecycle-topic: orders.lifecycle
     market-data-topic: market-data.ticks
     analytics-tca-topic: analytics.tca
+    risk-alerts-topic: analytics.risk-alerts
   tca:
     market-data-cache-ttl-seconds: 21600
     market-data-cache-max-ticks-per-symbol: 20000
     arrival-snapshot-max-lookback-seconds: 60
     order-manager-base-url: ${ORDER_MANAGER_BASE_URL:http://localhost:8086}
     order-manager-http-timeout-ms: 2000
+  recon:
+    enabled: ${POST_TRADE_RECON_ENABLED:true}
+    # MIRROR for simulated stacks (default), EXTERNAL hits Alpaca with the configured creds.
+    mode: ${POST_TRADE_RECON_MODE:MIRROR}
+    # Daily at 22:00 in the configured zone (post-close, after the activities API has settled).
+    cron: ${POST_TRADE_RECON_CRON:0 0 22 * * MON-FRI}
+    schedule-zone: ${POST_TRADE_RECON_ZONE:America/New_York}
+    target-date: ${POST_TRADE_RECON_TARGET:TODAY}
+    price-tolerance-bps: 1.0
+    quantity-tolerance: 0.001
+    high-severity-notional: 10000
+    critical-severity-notional: 100000
+    alpaca:
+      base-url: ${ALPACA_BASE_URL:https://paper-api.alpaca.markets}
+      api-key: ${ALPACA_API_KEY_ID:}
+      api-secret: ${ALPACA_API_SECRET_KEY:}
+      http-timeout-ms: 10000
+      activity-types: FILL
 
 management:
   server:
@@ -77,5 +96,7 @@ management:
       percentiles-histogram:
         mariaalpha.tca.slippage.bps: true
         mariaalpha.tca.computation.duration.ms: true
+        mariaalpha.recon.duration.seconds: true
       percentiles:
         mariaalpha.tca.slippage.bps: 0.5,0.95,0.99
+        mariaalpha.recon.duration.seconds: 0.5,0.95,0.99

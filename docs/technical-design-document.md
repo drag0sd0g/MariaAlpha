@@ -639,6 +639,8 @@ public interface ExchangeAdapter {
 
 **TCA Metrics Per Order:** slippage (bps), implementation shortfall (bps), VWAP benchmark (bps), spread cost (bps). See sequence diagram in §2.6.3 for reconciliation flow.
 
+**EOD reconciliation engine (issue 2.6.1):** A Spring `@Scheduled` cron (default `0 0 22 * * MON-FRI` in `America/New_York`) fires `EodReconciliationService.runForDate(...)` for the configured target date. The engine pulls internal fills from `order-manager` via `GET /api/orders/fills/by-date?date=...` and external activities from the venue via `GET /v2/account/activities?activity_types=FILL&date=...`. A pure `ReconciliationComparator` aggregates fills per order (keyed by exchange order id with a `client_order_id` fallback) and emits breaks of four types: `MISSING_FILL` (external-only), `EXTRA_FILL` (internal-only), `QUANTITY_MISMATCH` (|qty diff| > tolerance), and `PRICE_MISMATCH` (|relative diff| > priceToleranceBps). Severity scales with absolute notional (`HIGH` ≥ $10k, `CRITICAL` ≥ $100k) or, for price breaks, with the bps-diff magnitude relative to the configured tolerance. Each break is persisted to `reconciliation_breaks`, counted on `mariaalpha_recon_breaks_total{break_type,severity}`, and published as a `RECON_BREAK` event on `analytics.risk-alerts` — the same topic the api-gateway forwards over `/ws/alerts`. The run itself upserts one row in `reconciliation_runs` keyed by `recon_date` (§7.3 idempotency: re-running for the same date wipes prior breaks first). Manual triggers go through `POST /api/recon/run?date=YYYY-MM-DD`. Two modes are supported via `post-trade.recon.mode`: `EXTERNAL` (Alpaca HTTP) and `MIRROR` (echoes internal fills back as external for the simulated docker-compose stack — keeps the engine end-to-end exercisable without venue credentials).
+
 #### 5.2.7 Analytics Service
 
 | Property | Value |
@@ -1173,7 +1175,9 @@ These are instrumented explicitly in application code:
 | `mariaalpha_portfolio_total_pnl` | Gauge | — | Total P&L |
 | `mariaalpha_portfolio_gross_exposure` | Gauge | — | Gross exposure |
 | `mariaalpha_ml_inference_duration_ms` | Histogram | `model` | Model inference latency |
-| `mariaalpha_recon_breaks_total` | Counter | `break_type`, `severity` | Reconciliation breaks |
+| `mariaalpha_recon_breaks_total` | Counter | `break_type`, `severity` | Reconciliation breaks (issue 2.6.1) |
+| `mariaalpha_recon_runs_total` | Counter | `status`, `source` | EOD reconciliation runs by status (SUCCESS/FAILED) and source (SCHEDULED/MANUAL) |
+| `mariaalpha_recon_duration_seconds` | Timer | — | Wall-clock duration of EOD reconciliation runs |
 | `mariaalpha_tca_slippage_bps` | Histogram | `strategy` | Slippage distribution |
 
 ### 8.3 Grafana Dashboards
@@ -1414,7 +1418,7 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 | [2.5.3](https://github.com/drag0sd0g/MariaAlpha/issues/75)✅ | Implement Analytics page (TCA, PnL attribution, performance) | React UI |
 | [2.5.4](https://github.com/drag0sd0g/MariaAlpha/issues/76)✅ | Implement Reconciliation page | React UI |
 | [2.5.5](https://github.com/drag0sd0g/MariaAlpha/issues/77)✅ | Implement WebSocket streaming for positions, orders, alerts | React UI |
-| [2.6.1](https://github.com/drag0sd0g/MariaAlpha/issues/78) | Implement end-of-day reconciliation engine | Post-Trade |
+| [2.6.1](https://github.com/drag0sd0g/MariaAlpha/issues/78) ✅ | Implement end-of-day reconciliation engine | Post-Trade |
 | [2.6.2](https://github.com/drag0sd0g/MariaAlpha/issues/79) | Create Grafana Trading Pipeline dashboard | Observability |
 | [2.6.3](https://github.com/drag0sd0g/MariaAlpha/issues/80) | Create Grafana Portfolio & Risk dashboard | Observability |
 | [2.6.4](https://github.com/drag0sd0g/MariaAlpha/issues/81) | Create Grafana Post-Trade & Quality dashboard | Observability |

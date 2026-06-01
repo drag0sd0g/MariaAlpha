@@ -21,7 +21,8 @@ class TcaResultPublisherTest {
 
   private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
   private final KafkaConfig kafkaConfig =
-      new KafkaConfig("orders.lifecycle", "market-data.ticks", "analytics.tca");
+      new KafkaConfig(
+          "orders.lifecycle", "market-data.ticks", "analytics.tca", "analytics.risk-alerts");
 
   @Test
   @SuppressWarnings("unchecked")

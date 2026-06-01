@@ -1,12 +1,16 @@
 package com.mariaalpha.posttrade.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.mariaalpha.posttrade.model.OrderStatus;
+import java.time.LocalDate;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,7 +29,8 @@ class OrderManagerClientTest {
   void setUp() {
     RestClient.Builder builder = RestClient.builder().baseUrl("http://localhost");
     server = MockRestServiceServer.bindTo(builder).build();
-    client = new OrderManagerClient(builder.build());
+    ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+    client = new OrderManagerClient(builder.build(), objectMapper);
   }
 
   @Test
@@ -65,6 +70,46 @@ class OrderManagerClientTest {
         .expect(requestTo("http://localhost/api/orders/" + orderId))
         .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
     assertThat(client.fetchOrder(orderId)).isEmpty();
+  }
+
+  @Test
+  void fetchFillsForDateDeserializesFillList() {
+    var orderId = UUID.randomUUID();
+    var fillId = UUID.randomUUID();
+    String json =
+        "[{\"fillId\":\""
+            + fillId
+            + "\",\"orderId\":\""
+            + orderId
+            + "\",\"clientOrderId\":\"c-1\",\"exchangeOrderId\":\"alpaca-1\","
+            + "\"symbol\":\"AAPL\",\"side\":\"BUY\",\"fillPrice\":180.05,\"fillQuantity\":100,"
+            + "\"commission\":0,\"venue\":\"PRIMARY\",\"exchangeFillId\":\"fill-1\","
+            + "\"filledAt\":\"2026-04-20T09:30:00Z\"}]";
+    server
+        .expect(requestTo("http://localhost/api/orders/fills/by-date?date=2026-04-20"))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withSuccess(json, MediaType.APPLICATION_JSON));
+    var result = client.fetchFillsForDate(LocalDate.of(2026, 4, 20));
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).symbol()).isEqualTo("AAPL");
+    assertThat(result.get(0).exchangeOrderId()).isEqualTo("alpaca-1");
+  }
+
+  @Test
+  void fetchFillsForDateOnEmptyArrayReturnsEmpty() {
+    server
+        .expect(requestTo("http://localhost/api/orders/fills/by-date?date=2026-04-20"))
+        .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+    assertThat(client.fetchFillsForDate(LocalDate.of(2026, 4, 20))).isEmpty();
+  }
+
+  @Test
+  void fetchFillsForDateOn5xxThrowsUnavailable() {
+    server
+        .expect(requestTo("http://localhost/api/orders/fills/by-date?date=2026-04-20"))
+        .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
+    assertThatThrownBy(() -> client.fetchFillsForDate(LocalDate.of(2026, 4, 20)))
+        .isInstanceOf(OrderManagerUnavailableException.class);
   }
 
   @Test

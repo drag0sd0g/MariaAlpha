@@ -1,0 +1,61 @@
+databaseChangeLog:
+  - changeSet:
+      id: post-trade-006-create-reconciliation-runs
+      author: mariaalpha
+      changes:
+        - createTable:
+            tableName: reconciliation_runs
+            columns:
+              - column:
+                  name: run_id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_reconciliation_runs
+              - column:
+                  name: recon_date
+                  type: date
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: uk_reconciliation_runs_recon_date
+              - column:
+                  name: status
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: started_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+              - column:
+                  name: finished_at
+                  type: timestamptz
+              - column:
+                  name: internal_fills_count
+                  type: integer
+                  defaultValueNumeric: 0
+              - column:
+                  name: external_fills_count
+                  type: integer
+                  defaultValueNumeric: 0
+              - column:
+                  name: breaks_count
+                  type: integer
+                  defaultValueNumeric: 0
+              - column:
+                  name: error_message
+                  type: varchar(1024)
+        - createIndex:
+            indexName: idx_reconciliation_runs_started_at
+            tableName: reconciliation_runs
+            columns:
+              - column:
+                  name: started_at
