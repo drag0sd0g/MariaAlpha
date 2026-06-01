@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { useWebSocket } from "@/hooks/useWebSocket";
+import { useConnectionStore } from "@/stores/connectionStore";
 import { usePositionStore } from "@/stores/positionStore";
-import type { PortfolioSummary, Position, PositionUpdate } from "@/types/api";
+import type { PortfolioSummary, Position } from "@/types/api";
 import SummaryCards from "@/components/SummaryCards";
 import PositionsTable from "@/components/PositionsTable";
 import DailyPnlChart from "@/components/DailyPnlChart";
@@ -11,7 +11,10 @@ export default function Dashboard() {
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const replaceAll = usePositionStore((s) => s.replaceAll);
-  const applyUpdate = usePositionStore((s) => s.applyUpdate);
+  // App-wide /ws/positions connection lives in AppWideStreams (issue 2.5.5).
+  // We reload the REST snapshot whenever the shared connection becomes open
+  // so a reconnect resyncs the table without each page owning its own socket.
+  const positionsWsState = useConnectionStore((s) => s.states["/ws/positions"]);
 
   const loadSnapshot = async (): Promise<void> => {
     try {
@@ -32,15 +35,10 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const { state } = useWebSocket<PositionUpdate>({
-    endpoint: "/ws/positions",
-    onMessage: applyUpdate,
-  });
-
   useEffect(() => {
-    if (state === "open") void loadSnapshot();
+    if (positionsWsState === "open") void loadSnapshot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state]);
+  }, [positionsWsState]);
 
   return (
     <div className="p-6 space-y-6">

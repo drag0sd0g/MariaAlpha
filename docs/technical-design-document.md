@@ -1409,11 +1409,11 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 | [2.3.2](https://github.com/drag0sd0g/MariaAlpha/issues/70) ✅| Implement ML signal confirmation/veto logic in Strategy Engine | Strategy Engine |
 | [2.4.1](https://github.com/drag0sd0g/MariaAlpha/issues/71)✅ | Implement inventory-aware RFQ pricing | Strategy Engine |
 | [2.4.2](https://github.com/drag0sd0g/MariaAlpha/issues/72)✅ | Implement volatility-adjusted and ADV-relative spread pricing | Strategy Engine |
-| [2.5.1](https://github.com/drag0sd0g/MariaAlpha/issues/73) | Implement RFQ page in React UI | React UI |
-| [2.5.2](https://github.com/drag0sd0g/MariaAlpha/issues/74) | Implement Strategy Control page with regime display | React UI |
-| [2.5.3](https://github.com/drag0sd0g/MariaAlpha/issues/75) | Implement Analytics page (TCA, PnL attribution, performance) | React UI |
-| [2.5.4](https://github.com/drag0sd0g/MariaAlpha/issues/76) | Implement Reconciliation page | React UI |
-| [2.5.5](https://github.com/drag0sd0g/MariaAlpha/issues/77) | Implement WebSocket streaming for positions, orders, alerts | React UI |
+| [2.5.1](https://github.com/drag0sd0g/MariaAlpha/issues/73) ✅| Implement RFQ page in React UI | React UI |
+| [2.5.2](https://github.com/drag0sd0g/MariaAlpha/issues/74)✅ | Implement Strategy Control page with regime display | React UI |
+| [2.5.3](https://github.com/drag0sd0g/MariaAlpha/issues/75)✅ | Implement Analytics page (TCA, PnL attribution, performance) | React UI |
+| [2.5.4](https://github.com/drag0sd0g/MariaAlpha/issues/76)✅ | Implement Reconciliation page | React UI |
+| [2.5.5](https://github.com/drag0sd0g/MariaAlpha/issues/77)✅ | Implement WebSocket streaming for positions, orders, alerts | React UI |
 | [2.6.1](https://github.com/drag0sd0g/MariaAlpha/issues/78) | Implement end-of-day reconciliation engine | Post-Trade |
 | [2.6.2](https://github.com/drag0sd0g/MariaAlpha/issues/79) | Create Grafana Trading Pipeline dashboard | Observability |
 | [2.6.3](https://github.com/drag0sd0g/MariaAlpha/issues/80) | Create Grafana Portfolio & Risk dashboard | Observability |
@@ -1424,8 +1424,7 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 | [2.7.4](https://github.com/drag0sd0g/MariaAlpha/issues/85) | Introduce Redis for distributed position cache | Infrastructure |
 | [2.7.5](https://github.com/drag0sd0g/MariaAlpha/issues/86) | Create Bruno API collection with example requests | Developer Experience |
 
-### Phase 3: Derivatives + Tokyo Market + Program Trading
-
+### Phase 3: Derivatives + Tokyo Market + Program Tradingare
 | # | Issue Title | Component |
 | --- | --- | --- |
 | [3.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/87) | Implement IBKR `MarketDataAdapter` (TWS API) | Market Data GW |
