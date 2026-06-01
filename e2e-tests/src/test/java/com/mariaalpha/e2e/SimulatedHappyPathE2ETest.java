@@ -272,6 +272,44 @@ class SimulatedHappyPathE2ETest {
         assertThat(resp.get("status").asText()).isEqualTo("ACCEPTED");
     }
 
+    @Test
+    void eodReconciliationProducesCleanRunInMirrorMode() throws Exception {
+        // Ensure at least one fill has landed before triggering recon, otherwise the matcher has
+        // nothing to compare. Either of the other tests in this class will satisfy this — gate on
+        // an AAPL FILLED order rather than running our own strategy bind.
+        await().atMost(60, TimeUnit.SECONDS)
+                .pollInterval(Duration.ofMillis(500))
+                .ignoreExceptions()
+                .until(() -> {
+                    var orders = httpGetAndCheck("/api/orders?status=FILLED");
+                    return orders.isArray() && orders.size() > 0;
+                });
+
+        // Trigger today's recon (UTC — fills land with Instant.now() which is UTC-based).
+        // The simulated stack runs in MIRROR mode so internal fills are echoed back as external —
+        // expect SUCCESS and 0 breaks.
+        var today = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toString();
+        var resp = httpPostAndCheck("/api/recon/run?date=" + today, "{}");
+        assertThat(resp.get("status").asText()).isEqualTo("SUCCESS");
+        assertThat(resp.get("source").asText()).isEqualTo("MANUAL");
+        assertThat(resp.get("breaksCount").asInt())
+                .as("MIRROR mode echoes internal fills, so the comparator must produce no breaks")
+                .isZero();
+        assertThat(resp.get("internalFillsCount").asInt())
+                .as("at least one fill should have been visible to the comparator")
+                .isGreaterThan(0);
+
+        // Summary now reflects the run record.
+        var summary = httpGetAndCheck("/api/recon/summary?date=" + today);
+        assertThat(summary.get("totalBreaks").asInt()).isZero();
+        assertThat(summary.get("run").get("status").asText()).isEqualTo("SUCCESS");
+
+        // Run record listed by /api/recon/runs
+        var runs = httpGetAndCheck("/api/recon/runs");
+        assertThat(runs.isArray()).isTrue();
+        assertThat(runs.size()).isGreaterThanOrEqualTo(1);
+    }
+
     private JsonNode requestRfqQuoteForAapl() throws Exception {
         var requestBody = "{\"symbol\":\"AAPL\",\"quantity\":100}";
         HttpResponse<String> response = httpClient.send(HttpRequest.newBuilder()

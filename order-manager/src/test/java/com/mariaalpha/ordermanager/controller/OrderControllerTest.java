@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.mariaalpha.ordermanager.entity.FillEntity;
 import com.mariaalpha.ordermanager.entity.OrderEntity;
 import com.mariaalpha.ordermanager.model.OrderStatus;
 import com.mariaalpha.ordermanager.model.OrderType;
@@ -15,6 +16,8 @@ import com.mariaalpha.ordermanager.repository.FillRepository;
 import com.mariaalpha.ordermanager.repository.OrderRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -102,6 +105,32 @@ class OrderControllerTest {
         .thenReturn(List.of());
 
     mockMvc.perform(get("/api/orders?limit=10000")).andExpect(status().isOk());
+  }
+
+  @Test
+  void fillsByDateReturnsFillsInDateWindow() throws Exception {
+    var order = sampleOrder("c1", "AAPL");
+    var fill = new FillEntity();
+    fill.setFillId(UUID.randomUUID());
+    fill.setOrder(order);
+    fill.setSymbol("AAPL");
+    fill.setSide(Side.BUY);
+    fill.setFillPrice(BigDecimal.valueOf(180.05));
+    fill.setFillQuantity(BigDecimal.valueOf(100));
+    fill.setCommission(BigDecimal.ZERO);
+    fill.setVenue("PRIMARY");
+    fill.setExchangeFillId("xf-1");
+    fill.setFilledAt(Instant.parse("2026-06-01T15:30:00Z"));
+    var from = LocalDate.of(2026, 6, 1).atStartOfDay(ZoneOffset.UTC).toInstant();
+    var to = LocalDate.of(2026, 6, 2).atStartOfDay(ZoneOffset.UTC).toInstant();
+    when(fillRepository.findFillsBetween(from, to)).thenReturn(List.of(fill));
+
+    mockMvc
+        .perform(get("/api/orders/fills/by-date?date=2026-06-01"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(1))
+        .andExpect(jsonPath("$[0].symbol").value("AAPL"))
+        .andExpect(jsonPath("$[0].clientOrderId").value("c1"));
   }
 
   private OrderEntity sampleOrder(String clientId, String symbol) {

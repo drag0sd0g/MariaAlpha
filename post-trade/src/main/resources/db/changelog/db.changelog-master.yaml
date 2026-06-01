@@ -11,3 +11,9 @@ databaseChangeLog:
   - include:
       file: changesets/004-add-created-at-to-tca-results.yaml
       relativeToChangelogFile: true
+  - include:
+      file: changesets/005-extend-reconciliation-breaks.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/006-create-reconciliation-runs.yaml
+      relativeToChangelogFile: true

@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 public interface ReconciliationBreakRepository
@@ -15,8 +16,8 @@ public interface ReconciliationBreakRepository
   List<ReconciliationBreakEntity> findByOrderIdOrderByReconDateDesc(UUID orderId);
 
   /**
-   * Returns the most recent {@code limit} reconciliation dates that produced at least one break,
-   * newest first. Used by the UI to populate the "recent runs" picker.
+   * Returns the distinct reconciliation dates that produced at least one break, newest first. Used
+   * by the UI to populate the "recent runs" picker.
    */
   @Query(
       """
@@ -24,4 +25,12 @@ public interface ReconciliationBreakRepository
       ORDER BY r.reconDate DESC
       """)
   List<LocalDate> findRecentReconDates();
+
+  /**
+   * Idempotency support — recon results are keyed by {@code reconDate} (§7.3): re-running for the
+   * same date wipes prior breaks before writing new ones, so a partial earlier run can't leave
+   * stale rows.
+   */
+  @Modifying
+  long deleteByReconDate(LocalDate reconDate);
 }

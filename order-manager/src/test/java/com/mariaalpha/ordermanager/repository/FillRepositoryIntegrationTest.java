@@ -96,6 +96,28 @@ class FillRepositoryIntegrationTest {
   }
 
   @Test
+  void findFillsBetweenReturnsFillsInWindowOnly() {
+    var order = orderRepository.save(newOrder("AAPL", Side.BUY, "c1"));
+    var inside = newFill(order, "EX-F-INSIDE", BigDecimal.valueOf(10));
+    inside.setFilledAt(Instant.parse("2026-06-01T15:30:00Z"));
+    var before = newFill(order, "EX-F-BEFORE", BigDecimal.valueOf(20));
+    before.setFilledAt(Instant.parse("2026-05-31T23:59:59Z"));
+    var after = newFill(order, "EX-F-AFTER", BigDecimal.valueOf(30));
+    after.setFilledAt(Instant.parse("2026-06-02T00:00:00Z"));
+    fillRepository.save(inside);
+    fillRepository.save(before);
+    fillRepository.save(after);
+
+    var from = Instant.parse("2026-06-01T00:00:00Z");
+    var to = Instant.parse("2026-06-02T00:00:00Z");
+    List<FillEntity> result = fillRepository.findFillsBetween(from, to);
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).getExchangeFillId()).isEqualTo("EX-F-INSIDE");
+    // JOIN FETCH means the parent order's clientOrderId is populated without a lazy lookup.
+    assertThat(result.get(0).getOrder().getClientOrderId()).isEqualTo("c1");
+  }
+
+  @Test
   void commissionDefaultsToZeroWhenNotSet() {
     var order = orderRepository.save(newOrder("AAPL", Side.BUY, "c1"));
     var fill = newFill(order, "EX-F-1", BigDecimal.valueOf(5));

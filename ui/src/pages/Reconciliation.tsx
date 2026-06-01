@@ -4,10 +4,31 @@ import { api } from "@/lib/api";
 interface ReconBreak {
   breakId: string;
   reconDate: string;
-  orderId: string;
+  orderId?: string;
   breakType: string;
   severity: string;
   resolution?: string;
+  symbol?: string;
+  description?: string;
+  internalQty?: string;
+  externalQty?: string;
+  internalPrice?: string;
+  externalPrice?: string;
+  notional?: string;
+  createdAt?: string;
+}
+
+interface ReconRun {
+  runId: string;
+  reconDate: string;
+  status: string;
+  source: string;
+  startedAt: string;
+  finishedAt?: string;
+  internalFillsCount?: number;
+  externalFillsCount?: number;
+  breaksCount?: number;
+  errorMessage?: string;
 }
 
 interface ReconSummary {
@@ -15,6 +36,7 @@ interface ReconSummary {
   totalBreaks: number;
   bySeverity: Record<string, number>;
   byBreakType: Record<string, number>;
+  run?: ReconRun;
 }
 
 const todayIso = (): string => new Date().toISOString().slice(0, 10);
@@ -34,12 +56,26 @@ const severityClass = (s: string): string => {
   }
 };
 
+const runStatusClass = (s?: string): string => {
+  switch ((s ?? "").toUpperCase()) {
+    case "SUCCESS":
+      return "bg-green-100 text-green-800";
+    case "FAILED":
+      return "bg-red-100 text-red-800";
+    case "IN_PROGRESS":
+      return "bg-blue-100 text-blue-800";
+    default:
+      return "bg-slate-100 text-slate-700";
+  }
+};
+
 export default function Reconciliation() {
   const [reconDate, setReconDate] = useState<string>(todayIso());
-  const [runs, setRuns] = useState<string[]>([]);
+  const [runs, setRuns] = useState<ReconRun[]>([]);
   const [breaks, setBreaks] = useState<ReconBreak[]>([]);
   const [summary, setSummary] = useState<ReconSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [triggering, setTriggering] = useState(false);
 
   const load = useCallback(async (): Promise<void> => {
     try {
@@ -57,13 +93,26 @@ export default function Reconciliation() {
 
   const loadRuns = useCallback(async (): Promise<void> => {
     try {
-      const r = await api<string[]>("/api/recon/runs");
+      const r = await api<ReconRun[]>("/api/recon/runs");
       setRuns(r);
     } catch (e) {
       // non-fatal — leave runs empty
       console.warn("recon runs failed", e);
     }
   }, []);
+
+  const triggerRun = useCallback(async (): Promise<void> => {
+    setTriggering(true);
+    try {
+      await api<ReconRun>(`/api/recon/run?date=${reconDate}`, { method: "POST" });
+      await Promise.all([load(), loadRuns()]);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setTriggering(false);
+    }
+  }, [reconDate, load, loadRuns]);
 
   useEffect(() => {
     void loadRuns();
@@ -73,14 +122,19 @@ export default function Reconciliation() {
     void load();
   }, [load]);
 
-  const matched = useMemo(() => (summary ? Math.max(0, 100 - summary.totalBreaks) : 0), [summary]);
+  // Matched count — when we know how many external fills came in, "matched" is external - breaks.
+  // Falls back to "—" when there's no run record (the engine hasn't fired for this date).
+  const matched = useMemo<number | "—">(() => {
+    if (summary?.run?.externalFillsCount == null) return "—";
+    return Math.max(0, summary.run.externalFillsCount - summary.totalBreaks);
+  }, [summary]);
 
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Reconciliation</h1>
       <p className="text-sm text-slate-600">
-        End-of-day reconciliation breaks between internal fills and Alpaca account activities (FR-29
-        / FR-30). The engine itself ships in 2.6.1 — these views light up the moment a run lands.
+        End-of-day reconciliation between internal fills and the venue's activity report
+        (FR-29/FR-30). Trigger an ad-hoc run for any date, or wait for the nightly scheduler.
       </p>
 
       <div className="flex flex-wrap items-end gap-3">
@@ -108,8 +162,8 @@ export default function Reconciliation() {
               }}
             >
               {runs.map((r) => (
-                <option key={r} value={r}>
-                  {r}
+                <option key={r.runId} value={r.reconDate}>
+                  {r.reconDate} ({r.status})
                 </option>
               ))}
             </select>
@@ -125,11 +179,56 @@ export default function Reconciliation() {
         >
           Refresh
         </button>
+        <button
+          data-testid="recon-trigger"
+          className="rounded bg-emerald-600 px-3 py-1 text-white text-sm disabled:opacity-50"
+          disabled={triggering}
+          onClick={() => {
+            void triggerRun();
+          }}
+        >
+          {triggering ? "Running…" : "Run reconciliation"}
+        </button>
       </div>
 
       {error && (
         <div className="rounded bg-red-50 p-3 text-red-700" data-testid="recon-error">
           {error}
+        </div>
+      )}
+
+      {summary?.run && (
+        <div className="rounded bg-white p-4 shadow-sm" data-testid="recon-run">
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <span
+              className={`rounded px-2 py-0.5 text-xs ${runStatusClass(summary.run.status)}`}
+              data-testid="recon-run-status"
+            >
+              {summary.run.status}
+            </span>
+            <span className="text-slate-600">source: {summary.run.source}</span>
+            {summary.run.startedAt && (
+              <span className="text-slate-600">started: {summary.run.startedAt}</span>
+            )}
+            {summary.run.finishedAt && (
+              <span className="text-slate-600">finished: {summary.run.finishedAt}</span>
+            )}
+            {summary.run.internalFillsCount != null && (
+              <span className="text-slate-600">
+                internal fills: {summary.run.internalFillsCount}
+              </span>
+            )}
+            {summary.run.externalFillsCount != null && (
+              <span className="text-slate-600">
+                external fills: {summary.run.externalFillsCount}
+              </span>
+            )}
+          </div>
+          {summary.run.errorMessage && (
+            <div className="mt-2 text-sm text-red-700" data-testid="recon-run-error">
+              {summary.run.errorMessage}
+            </div>
+          )}
         </div>
       )}
 
@@ -139,7 +238,7 @@ export default function Reconciliation() {
           value={summary?.totalBreaks ?? 0}
           accent={summary && summary.totalBreaks > 0 ? "bad" : "good"}
         />
-        <Card title="Implied matched (vs 100)" value={matched} accent="good" />
+        <Card title="Matched" value={matched} accent="good" />
         <Card
           title="Critical"
           value={summary?.bySeverity.CRITICAL ?? 0}
@@ -158,15 +257,17 @@ export default function Reconciliation() {
             <tr>
               <th className="px-4 py-2 text-left">Break ID</th>
               <th className="px-4 py-2 text-left">Order</th>
+              <th className="px-4 py-2 text-left">Symbol</th>
               <th className="px-4 py-2 text-left">Type</th>
               <th className="px-4 py-2 text-left">Severity</th>
+              <th className="px-4 py-2 text-left">Description</th>
               <th className="px-4 py-2 text-left">Resolution</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-sm">
             {breaks.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-slate-500">
+                <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
                   No reconciliation breaks recorded for {reconDate}.
                 </td>
               </tr>
@@ -174,13 +275,17 @@ export default function Reconciliation() {
             {breaks.map((b) => (
               <tr key={b.breakId}>
                 <td className="px-4 py-2 font-mono text-xs">{b.breakId.slice(0, 8)}</td>
-                <td className="px-4 py-2 font-mono text-xs">{b.orderId.slice(0, 8)}</td>
+                <td className="px-4 py-2 font-mono text-xs">
+                  {b.orderId ? b.orderId.slice(0, 8) : "—"}
+                </td>
+                <td className="px-4 py-2">{b.symbol ?? "—"}</td>
                 <td className="px-4 py-2">{b.breakType}</td>
                 <td className="px-4 py-2">
                   <span className={`rounded px-2 py-0.5 text-xs ${severityClass(b.severity)}`}>
                     {b.severity}
                   </span>
                 </td>
+                <td className="px-4 py-2 text-slate-600">{b.description ?? "—"}</td>
                 <td className="px-4 py-2 text-slate-600">{b.resolution ?? "—"}</td>
               </tr>
             ))}
@@ -213,7 +318,7 @@ function Card({
   accent,
 }: {
   title: string;
-  value: number;
+  value: number | string;
   accent: "good" | "bad" | "warn" | "neutral";
 }) {
   const cls =
