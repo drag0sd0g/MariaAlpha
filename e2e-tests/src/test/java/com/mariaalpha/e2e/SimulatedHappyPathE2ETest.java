@@ -83,13 +83,27 @@ class SimulatedHappyPathE2ETest {
     void simulatedTickReachesPositionWithFillAndPnl() throws Exception {
         bindVwapToAppleWith100Shares();
 
-        var position = await().atMost(30, TimeUnit.SECONDS)
+        // Gate on the VWAP-specific FILLED order rather than the AAPL position. If
+        // rfqQuoteReturnsTwoWayBookAndAcceptPublishesOrderSignal ran first in this stack lifecycle
+        // (JUnit method order is not guaranteed), it leaves an AAPL position behind that would
+        // satisfy a netQuantity != 0 wait before VWAP has had a chance to fire. Mirrors the pattern
+        // simulatedMomentumUptrendReachesGooglOrderWithFill uses (firstFilledMomentumBuy).
+        var order = await().atMost(40, TimeUnit.SECONDS)
                 .pollInterval(Duration.ofMillis(500))
                 .ignoreExceptions()
-                .until(() -> getPosition("AAPL"), pos -> pos != null && netQuantity(pos).signum() != 0);
+                .until(this::firstFilledVwapAaplBuy, Objects::nonNull);
 
-        assertThat(netQuantity(position)).as("AAPL net quantity should be 100 after VWAP bin fires")
+        assertThat(order.get("status").asText()).isEqualTo("FILLED");
+        assertThat(order.get("strategy").asText()).isEqualTo("VWAP");
+        assertThat(new BigDecimal(order.get("quantity").asText()))
+                .as("VWAP bin trades the configured 100-share clip")
                 .isEqualByComparingTo(new BigDecimal("100"));
+
+        var position = getPosition("AAPL");
+        assertThat(position).as("AAPL position must exist after VWAP fill").isNotNull();
+        // Net quantity is at least 100 (this VWAP fill). If the RFQ test ran first it adds another
+        // 100 from its accepted quote, so accept >= 100 rather than == 100.
+        assertThat(netQuantity(position)).isGreaterThanOrEqualTo(new BigDecimal("100"));
 
         var avgEntry = new BigDecimal(position.get("avgEntryPrice").asText());
         assertThat(avgEntry).as("avgEntryPrice within CSV bid/ask span ± slippage")
@@ -105,20 +119,23 @@ class SimulatedHappyPathE2ETest {
         assertThat(portfolio.get("openPositions").asInt()).isGreaterThanOrEqualTo(1);
         assertThat(portfolio.has("totalPnl")).isTrue();
 
-        // Filter by strategy=VWAP because rfqQuoteReturnsTwoWayBookAndAcceptPublishesOrderSignal
-        // also opens an AAPL order with strategy=RFQ; JUnit test order is not guaranteed and an
-        // unfiltered orders.get(0) can pick up the RFQ order instead of this test's VWAP fill.
-        var orders = httpGetAndCheck("/api/orders?symbol=AAPL&strategy=VWAP");
-        assertThat(orders.isArray()).isTrue();
-        assertThat(orders.size()).isGreaterThanOrEqualTo(1);
-        var order = orders.get(0);
-        assertThat(order.get("status").asText()).isEqualTo("FILLED");
-        assertThat(order.get("strategy").asText()).isEqualTo("VWAP");
-
         var status = httpGetAndCheck("/api/execution/status");
         assertThat(status.get("tradingHalted").asBoolean())
                 .as("daily loss limit should not have tripped on a single 100-share fill")
                 .isFalse();
+    }
+
+    private JsonNode firstFilledVwapAaplBuy() throws Exception {
+        var orders = httpGetAndCheck("/api/orders?symbol=AAPL&strategy=VWAP&status=FILLED");
+        if (!orders.isArray()) {
+            return null;
+        }
+        for (var order : orders) {
+            if ("BUY".equals(order.get("side").asText())) {
+                return order;
+            }
+        }
+        return null;
     }
 
     @Test
