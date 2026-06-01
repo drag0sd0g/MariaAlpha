@@ -105,7 +105,10 @@ class SimulatedHappyPathE2ETest {
         assertThat(portfolio.get("openPositions").asInt()).isGreaterThanOrEqualTo(1);
         assertThat(portfolio.has("totalPnl")).isTrue();
 
-        var orders = httpGetAndCheck("/api/orders?symbol=AAPL");
+        // Filter by strategy=VWAP because rfqQuoteReturnsTwoWayBookAndAcceptPublishesOrderSignal
+        // also opens an AAPL order with strategy=RFQ; JUnit test order is not guaranteed and an
+        // unfiltered orders.get(0) can pick up the RFQ order instead of this test's VWAP fill.
+        var orders = httpGetAndCheck("/api/orders?symbol=AAPL&strategy=VWAP");
         assertThat(orders.isArray()).isTrue();
         assertThat(orders.size()).isGreaterThanOrEqualTo(1);
         var order = orders.get(0);
