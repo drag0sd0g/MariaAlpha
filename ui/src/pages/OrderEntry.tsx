@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { useWebSocket } from "@/hooks/useWebSocket";
+import { useConnectionStore } from "@/stores/connectionStore";
 import { useOrderStore } from "@/stores/orderStore";
-import type { Order, OrderEvent } from "@/types/api";
+import type { Order } from "@/types/api";
 import OrderForm from "@/components/OrderForm";
 import ActiveOrdersTable from "@/components/ActiveOrdersTable";
 import FillHistoryTable from "@/components/FillHistoryTable";
 
 export default function OrderEntry() {
   const replaceAll = useOrderStore((s) => s.replaceAll);
-  const applyEvent = useOrderStore((s) => s.applyEvent);
   const [error, setError] = useState<string | null>(null);
+  // App-wide /ws/orders connection lives in AppWideStreams (issue 2.5.5);
+  // we re-fetch the REST snapshot on each reconnect.
+  const ordersWsState = useConnectionStore((s) => s.states["/ws/orders"]);
 
   const loadSnapshot = async (): Promise<void> => {
     try {
@@ -27,15 +29,10 @@ export default function OrderEntry() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const { state } = useWebSocket<OrderEvent>({
-    endpoint: "/ws/orders",
-    onMessage: applyEvent,
-  });
-
   useEffect(() => {
-    if (state === "open") void loadSnapshot();
+    if (ordersWsState === "open") void loadSnapshot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state]);
+  }, [ordersWsState]);
 
   return (
     <div className="p-6 space-y-6">

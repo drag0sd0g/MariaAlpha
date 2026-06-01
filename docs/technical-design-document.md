@@ -1424,8 +1424,7 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 | [2.7.4](https://github.com/drag0sd0g/MariaAlpha/issues/85) | Introduce Redis for distributed position cache | Infrastructure |
 | [2.7.5](https://github.com/drag0sd0g/MariaAlpha/issues/86) | Create Bruno API collection with example requests | Developer Experience |
 
-### Phase 3: Derivatives + Tokyo Market + Program Trading
-
+### Phase 3: Derivatives + Tokyo Market + Program Tradingare
 | # | Issue Title | Component |
 | --- | --- | --- |
 | [3.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/87) | Implement IBKR `MarketDataAdapter` (TWS API) | Market Data GW |

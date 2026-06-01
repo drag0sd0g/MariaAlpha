@@ -1,6 +1,7 @@
 package com.mariaalpha.strategyengine.ml;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.mariaalpha.proto.signal.RegimeRequest;
 import com.mariaalpha.proto.signal.SignalRequest;
 import com.mariaalpha.proto.signal.SignalServiceGrpc;
 import com.mariaalpha.strategyengine.config.MlConfig;
@@ -68,6 +69,29 @@ public class MlSignalClient {
       return Optional.empty();
     } catch (Exception e) {
       LOG.warn("ML signal call failed for symbol {}: {}", symbol, e.getMessage());
+      return Optional.empty();
+    }
+  }
+
+  /**
+   * Calls {@code GetRegime} on the ML service. Reuses the same circuit breaker as {@link
+   * #getSignal} so the strategy engine has a single ML-availability gate. Returns empty on any
+   * failure.
+   */
+  public Optional<MlRegimeResult> getRegime(String symbol) {
+    try {
+      return circuitBreaker.executeSupplier(
+          () -> {
+            var request = RegimeRequest.newBuilder().setSymbol(symbol).build();
+            var response =
+                stub.withDeadlineAfter(DEADLINE_MS, TimeUnit.MILLISECONDS).getRegime(request);
+            return Optional.of(new MlRegimeResult(response.getRegime(), response.getConfidence()));
+          });
+    } catch (CallNotPermittedException e) {
+      LOG.debug("ML circuit breaker OPEN - skipping regime call for {}", symbol);
+      return Optional.empty();
+    } catch (Exception e) {
+      LOG.warn("ML regime call failed for symbol {}: {}", symbol, e.getMessage());
       return Optional.empty();
     }
   }

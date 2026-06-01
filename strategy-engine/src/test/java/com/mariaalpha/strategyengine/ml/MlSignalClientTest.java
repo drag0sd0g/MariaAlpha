@@ -3,6 +3,9 @@ package com.mariaalpha.strategyengine.ml;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.mariaalpha.proto.signal.Direction;
+import com.mariaalpha.proto.signal.MarketRegime;
+import com.mariaalpha.proto.signal.RegimeRequest;
+import com.mariaalpha.proto.signal.RegimeResponse;
 import com.mariaalpha.proto.signal.SignalRequest;
 import com.mariaalpha.proto.signal.SignalResponse;
 import com.mariaalpha.proto.signal.SignalServiceGrpc;
@@ -70,6 +73,27 @@ class MlSignalClientTest {
   }
 
   @Test
+  void getRegimeReturnsResultWhenServiceAvailable() {
+    fakeSignalService.nextRegime(
+        RegimeResponse.newBuilder()
+            .setSymbol("AAPL")
+            .setRegime(MarketRegime.TRENDING_UP)
+            .setConfidence(0.72)
+            .build());
+    var result = client.getRegime("AAPL");
+    assertThat(result).isPresent();
+    assertThat(result.get().regime()).isEqualTo(MarketRegime.TRENDING_UP);
+    assertThat(result.get().confidence()).isEqualTo(0.72);
+  }
+
+  @Test
+  void getRegimeReturnsEmptyWhenServiceErrors() {
+    fakeSignalService.nextError(Status.UNAVAILABLE.asRuntimeException());
+    var result = client.getRegime("AAPL");
+    assertThat(result).isEmpty();
+  }
+
+  @Test
   void circuitBreakerOpensAfterSlidingWindowOfFailures() {
     fakeSignalService.nextError(Status.UNAVAILABLE.asRuntimeException());
     for (int i = 0; i < 5; i++) {
@@ -82,16 +106,25 @@ class MlSignalClientTest {
 
   static class FakeSignalService extends SignalServiceGrpc.SignalServiceImplBase {
     private SignalResponse response;
+    private RegimeResponse regime;
     private StatusRuntimeException error;
 
     void nextResponse(SignalResponse r) {
       this.response = r;
+      this.regime = null;
+      this.error = null;
+    }
+
+    void nextRegime(RegimeResponse r) {
+      this.regime = r;
+      this.response = null;
       this.error = null;
     }
 
     void nextError(StatusRuntimeException e) {
       this.error = e;
       this.response = null;
+      this.regime = null;
     }
 
     @Override
@@ -100,6 +133,16 @@ class MlSignalClientTest {
         observer.onError(error);
       } else {
         observer.onNext(response);
+        observer.onCompleted();
+      }
+    }
+
+    @Override
+    public void getRegime(RegimeRequest request, StreamObserver<RegimeResponse> observer) {
+      if (error != null) {
+        observer.onError(error);
+      } else {
+        observer.onNext(regime);
         observer.onCompleted();
       }
     }

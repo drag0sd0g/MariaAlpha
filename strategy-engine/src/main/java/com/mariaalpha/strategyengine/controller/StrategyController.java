@@ -1,8 +1,10 @@
 package com.mariaalpha.strategyengine.controller;
 
+import com.mariaalpha.strategyengine.ml.MlSignalClient;
 import com.mariaalpha.strategyengine.registry.StrategyRegistry;
 import com.mariaalpha.strategyengine.routing.SymbolStrategyRouter;
 import com.mariaalpha.strategyengine.strategy.TradingStrategy;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -18,10 +21,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class StrategyController {
   private final StrategyRegistry registry;
   private final SymbolStrategyRouter router;
+  private final MlSignalClient mlClient;
 
-  public StrategyController(StrategyRegistry registry, SymbolStrategyRouter router) {
+  public StrategyController(
+      StrategyRegistry registry, SymbolStrategyRouter router, MlSignalClient mlClient) {
     this.registry = registry;
     this.router = router;
+    this.mlClient = mlClient;
   }
 
   @GetMapping
@@ -64,5 +70,33 @@ public class StrategyController {
               return ResponseEntity.<Void>ok().build();
             })
         .orElse(ResponseEntity.notFound().build());
+  }
+
+  /**
+   * Aggregated per-symbol state for the UI Strategy Control page (issue 2.5.2). Returns one row per
+   * routed symbol when {@code symbol} is omitted, or just that symbol when provided. ML signal /
+   * regime fields are nullable so the UI can render "—" when the model is unavailable.
+   */
+  @GetMapping("/state")
+  public List<StrategyStateResponse> state(@RequestParam(required = false) String symbol) {
+    if (symbol != null && !symbol.isBlank()) {
+      return List.of(buildState(symbol));
+    }
+    return router.routedSymbols().stream().sorted().map(this::buildState).toList();
+  }
+
+  private StrategyStateResponse buildState(String symbol) {
+    var active = router.getActiveStrategyName(symbol).orElse(null);
+    var signal =
+        mlClient
+            .getSignal(symbol)
+            .map(r -> new StrategyStateResponse.Signal(r.direction().name(), r.confidence()))
+            .orElse(null);
+    var regime =
+        mlClient
+            .getRegime(symbol)
+            .map(r -> new StrategyStateResponse.Regime(r.regime().name(), r.confidence()))
+            .orElse(null);
+    return new StrategyStateResponse(symbol, active, signal, regime);
   }
 }

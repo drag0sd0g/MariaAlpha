@@ -314,6 +314,19 @@
         <Class name="com.mariaalpha.posttrade.entity.ArrivalSnapshotEntity"/>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
     </Match>
+    <!-- Reconciliation read API (issue 2.5.4) -->
+    <Match>
+        <Class name="com.mariaalpha.posttrade.entity.ReconciliationBreakEntity"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.posttrade.controller.ReconController"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.posttrade.controller.dto.ReconSummaryResponse"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
     <Match>
         <Class name="com.mariaalpha.executionengine.service.ManualOrderService"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
@@ -457,6 +470,11 @@
     </Match>
     <Match>
         <Class name="com.mariaalpha.strategyengine.rfq.RfqQuote"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <!-- Strategy state endpoint (issue 2.5.2) -->
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.controller.StrategyStateResponse"/>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
     </Match>
     <!-- ML signal gate (issue 2.3.2) -->

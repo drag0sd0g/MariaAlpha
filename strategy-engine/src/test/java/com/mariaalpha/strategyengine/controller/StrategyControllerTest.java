@@ -7,8 +7,14 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.mariaalpha.proto.signal.Direction;
+import com.mariaalpha.proto.signal.MarketRegime;
+import com.mariaalpha.strategyengine.ml.MlRegimeResult;
+import com.mariaalpha.strategyengine.ml.MlSignalClient;
+import com.mariaalpha.strategyengine.ml.MlSignalResult;
 import com.mariaalpha.strategyengine.registry.StrategyRegistry;
 import com.mariaalpha.strategyengine.routing.SymbolStrategyRouter;
 import com.mariaalpha.strategyengine.strategy.TradingStrategy;
@@ -29,6 +35,7 @@ class StrategyControllerTest {
 
   @MockitoBean private StrategyRegistry registry;
   @MockitoBean private SymbolStrategyRouter router;
+  @MockitoBean private MlSignalClient mlClient;
 
   @Test
   void listStrategiesReturnsAvailableNames() throws Exception {
@@ -100,5 +107,52 @@ class StrategyControllerTest {
   void getParametersReturnsNotFoundWhenStrategyUnknown() throws Exception {
     when(registry.get("UNKNOWN")).thenReturn(Optional.empty());
     mockMvc.perform(get("/api/strategies/UNKNOWN/parameters")).andExpect(status().isNotFound());
+  }
+
+  @Test
+  void stateForSpecificSymbolMergesActiveSignalAndRegime() throws Exception {
+    when(router.getActiveStrategyName("AAPL")).thenReturn(Optional.of("VWAP"));
+    when(mlClient.getSignal("AAPL"))
+        .thenReturn(Optional.of(new MlSignalResult(Direction.LONG, 0.83, 0.3)));
+    when(mlClient.getRegime("AAPL"))
+        .thenReturn(Optional.of(new MlRegimeResult(MarketRegime.TRENDING_UP, 0.71)));
+    mockMvc
+        .perform(get("/api/strategies/state").param("symbol", "AAPL"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].symbol").value("AAPL"))
+        .andExpect(jsonPath("$[0].activeStrategy").value("VWAP"))
+        .andExpect(jsonPath("$[0].mlSignal.direction").value("LONG"))
+        .andExpect(jsonPath("$[0].mlSignal.confidence").value(0.83))
+        .andExpect(jsonPath("$[0].mlRegime.regime").value("TRENDING_UP"))
+        .andExpect(jsonPath("$[0].mlRegime.confidence").value(0.71));
+  }
+
+  @Test
+  void stateWithoutSymbolReturnsAllRoutedSymbols() throws Exception {
+    when(router.routedSymbols()).thenReturn(Set.of("MSFT", "AAPL"));
+    when(router.getActiveStrategyName("AAPL")).thenReturn(Optional.of("VWAP"));
+    when(router.getActiveStrategyName("MSFT")).thenReturn(Optional.of("TWAP"));
+    when(mlClient.getSignal(anyString())).thenReturn(Optional.empty());
+    when(mlClient.getRegime(anyString())).thenReturn(Optional.empty());
+    mockMvc
+        .perform(get("/api/strategies/state"))
+        .andExpect(status().isOk())
+        // routedSymbols are sorted for stable UI ordering
+        .andExpect(jsonPath("$[0].symbol").value("AAPL"))
+        .andExpect(jsonPath("$[1].symbol").value("MSFT"));
+  }
+
+  @Test
+  void stateHandlesMlUnavailableGracefully() throws Exception {
+    when(router.getActiveStrategyName("AAPL")).thenReturn(Optional.of("VWAP"));
+    when(mlClient.getSignal("AAPL")).thenReturn(Optional.empty());
+    when(mlClient.getRegime("AAPL")).thenReturn(Optional.empty());
+    mockMvc
+        .perform(get("/api/strategies/state").param("symbol", "AAPL"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].activeStrategy").value("VWAP"))
+        // nullable fields omitted when empty (no JSON include)
+        .andExpect(jsonPath("$[0].mlSignal").doesNotExist())
+        .andExpect(jsonPath("$[0].mlRegime").doesNotExist());
   }
 }
