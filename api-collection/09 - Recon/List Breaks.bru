@@ -1,0 +1,25 @@
+meta {
+  name: List Recon Breaks
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/recon/breaks
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+params:query {
+  ~date: 2026-06-02
+}
+
+docs {
+  Reconciliation breaks for a date (defaults to today). Four types:
+  MISSING_FILL, EXTRA_FILL, QUANTITY_MISMATCH, PRICE_MISMATCH. Severity is
+  HIGH for notional ≥ $10k and CRITICAL for ≥ $100k.
+}

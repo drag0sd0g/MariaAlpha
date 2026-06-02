@@ -1,0 +1,26 @@
+meta {
+  name: Trigger Recon Run
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/recon/run
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+params:query {
+  ~date: 2026-06-02
+}
+
+docs {
+  Synchronously runs the EOD reconciliation engine for a date (defaults to
+  today). Idempotent — re-running for the same date wipes prior breaks first
+  (TDD §7.3). Two modes via `post-trade.recon.mode`: EXTERNAL (Alpaca HTTP)
+  or MIRROR (echoes internal fills for the local compose stack).
+}

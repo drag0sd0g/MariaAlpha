@@ -1,0 +1,30 @@
+meta {
+  name: List Orders
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/orders?limit=50
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+params:query {
+  limit: 50
+  ~symbol: AAPL
+  ~status: FILLED
+  ~strategy: VWAP
+  ~from: 2026-06-02T00:00:00Z
+  ~to: 2026-06-03T00:00:00Z
+}
+
+docs {
+  Lists orders with optional filters. `limit` is clamped to [1, 500]. Each
+  result is an OrderResponse with the parent order and (for /{orderId}) its
+  associated fills.
+}

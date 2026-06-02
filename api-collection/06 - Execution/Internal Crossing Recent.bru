@@ -1,0 +1,20 @@
+meta {
+  name: Internal Crossing Recent Matches
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/execution/internal-crossing/recent
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Last N internal crosses (newest first), capped by the engine's internal
+  ring buffer.
+}

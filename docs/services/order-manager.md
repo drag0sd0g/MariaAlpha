@@ -235,6 +235,10 @@ Fired **once per successfully persisted fill**, keyed by symbol (guaranteeing pe
 
 Status-only lifecycle events (no fill) do **not** produce a position update — the position hasn't changed.
 
+### Redis position cache (issue 2.7.4)
+
+Alongside the Kafka publish, every persisted fill also writes the same `PositionSnapshot` JSON to Redis at key `mariaalpha:position:<symbol>` with a 24 h TTL and emits a pub/sub event on channel `mariaalpha.positions.updates`. The cache backs the execution-engine's pre-trade risk checks (sub-millisecond cross-service position lookup) without changing PostgreSQL's authoritative role. The publisher (`RedisPositionCachePublisher`) swallows Redis exceptions at WARN level — a Redis outage degrades the cross-service view but never blocks fill processing. Disable with `order-manager.redis.enabled=false`.
+
 ---
 
 ## The Two Consumers

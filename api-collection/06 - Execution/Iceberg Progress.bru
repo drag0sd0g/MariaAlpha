@@ -1,0 +1,21 @@
+meta {
+  name: Iceberg Progress
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/execution/orders/{{lastIcebergParentId}}/iceberg-progress
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Live slice progress for an ICEBERG parent — total qty, displayed qty,
+  remaining, child order ids. 404 if the parent never entered the coordinator
+  (e.g. it was rejected by risk).
+}

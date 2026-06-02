@@ -1,0 +1,11 @@
+meta {
+  name: Gateway Liveness
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/actuator/health/liveness
+  body: none
+  auth: none
+}

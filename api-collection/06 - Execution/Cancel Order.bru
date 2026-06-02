@@ -1,0 +1,20 @@
+meta {
+  name: Cancel Order
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/api/execution/orders/{{lastSubmittedOrderId}}
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Cancels a working order by id. Returns 204 NO CONTENT on success, 404 if
+  the order is unknown or already terminal.
+}

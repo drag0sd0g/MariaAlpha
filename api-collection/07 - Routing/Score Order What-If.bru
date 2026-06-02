@@ -1,0 +1,33 @@
+meta {
+  name: Score Order (What-If)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/routing/score
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "symbol": "AAPL",
+    "side": "BUY",
+    "orderType": "LIMIT",
+    "quantity": 500,
+    "limitPrice": 175.50,
+    "stopPrice": null
+  }
+}
+
+docs {
+  Runs the SOR weighted-scoring across every enabled venue WITHOUT submitting
+  an order. Useful for debugging routing decisions and tuning weights. The
+  response includes per-venue score breakdown plus the recommended top venue.
+}

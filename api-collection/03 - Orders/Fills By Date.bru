@@ -1,0 +1,25 @@
+meta {
+  name: Fills By Date (Recon Source)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/orders/fills/by-date?date=2026-06-02
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+params:query {
+  date: 2026-06-02
+}
+
+docs {
+  Powers the post-trade EOD reconciliation engine (issue 2.6.1). Each row is
+  enriched with the parent order's `clientOrderId` + `exchangeOrderId` so the
+  consumer can match against venue activity without a follow-up call.
+}

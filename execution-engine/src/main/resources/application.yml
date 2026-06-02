@@ -6,6 +6,12 @@ spring:
     name: execution-engine
   profiles:
     active: simulated
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      timeout: 200ms
+      connect-timeout: 500ms
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
@@ -28,6 +34,13 @@ execution-engine:
     orders-lifecycle-topic: orders.lifecycle
     routing-decisions-topic: routing.decisions
     risk-alerts-topic: analytics.risk-alerts
+  # Phase-2 (issue 2.7.4) Redis position cache. Reader-side: warms PositionTracker on startup
+  # from Redis and applies pub/sub updates from order-manager. Disable to fall back to the
+  # in-memory tracker only (no cross-service position visibility).
+  redis:
+    enabled: true
+    position-key-prefix: "mariaalpha:position:"
+    positions-pub-sub-channel: "mariaalpha.positions.updates"
   risk:
     max-order-notional: 100000
     max-position-per-symbol: 500000
@@ -161,6 +174,9 @@ management:
           include: livenessState
   health:
     kafka:
+      enabled: true
+    # Redis cache is non-critical (in-memory PositionTracker stays usable on failure).
+    redis:
       enabled: true
   metrics:
     tags:

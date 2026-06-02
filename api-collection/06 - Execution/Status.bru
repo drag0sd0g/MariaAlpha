@@ -1,0 +1,21 @@
+meta {
+  name: Execution Status
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/execution/status
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Returns `tradingHalted` boolean + current `dailyPnl`. Trading halts
+  automatically when DailyLossLimitCheck trips (TDD §7.6); use the Resume
+  request to clear the halt.
+}

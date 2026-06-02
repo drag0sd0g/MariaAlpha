@@ -1,0 +1,20 @@
+meta {
+  name: Lookup Quote
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/rfq/quotes/{{lastQuoteId}}
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Debug endpoint — returns whatever the in-memory store remembers about a
+  quote, active or expired. 404 if never issued.
+}

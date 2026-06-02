@@ -1,0 +1,24 @@
+meta {
+  name: Recon Summary
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/recon/summary
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+params:query {
+  ~date: 2026-06-02
+}
+
+docs {
+  Per-date summary (break count by type/severity, internal vs external fill
+  counts) plus the matching run record so the UI can render run status.
+}

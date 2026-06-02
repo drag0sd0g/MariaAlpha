@@ -1,0 +1,16 @@
+meta {
+  name: Order Manager Health (direct)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{orderManagerUrl}}/actuator/health
+  body: none
+  auth: none
+}
+
+docs {
+  Direct read of the order-manager's Spring Boot Actuator health endpoint —
+  no gateway, no API key.
+}

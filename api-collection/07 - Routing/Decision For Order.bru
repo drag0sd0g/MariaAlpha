@@ -1,0 +1,24 @@
+meta {
+  name: Decision For Order
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/routing/decisions/{{orderId}}
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+vars:pre-request {
+  orderId: 00000000-0000-0000-0000-000000000000
+}
+
+docs {
+  Returns the SOR's last cached routing decision for a given orderId. 404 if
+  the order is older than the in-memory ring (default 1000 most-recent).
+}

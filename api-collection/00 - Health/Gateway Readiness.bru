@@ -1,0 +1,11 @@
+meta {
+  name: Gateway Readiness
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/actuator/health/readiness
+  body: none
+  auth: none
+}

@@ -1,0 +1,17 @@
+meta {
+  name: Analytics Service Ready
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{analyticsServiceUrl}}/ready
+  body: none
+  auth: none
+}
+
+docs {
+  Analytics service readiness — includes the pending toxicity-fill queue
+  depth and the count of symbols in the in-memory market-data cache. Both
+  useful for spotting backlog when the analytics service starts up.
+}

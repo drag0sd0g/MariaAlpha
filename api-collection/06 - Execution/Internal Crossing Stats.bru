@@ -1,0 +1,20 @@
+meta {
+  name: Internal Crossing Stats
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/execution/internal-crossing/stats
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Aggregate stats for the internal crossing engine (issue 2.1.10): crosses,
+  shares matched, average spread captured, resting depth.
+}

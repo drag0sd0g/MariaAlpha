@@ -1,0 +1,21 @@
+meta {
+  name: Strategy State (All Symbols)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/strategies/state
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Aggregated per-symbol state — active strategy + latest ML signal/regime
+  classification. Powers the UI Strategy Control page (issue 2.5.2). Add
+  `?symbol=AAPL` to filter.
+}

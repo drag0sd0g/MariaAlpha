@@ -44,6 +44,15 @@ class Phase2RiskChainIntegrationTest {
   @DynamicPropertySource
   static void props(DynamicPropertyRegistry registry) {
     registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
+    // No Redis container — the cache is exercised in RedisPositionCacheIntegrationTest.
+    registry.add("execution-engine.redis.enabled", () -> "false");
+    registry.add("management.health.redis.enabled", () -> "false");
+    registry.add(
+        "spring.autoconfigure.exclude",
+        () ->
+            "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,"
+                + "org.springframework.boot.autoconfigure.data.redis"
+                + ".RedisRepositoriesAutoConfiguration");
   }
 
   @Test

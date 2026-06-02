@@ -1,0 +1,24 @@
+meta {
+  name: PnL Attribution For Order
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/analytics/pnl/attribution/{{orderId}}
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+vars:pre-request {
+  orderId: 00000000-0000-0000-0000-000000000000
+}
+
+docs {
+  Per-order PnL attribution breakdown. 404 if no TCA has been seen for the
+  order yet.
+}

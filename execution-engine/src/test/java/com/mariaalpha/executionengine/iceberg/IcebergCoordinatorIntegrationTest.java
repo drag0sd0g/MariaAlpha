@@ -53,6 +53,14 @@ class IcebergCoordinatorIntegrationTest {
     registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
     // Make the simulator fill near-instantly so awaitility doesn't have to wait long
     registry.add("execution-engine.simulated.fill-latency-ms", () -> 5);
+    registry.add("execution-engine.redis.enabled", () -> "false");
+    registry.add("management.health.redis.enabled", () -> "false");
+    registry.add(
+        "spring.autoconfigure.exclude",
+        () ->
+            "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,"
+                + "org.springframework.boot.autoconfigure.data.redis"
+                + ".RedisRepositoriesAutoConfiguration");
   }
 
   @Test

@@ -1,0 +1,17 @@
+meta {
+  name: Execution Engine Health (direct)
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{executionEngineUrl}}/actuator/health
+  body: none
+  auth: none
+}
+
+docs {
+  Direct execution-engine health. The Phase-2 (issue 2.7.4) Redis cache shows
+  up under `components.redis` — DOWN there does not fail readiness (cache is
+  non-critical).
+}

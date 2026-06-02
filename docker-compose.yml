@@ -53,6 +53,23 @@ services:
     environment:
       KAFKA_BOOTSTRAP_SERVER: kafka:9094
 
+  # Phase-2 (issue 2.7.4): Redis distributed position cache. Order-manager publishes
+  # position snapshots here on every fill alongside the Kafka positions.updates topic;
+  # execution-engine reads from it for sub-millisecond pre-trade risk checks.
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
   prometheus:
     image: prom/prometheus:v3.2.1
     command:
@@ -268,6 +285,8 @@ services:
       SPRING_PROFILES_ACTIVE: ${EXECUTION_PROFILE:-simulated}
       ALPACA_API_KEY_ID: ${ALPACA_API_KEY_ID:-}
       ALPACA_API_SECRET_KEY: ${ALPACA_API_SECRET_KEY:-}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
       # Phase-2 risk-check overrides — exposed so the Phase2RiskChecksE2ETest can tighten
       # thresholds at runtime. Defaults match application.yml.
       EXECUTION_ENGINE_RISK_MAX_ADV_PARTICIPATION: ${EXECUTION_ENGINE_RISK_MAX_ADV_PARTICIPATION:-0.10}
@@ -275,6 +294,8 @@ services:
       EXECUTION_ENGINE_RISK_DEFAULT_SECTOR_EXPOSURE_LIMIT: ${EXECUTION_ENGINE_RISK_DEFAULT_SECTOR_EXPOSURE_LIMIT:-1000000}
     depends_on:
       kafka:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8085/actuator/health/liveness" ]
@@ -293,6 +314,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9094
@@ -302,6 +325,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-mariaalpha}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mariaalpha}
       SPRING_LIQUIBASE_LIQUIBASE_SCHEMA: liq_om
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
       MANAGEMENT_PORT: 8087
     ports:
       - "8086:8086"
@@ -421,3 +446,4 @@ volumes:
   loki-data:
   tempo-data:
   grafana-data:
+  redis-data:

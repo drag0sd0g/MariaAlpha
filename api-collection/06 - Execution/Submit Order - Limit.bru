@@ -1,0 +1,39 @@
+meta {
+  name: Submit Manual Order (LIMIT)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/execution/orders
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "symbol": "AAPL",
+    "side": "BUY",
+    "orderType": "LIMIT",
+    "quantity": 100,
+    "limitPrice": 175.50,
+    "tif": "DAY",
+    "clientOrderId": "manual-{{$randomUUID}}"
+  }
+}
+
+docs {
+  Submits a manually-entered order through the same risk-check + SOR pipeline
+  as strategy-emitted signals. Returns 202 ACCEPTED with the assigned orderId.
+}
+
+script:post-response {
+  if (res.status === 202 && res.body && res.body.orderId) {
+    bru.setVar("lastSubmittedOrderId", res.body.orderId);
+  }
+}

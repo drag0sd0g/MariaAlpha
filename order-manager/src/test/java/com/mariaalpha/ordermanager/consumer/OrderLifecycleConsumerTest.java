@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.mariaalpha.ordermanager.cache.RedisPositionCachePublisher;
 import com.mariaalpha.ordermanager.controller.dto.PositionSnapshot;
 import com.mariaalpha.ordermanager.entity.FillEntity;
 import com.mariaalpha.ordermanager.entity.OrderEntity;
@@ -30,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 
 @ExtendWith(MockitoExtension.class)
 class OrderLifecycleConsumerTest {
@@ -37,6 +39,8 @@ class OrderLifecycleConsumerTest {
   @Mock private OrderPersistenceService persistenceService;
   @Mock private PositionService positionService;
   @Mock private PositionUpdatePublisher publisher;
+  @Mock private RedisPositionCachePublisher cachePublisher;
+  @Mock private ObjectProvider<RedisPositionCachePublisher> cacheProvider;
 
   private ObjectMapper objectMapper;
   private OrderLifecycleConsumer consumer;
@@ -45,7 +49,8 @@ class OrderLifecycleConsumerTest {
   void setUp() {
     objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     consumer =
-        new OrderLifecycleConsumer(objectMapper, persistenceService, positionService, publisher);
+        new OrderLifecycleConsumer(
+            objectMapper, persistenceService, positionService, publisher, cacheProvider);
   }
 
   @Test

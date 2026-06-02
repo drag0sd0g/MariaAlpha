@@ -1,0 +1,25 @@
+meta {
+  name: TCA For Order
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/tca/{{orderId}}
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+vars:pre-request {
+  orderId: 00000000-0000-0000-0000-000000000000
+}
+
+docs {
+  Per-order TCA breakdown: arrival price, fill price, slippage bps, IS bps,
+  VWAP gap, spread cost. Computed by the post-trade service on every
+  completed order.
+}

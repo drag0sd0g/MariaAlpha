@@ -1,0 +1,23 @@
+meta {
+  name: Breaks For Order
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/recon/breaks/order/{{orderId}}
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+vars:pre-request {
+  orderId: 00000000-0000-0000-0000-000000000000
+}
+
+docs {
+  All breaks recorded against a given order id, across all dates.
+}

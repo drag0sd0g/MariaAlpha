@@ -1,0 +1,30 @@
+meta {
+  name: Update Strategy Parameters
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/api/strategies/VWAP/parameters
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "startTime": "09:30",
+    "endTime": "16:00",
+    "volumeFraction": 0.05
+  }
+}
+
+docs {
+  VWAP slicing window is Eastern time (the Strategy Engine converts internally —
+  do NOT send UTC). volumeFraction in [0,1] caps each slice as a fraction of
+  the symbol's historical traded volume.
+}

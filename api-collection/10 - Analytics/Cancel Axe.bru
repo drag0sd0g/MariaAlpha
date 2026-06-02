@@ -1,0 +1,19 @@
+meta {
+  name: Cancel Axe
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{baseUrl}}/api/analytics/axes/axe-id-here
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Cancel a previously-published axe by id. 204 on success, 404 if unknown.
+}

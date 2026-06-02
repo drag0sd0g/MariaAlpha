@@ -4,6 +4,12 @@ server:
 spring:
   application:
     name: order-manager
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      timeout: 200ms
+      connect-timeout: 500ms
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:mariaalpha}
     username: ${POSTGRES_USER:mariaalpha}
@@ -40,6 +46,13 @@ order-manager:
     positions-updates-topic: positions.updates
   portfolio:
     initial-cash: 1000000.00
+  # Phase-2 (issue 2.7.4) distributed position cache. Disable with order-manager.redis.enabled=false
+  # to run without a Redis instance — Kafka remains authoritative for downstream consumers.
+  redis:
+    enabled: true
+    position-key-prefix: "mariaalpha:position:"
+    positions-pub-sub-channel: "mariaalpha.positions.updates"
+    position-ttl: PT24H
 
 management:
   server:
@@ -60,6 +73,11 @@ management:
           include: livenessState
   health:
     kafka:
+      enabled: true
+    # Redis cache is non-critical (Kafka remains authoritative). Surface its status in
+    # /actuator/health but keep it out of the readiness probe so a momentary Redis hiccup
+    # does not flap pod readiness.
+    redis:
       enabled: true
   metrics:
     tags:
