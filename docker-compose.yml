@@ -277,6 +277,7 @@ services:
     build:
       context: .
       dockerfile: execution-engine/Dockerfile
+    image: mariaalpha/execution-engine:local
     ports:
       - "8084:8084"
       - "8085:8085"
