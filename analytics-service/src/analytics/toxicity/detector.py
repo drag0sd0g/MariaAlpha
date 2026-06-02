@@ -34,6 +34,8 @@ from typing import TYPE_CHECKING
 
 import structlog
 
+from analytics.metrics import TOXICITY_ALERTS, TOXICITY_MARKOUT_BPS
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
@@ -159,6 +161,9 @@ class FlowToxicityDetector:
         key = (strategy, horizon)
         stats = self._stats.setdefault(key, StrategyStats())
         stats.add(markout_bps)
+        TOXICITY_MARKOUT_BPS.labels(strategy=strategy, horizon_seconds=str(horizon)).observe(
+            markout_bps
+        )
         if stats.count() < self._min_obs:
             return
         if stats.mean() < self._threshold:
@@ -180,6 +185,7 @@ class FlowToxicityDetector:
             }
             try:
                 self._alert_publisher(alert)
+                TOXICITY_ALERTS.labels(strategy=strategy, horizon_seconds=str(horizon)).inc()
             except Exception:
                 logger.exception("toxicity_alert_publish_failed", strategy=strategy)
 

@@ -1182,11 +1182,15 @@ These are instrumented explicitly in application code:
 
 ### 8.3 Grafana Dashboards
 
-**Dashboard 1: Trading Pipeline** — Tick rate, WebSocket status, strategy signals, ML latency and circuit breaker, order/fill rates, risk rejections, SOR routing (Phase 2).
+Three Grafana dashboards are provisioned from `config/grafana/provisioning/dashboards/*.json` (compose) and `charts/mariaalpha/files/grafana-dashboards/*.json` (Helm). Both copies are kept in sync byte-for-byte by `GrafanaDashboardTest` in the post-trade module, which also asserts every PromQL expression in every dashboard references a metric this codebase actually registers — a renamed metric fails the build instead of silently producing a "No data" panel.
 
-**Dashboard 2: Portfolio & Risk** — Total P&L gauge, daily P&L series, PnL attribution (Phase 2), gross/net exposure, sector heatmap (Phase 2), beta (Phase 2), risk alerts, flow toxicity (Phase 2).
+**Dashboard 1: Trading Pipeline** (issue 2.6.2, uid `mariaalpha-trading-pipeline`) — four rows. **Data Ingestion** holds tick ingestion rate (`mariaalpha_md_ticks_received_total` by symbol), market-data WebSocket reconnect counter (`mariaalpha_md_websocket_reconnects_total`), and strategy-signal rate (`mariaalpha_strategy_signals_total` by strategy). **ML Signal Service** shows gRPC p99 latency, the Resilience4j circuit-breaker state mapped to CLOSED/HALF_OPEN/OPEN (`mariaalpha_strategy_ml_circuit_breaker_state`), and ML-gate decisions stacked by outcome (`mariaalpha_strategy_ml_decisions_total`). **Execution** covers orders persisted by side (`mariaalpha_orders_persisted_total`), fill rate by venue (`mariaalpha_fills_persisted_total`), risk rejections by reason (`mariaalpha_execution_risk_rejections_total`), p99 order latency (`mariaalpha_execution_order_latency_ms_seconds_bucket`), and SOR routing distribution by venue (`mariaalpha_execution_sor_routing_total`). The bottom **Service Health** row is a strip of `up{}` stat tiles.
 
-**Dashboard 3: Post-Trade & Quality** — Recon match rate, TCA slippage by strategy, implementation shortfall trend, VWAP benchmark, internalization rate (issue 2.1.10: `mariaalpha_execution_internal_crosses_total` / `mariaalpha_execution_venue_fills_total` keyed by venue and `mariaalpha_execution_internal_spread_captured_bps`).
+**Dashboard 2: Portfolio & Risk** (issue 2.6.3, uid `mariaalpha-portfolio-risk`) — four rows. **Portfolio** has total P&L / gross / net exposure stat tiles plus a single time-series panel overlaying all three. **Pre-Trade Risk** plots rejections-by-reason as a stacked bar over the last 5 m and a cumulative-by-reason horizontal stat strip. **Risk Alerts** combines the analytics-service flow-toxicity markout (bps) per strategy with the rate of `RECON_BREAK` and `FLOW_TOXICITY` events published to `analytics.risk-alerts`. **PnL Attribution & Axes (Phase 2)** stacks PnL attribution by component (Kissell-Glantz spread/market/commission/timing/residual, issue 2.2.5) and overlays active axe count + matches/min (issue 2.2.6).
+
+**Dashboard 3: Post-Trade & Quality** (issue 2.6.4, uid `mariaalpha-post-trade-quality`) — three rows. **Reconciliation** (issue 2.6.1) shows EOD run rate by status (`SUCCESS`/`FAILED` × `SCHEDULED`/`MANUAL`), breaks by type+severity, a p95 duration stat, and cumulative-by-status stat tiles. **Transaction Cost Analysis** plots TCA slippage p50/p95 by strategy from `mariaalpha_tca_slippage_bps_bucket`, TCA computations/min, and the average IS / VWAP / spread components computed from `_sum`/`_count` ratios. **Internalisation** (issue 2.1.10) gauges internalisation rate as `mariaalpha_execution_internal_crosses_total` / `mariaalpha_execution_venue_fills_total`, plus crosses/min, shares/min, average spread captured (bps), and the live buy/sell/resting depth of the internal book.
+
+Each dashboard cross-links to the others via dashboard tags (`mariaalpha` + one of `trading|portfolio|post-trade`). Refresh rates: 5 s (Trading Pipeline), 10 s (Portfolio & Risk), 30 s (Post-Trade & Quality) — chosen so the busiest dashboards see real-time changes without hammering Prometheus for the long-horizon ones.
 
 ### 8.4 Structured Logging and Distributed Tracing
 
@@ -1419,9 +1423,9 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 | [2.5.4](https://github.com/drag0sd0g/MariaAlpha/issues/76)✅ | Implement Reconciliation page | React UI |
 | [2.5.5](https://github.com/drag0sd0g/MariaAlpha/issues/77)✅ | Implement WebSocket streaming for positions, orders, alerts | React UI |
 | [2.6.1](https://github.com/drag0sd0g/MariaAlpha/issues/78) ✅ | Implement end-of-day reconciliation engine | Post-Trade |
-| [2.6.2](https://github.com/drag0sd0g/MariaAlpha/issues/79) | Create Grafana Trading Pipeline dashboard | Observability |
-| [2.6.3](https://github.com/drag0sd0g/MariaAlpha/issues/80) | Create Grafana Portfolio & Risk dashboard | Observability |
-| [2.6.4](https://github.com/drag0sd0g/MariaAlpha/issues/81) | Create Grafana Post-Trade & Quality dashboard | Observability |
+| [2.6.2](https://github.com/drag0sd0g/MariaAlpha/issues/79)✅ | Create Grafana Trading Pipeline dashboard | Observability |
+| [2.6.3](https://github.com/drag0sd0g/MariaAlpha/issues/80) ✅| Create Grafana Portfolio & Risk dashboard | Observability |
+| [2.6.4](https://github.com/drag0sd0g/MariaAlpha/issues/81) ✅| Create Grafana Post-Trade & Quality dashboard | Observability |
 | [2.7.1](https://github.com/drag0sd0g/MariaAlpha/issues/82) ✅ | Create Helm charts for full Kubernetes deployment | Deployment |
 | [2.7.2](https://github.com/drag0sd0g/MariaAlpha/issues/83)✅ | Implement Docker image publish workflow | CI/CD |
 | [2.7.3](https://github.com/drag0sd0g/MariaAlpha/issues/84)✅ | Add mutation testing (PITest + mutmut) to CI | CI/CD |
