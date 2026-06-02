@@ -366,7 +366,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-          "expr": "avg by (strategy) (mariaalpha_analytics_toxicity_markout_bps)",
+          "expr": "sum by (strategy) (rate(mariaalpha_analytics_toxicity_markout_bps_sum[5m])) / clamp_min(sum by (strategy) (rate(mariaalpha_analytics_toxicity_markout_bps_count[5m])), 1)",
           "legendFormat": "{{strategy}}",
           "refId": "A"
         }
@@ -450,7 +450,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-          "expr": "sum by (component) (mariaalpha_analytics_pnl_attribution_usd)",
+          "expr": "sum by (component) (increase(mariaalpha_analytics_pnl_attribution_usd_sum[5m]))",
           "legendFormat": "{{component}}",
           "refId": "A"
         }

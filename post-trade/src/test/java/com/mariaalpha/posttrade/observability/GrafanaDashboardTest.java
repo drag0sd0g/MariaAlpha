@@ -133,6 +133,38 @@ class GrafanaDashboardTest {
         .isEmpty();
   }
 
+  /**
+   * Histogram-class instruments (python Histogram, Micrometer DistributionSummary/Timer/summary
+   * helper) expose `_bucket`/`_sum`/`_count`/`_max` time series only — Prometheus has no sample at
+   * the bare metric name. Catch dashboards that query a histogram by its bare name (renders "No
+   * data" silently in production).
+   */
+  @ParameterizedTest(name = "{0} histogram-class metrics are queried with a suffix")
+  @MethodSource("dashboardFiles")
+  void histogramQueriesUseSuffix(Path file) throws IOException {
+    Set<String> histogramBases = collectHistogramBaseNames();
+    JsonNode root = MAPPER.readTree(file.toFile());
+    List<String> exprs = new ArrayList<>();
+    collectExprs(root, exprs);
+
+    List<String> bareHits = new ArrayList<>();
+    for (String expr : exprs) {
+      Matcher m = METRIC_REF.matcher(expr);
+      while (m.find()) {
+        String metric = m.group(1);
+        if (histogramBases.contains(metric)) {
+          bareHits.add(metric + " (in expr: " + expr + ")");
+        }
+      }
+    }
+    assertThat(bareHits)
+        .as(
+            "%s queries a histogram-class metric by its bare name — append _bucket/_sum/_count or "
+                + "wrap in histogram_quantile()",
+            file)
+        .isEmpty();
+  }
+
   @ParameterizedTest(name = "{0} matches the helm-chart copy")
   @MethodSource("dashboardFiles")
   void helmCopyMatches(Path composeFile) throws IOException {
@@ -235,6 +267,97 @@ class GrafanaDashboardTest {
       Matcher u = underscored.matcher(content);
       while (u.find()) {
         out.add(u.group(1));
+      }
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to read " + file, e);
+    }
+  }
+
+  /**
+   * Histogram-class instruments expose only `_bucket`/`_sum`/`_count`/`_max` series in Prometheus —
+   * never the bare name. Returns the set of bare names for which a bare-name query is invalid:
+   *
+   * <ul>
+   *   <li>python {@code Histogram("mariaalpha_x_y", ...)} → {@code mariaalpha_x_y}
+   *   <li>Java {@code DistributionSummary.builder("mariaalpha.x.y")} → {@code mariaalpha_x_y}
+   *   <li>Java {@code summary("mariaalpha.x.y", ...)} → {@code mariaalpha_x_y}
+   *   <li>Java {@code Timer.builder("mariaalpha.x.ms")} → {@code mariaalpha_x_ms_seconds} (the
+   *       Micrometer Prometheus exporter always appends {@code _seconds} to Timer names)
+   * </ul>
+   */
+  static Set<String> collectHistogramBaseNames() throws IOException {
+    Set<String> out = new HashSet<>();
+    Pattern pyHistogram =
+        Pattern.compile("(?:Histogram|Summary)\\(\\s*\"(mariaalpha_[a-zA-Z0-9_]+)\"");
+    Pattern javaDistSummaryDotted =
+        Pattern.compile("DistributionSummary\\.builder\\(\\s*\"(mariaalpha\\.[a-zA-Z0-9._]+)\"");
+    Pattern javaSummaryHelperDotted =
+        Pattern.compile("\\bsummary\\(\\s*\"(mariaalpha\\.[a-zA-Z0-9._]+)\"");
+    Pattern javaTimerDotted =
+        Pattern.compile("Timer\\.builder\\(\\s*\"(mariaalpha\\.[a-zA-Z0-9._]+)\"");
+    Path[] scanRoots =
+        new Path[] {
+          REPO_ROOT.resolve("market-data-gateway/src/main"),
+          REPO_ROOT.resolve("strategy-engine/src/main"),
+          REPO_ROOT.resolve("execution-engine/src/main"),
+          REPO_ROOT.resolve("order-manager/src/main"),
+          REPO_ROOT.resolve("post-trade/src/main"),
+          REPO_ROOT.resolve("api-gateway/src/main"),
+          REPO_ROOT.resolve("analytics-service/src"),
+          REPO_ROOT.resolve("ml-signal-service/src")
+        };
+    for (Path root : scanRoots) {
+      if (!Files.exists(root)) {
+        continue;
+      }
+      try (Stream<Path> walk = Files.walk(root)) {
+        walk.filter(Files::isRegularFile)
+            .filter(
+                p -> {
+                  String n = p.getFileName().toString();
+                  return n.endsWith(".java") || n.endsWith(".py");
+                })
+            .forEach(
+                p ->
+                    harvestHistograms(
+                        p,
+                        out,
+                        pyHistogram,
+                        javaDistSummaryDotted,
+                        javaSummaryHelperDotted,
+                        javaTimerDotted));
+      }
+    }
+    return out;
+  }
+
+  private static void harvestHistograms(
+      Path file,
+      Set<String> out,
+      Pattern pyHistogram,
+      Pattern javaDistSummary,
+      Pattern javaSummaryHelper,
+      Pattern javaTimer) {
+    try {
+      String content = Files.readString(file);
+      Matcher m = pyHistogram.matcher(content);
+      while (m.find()) {
+        out.add(m.group(1));
+      }
+      m = javaDistSummary.matcher(content);
+      while (m.find()) {
+        out.add(m.group(1).replace('.', '_'));
+      }
+      m = javaSummaryHelper.matcher(content);
+      while (m.find()) {
+        out.add(m.group(1).replace('.', '_'));
+      }
+      m = javaTimer.matcher(content);
+      while (m.find()) {
+        String base = m.group(1).replace('.', '_');
+        // Micrometer's Prometheus exporter always appends `_seconds` to Timer names (even when
+        // the metric author named the Timer in milliseconds).
+        out.add(base.endsWith("_seconds") ? base : base + "_seconds");
       }
     } catch (IOException e) {
       throw new RuntimeException("Failed to read " + file, e);
