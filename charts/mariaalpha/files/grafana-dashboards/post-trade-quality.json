@@ -1,0 +1,568 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "MariaAlpha post-trade & quality (issue 2.6.4). EOD reconciliation, TCA per strategy, internalisation, axe matching.",
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    { "title": "Trading Pipeline", "type": "dashboards", "tags": ["mariaalpha", "trading"] },
+    { "title": "Portfolio & Risk", "type": "dashboards", "tags": ["mariaalpha", "portfolio"] }
+  ],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Reconciliation (issue 2.6.1)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "description": "EOD reconciliation runs by terminal status. SUCCESS = compare completed; FAILED = Alpaca/order-manager unreachable. SCHEDULED = nightly cron; MANUAL = `POST /api/recon/run`.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": { "mode": "normal" }
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*FAILED.*" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+          },
+          {
+            "matcher": { "id": "byRegexp", "options": ".*SUCCESS.*" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "id": 1,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum by (status, source) (rate(mariaalpha_recon_runs_total[1h]))",
+          "legendFormat": "{{source}} {{status}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Reconciliation Runs Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "description": "Reconciliation breaks by type and severity (1h window). MISSING_FILL / EXTRA_FILL / QUANTITY_MISMATCH / PRICE_MISMATCH; severities LOW/MEDIUM/HIGH/CRITICAL.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": { "mode": "normal" }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "id": 2,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "values": ["sum", "lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum by (break_type, severity) (rate(mariaalpha_recon_breaks_total[1h]))",
+          "legendFormat": "{{break_type}} / {{severity}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Reconciliation Breaks (by type/severity)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "description": "Wall-clock duration of the most recent EOD reconciliation run (p95). >5s usually means a network round-trip stall (Alpaca or order-manager).",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 30 }
+            ]
+          },
+          "unit": "s",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 9 },
+      "id": 3,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "histogram_quantile(0.95, sum(rate(mariaalpha_recon_duration_seconds_bucket[24h])) by (le))",
+          "legendFormat": "p95",
+          "refId": "A"
+        }
+      ],
+      "title": "Recon Duration P95",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "description": "Total recon breaks across all time. A reading > 0 with `FAILED` runs in the panel above suggests a real divergence between internal records and the venue; > 0 with all `SUCCESS` is informational only.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "orange", "value": 10 },
+              { "color": "red", "value": 50 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 9 },
+      "id": 4,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum(mariaalpha_recon_breaks_total)",
+          "legendFormat": "breaks",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Recon Breaks (all-time)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "description": "Cumulative recon runs grouped by status. Compare SUCCESS/(SUCCESS+FAILED) for a rough operability ratio.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "blue", "value": null }]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 9 },
+      "id": 5,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum by (status) (mariaalpha_recon_runs_total)",
+          "legendFormat": "{{status}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Recon Runs — Cumulative by Status",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
+      "id": 101,
+      "title": "Transaction Cost Analysis",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "description": "TCA slippage p50 and p95 (bps) per strategy over the last 1h. Negative bps = better than arrival; positive = worse. Histogram buckets enabled in `post-trade.application.yml`.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 16, "x": 0, "y": 16 },
+      "id": 6,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "values": ["mean", "lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "histogram_quantile(0.5, sum by (strategy, le) (rate(mariaalpha_tca_slippage_bps_bucket[1h])))",
+          "legendFormat": "{{strategy}} p50",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "histogram_quantile(0.95, sum by (strategy, le) (rate(mariaalpha_tca_slippage_bps_bucket[1h])))",
+          "legendFormat": "{{strategy}} p95",
+          "refId": "B"
+        }
+      ],
+      "title": "TCA Slippage by Strategy (bps)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "description": "TCA computations per minute (post-trade processes fills as they arrive on `orders.lifecycle`). Drops to 0 when the trading day quiets down.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+      "id": 7,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum by (strategy) (rate(mariaalpha_tca_computations_total[5m])) * 60",
+          "legendFormat": "{{strategy}}",
+          "refId": "A"
+        }
+      ],
+      "title": "TCA Computations / min",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "description": "Average TCA components per strategy (bps): implementation shortfall, VWAP benchmark, spread cost. Backed by Micrometer DistributionSummary `_sum/_count`.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+      "id": 8,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "values": ["mean", "lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum by (strategy) (rate(mariaalpha_tca_impl_shortfall_bps_sum[1h])) / sum by (strategy) (rate(mariaalpha_tca_impl_shortfall_bps_count[1h]))",
+          "legendFormat": "{{strategy}} IS (bps)",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum by (strategy) (rate(mariaalpha_tca_vwap_benchmark_bps_sum[1h])) / sum by (strategy) (rate(mariaalpha_tca_vwap_benchmark_bps_count[1h]))",
+          "legendFormat": "{{strategy}} VWAP (bps)",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum by (strategy) (rate(mariaalpha_tca_spread_cost_bps_sum[1h])) / sum by (strategy) (rate(mariaalpha_tca_spread_cost_bps_count[1h]))",
+          "legendFormat": "{{strategy}} Spread (bps)",
+          "refId": "C"
+        }
+      ],
+      "title": "TCA Components — Avg by Strategy (bps)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 },
+      "id": 102,
+      "title": "Internalisation (issue 2.1.10)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "description": "Share of fills internalised vs. routed externally. Higher = more spread captured, lower information leakage. Computed from `mariaalpha_execution_internal_crosses_total` over total venue fills.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.1 },
+              { "color": "green", "value": 0.25 }
+            ]
+          },
+          "unit": "percentunit",
+          "decimals": 2,
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 33 },
+      "id": 9,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum(mariaalpha_execution_internal_crosses_total) / clamp_min(sum(mariaalpha_execution_venue_fills_total), 1)",
+          "legendFormat": "internalisation",
+          "refId": "A"
+        }
+      ],
+      "title": "Internalisation Rate",
+      "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "description": "Internal crosses per minute. The internal crossing engine matches incoming orders against the resting book at the mid; every cross is a fill that bypassed the external venue.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 9, "x": 6, "y": 33 },
+      "id": 10,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum(rate(mariaalpha_execution_internal_crosses_total[5m])) * 60",
+          "legendFormat": "crosses/min",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "sum(rate(mariaalpha_execution_internal_shares_crossed_total[5m])) * 60",
+          "legendFormat": "shares/min",
+          "refId": "B"
+        }
+      ],
+      "title": "Internal Cross Throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "description": "Average spread (bps) captured per internal cross — how much our customers paid us relative to mid. Higher is better for the desk.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 9, "x": 15, "y": 33 },
+      "id": 11,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "rate(mariaalpha_execution_internal_spread_captured_bps_sum[1h]) / clamp_min(rate(mariaalpha_execution_internal_spread_captured_bps_count[1h]), 1)",
+          "legendFormat": "avg spread captured (bps)",
+          "refId": "A"
+        }
+      ],
+      "title": "Spread Captured on Internal Crosses (bps)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "description": "Resting orders on the internal book. The buy/sell depth gauges are populated by `mariaalpha_execution_internal_book_*` callbacks.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 41 },
+      "id": 12,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "mariaalpha_execution_internal_book_buy_depth",
+          "legendFormat": "buy depth",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "mariaalpha_execution_internal_book_sell_depth",
+          "legendFormat": "sell depth",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "expr": "mariaalpha_execution_internal_book_resting_orders",
+          "legendFormat": "resting orders",
+          "refId": "C"
+        }
+      ],
+      "title": "Internal Book Depth",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["mariaalpha", "post-trade", "quality"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Data Source",
+        "multi": false,
+        "name": "DS_PROMETHEUS",
+        "options": [],
+        "query": "prometheus",
+        "queryValue": "",
+        "refresh": 1,
+        "regex": "",
+        "sort": 0,
+        "type": "datasource"
+      }
+    ]
+  },
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "MariaAlpha — Post-Trade & Quality",
+  "uid": "mariaalpha-post-trade-quality",
+  "version": 1
+}
