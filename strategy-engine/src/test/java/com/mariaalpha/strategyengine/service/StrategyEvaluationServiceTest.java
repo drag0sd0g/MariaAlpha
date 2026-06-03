@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.doubleThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,6 +25,7 @@ import com.mariaalpha.strategyengine.model.OrderSignal;
 import com.mariaalpha.strategyengine.model.OrderType;
 import com.mariaalpha.strategyengine.model.Side;
 import com.mariaalpha.strategyengine.publisher.SignalPublisher;
+import com.mariaalpha.strategyengine.routing.RegimeBasedStrategySelector;
 import com.mariaalpha.strategyengine.routing.SymbolStrategyRouter;
 import com.mariaalpha.strategyengine.strategy.TradingStrategy;
 import java.math.BigDecimal;
@@ -40,6 +42,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 public class StrategyEvaluationServiceTest {
 
   @Mock private SymbolStrategyRouter router;
+  @Mock private RegimeBasedStrategySelector regimeSelector;
   @Mock private MlSignalClient mlClient;
   @Mock private SignalPublisher signalPublisher;
   @Mock private StrategyMetrics metrics;
@@ -58,8 +61,12 @@ public class StrategyEvaluationServiceTest {
         new MlConfig(
             "localhost", 50051, 0.7, VetoMode.STRICT, false, SizingMode.NONE, 0.2, 0.5, 1.5);
     var gate = new MlSignalGate(config);
-    underTest = new StrategyEvaluationService(router, mlClient, gate, signalPublisher, metrics);
-    when(router.getActiveStrategy(SYMBOL)).thenReturn(Optional.of(strategy));
+    underTest =
+        new StrategyEvaluationService(
+            router, regimeSelector, mlClient, gate, signalPublisher, metrics);
+    // Lenient because the regime-selector test overrides this and skips the router path.
+    lenient().when(regimeSelector.selectFor(SYMBOL)).thenReturn(Optional.empty());
+    lenient().when(router.getActiveStrategy(SYMBOL)).thenReturn(Optional.of(strategy));
   }
 
   @Test
@@ -120,7 +127,8 @@ public class StrategyEvaluationServiceTest {
             "localhost", 50051, 0.7, VetoMode.PERMISSIVE, false, SizingMode.NONE, 0.2, 0.5, 1.5);
     var permissiveGate = new MlSignalGate(permissiveConfig);
     var permissiveService =
-        new StrategyEvaluationService(router, mlClient, permissiveGate, signalPublisher, metrics);
+        new StrategyEvaluationService(
+            router, regimeSelector, mlClient, permissiveGate, signalPublisher, metrics);
 
     when(strategy.name()).thenReturn("VWAP");
     when(strategy.evaluate(SYMBOL)).thenReturn(Optional.of(BUY_SIGNAL));
@@ -140,7 +148,8 @@ public class StrategyEvaluationServiceTest {
             "localhost", 50051, 0.7, VetoMode.STRICT, false, SizingMode.SCALED, 0.20, 0.50, 1.50);
     var sizingGate = new MlSignalGate(sizingConfig);
     var sizingService =
-        new StrategyEvaluationService(router, mlClient, sizingGate, signalPublisher, metrics);
+        new StrategyEvaluationService(
+            router, regimeSelector, mlClient, sizingGate, signalPublisher, metrics);
 
     when(strategy.name()).thenReturn("VWAP");
     when(strategy.evaluate(SYMBOL)).thenReturn(Optional.of(BUY_SIGNAL));
@@ -154,6 +163,22 @@ public class StrategyEvaluationServiceTest {
     verify(signalPublisher).publish(captor.capture());
     assertThat(captor.getValue().quantity()).isEqualTo(150);
     verify(metrics).recordMlQuantityScale(eq("VWAP"), doubleThat(d -> Math.abs(d - 1.5) < 1e-9));
+  }
+
+  @Test
+  void evaluateUsesRegimeSelectorWhenItReturnsAStrategy() {
+    // Regime-driven selection overrides whatever the manual router would say (FR-17).
+    when(regimeSelector.selectFor(SYMBOL)).thenReturn(Optional.of(strategy));
+    when(strategy.name()).thenReturn("MOMENTUM");
+    when(strategy.evaluate(SYMBOL)).thenReturn(Optional.of(BUY_SIGNAL));
+    when(mlClient.getSignal(SYMBOL)).thenReturn(Optional.empty());
+
+    underTest.evaluate(tick(SYMBOL));
+
+    verify(signalPublisher).publish(BUY_SIGNAL);
+    verify(metrics).recordSignal("MOMENTUM", Side.BUY);
+    // Manual router should not be consulted when the regime selector returns a strategy.
+    verify(router, never()).getActiveStrategy(SYMBOL);
   }
 
   private static MarketTick tick(String symbol) {

@@ -43,7 +43,7 @@ public class FokOrderHandler implements OrderTypeHandler {
     if (order.getSide() == Side.SELL
         && order.getLimitPrice().compareTo(marketState.bidPrice()) > 0) {
       return ValidationResult.fail(
-          "FOK SELL limit is not marketable against curren bid " + marketState.bidPrice());
+          "FOK SELL limit is not marketable against current bid " + marketState.bidPrice());
     }
 
     return ValidationResult.ok();

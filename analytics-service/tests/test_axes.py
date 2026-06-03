@@ -112,6 +112,25 @@ def test_match_ranks_by_confidence_then_remaining():
     assert matches[1].matched_quantity == 300
 
 
+def test_match_ranks_by_confidence_times_remaining_product():
+    """Spec (TDD §5.2.7): rank by `confidence × remaining-size`.
+
+    This exercises the case where the product ordering disagrees with naive
+    confidence-first sorting — a big-but-stale axe must beat a small-but-fresh
+    one when the product favours the larger axe.
+    """
+    m, clock = _matcher(default_ttl=1000)
+    # Big stale axe at t=1000, small fresh axe at t=1500.
+    m.publish("big_stale", "C1", "AAPL", "SELL", 1000)
+    clock[0] = 1500.0
+    m.publish("small_fresh", "C2", "AAPL", "SELL", 100)
+    # At t=1500: big_stale conf=0.5 × remaining 1000 = 500 (product score).
+    #            small_fresh conf=1.0 × remaining 100 = 100.
+    # Spec ranking puts big_stale first despite its lower confidence.
+    matches = m.match(IncomingLeg("o1", "AAPL", "BUY", 50))
+    assert [s.axe_id for s in matches] == ["big_stale"]
+
+
 def test_expired_axe_is_dropped_at_match_time():
     m, clock = _matcher(default_ttl=100)
     m.publish("a1", "C1", "AAPL", "SELL", 500)

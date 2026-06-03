@@ -38,6 +38,14 @@ strategy-engine:
     sizing-neutral-fraction: 0.20
     sizing-lower-bound: 0.50
     sizing-upper-bound: 1.50
+  # FR-17 — regime-driven algorithm selection. Disabled by default to preserve manual control.
+  # Set enabled=true to let GetRegime pick the strategy when confidence ≥ confidence-threshold.
+  regime:
+    enabled: false
+    confidence-threshold: 0.6
+    # Optional per-regime override of the built-in defaults (TRENDING_UP/DOWN → MOMENTUM,
+    # MEAN_REVERTING/LOW_VOLATILITY → VWAP). Keys are MarketRegime enum names.
+    map: {}
   # Issues 2.4.1 / 2.4.2 — inventory-aware + vol/ADV-relative RFQ pricing.
   rfq:
     base-spread-bps: 4.0

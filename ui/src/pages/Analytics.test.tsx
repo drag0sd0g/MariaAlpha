@@ -15,6 +15,9 @@ beforeEach(() => {
     http.get("/api/analytics/flow/toxicity", () =>
       HttpResponse.json({ rows: [], thresholdBps: 5, horizonsSeconds: [60, 300, 1800] }),
     ),
+    http.get("/api/analytics/axes", () =>
+      HttpResponse.json({ axes: [], stats: { activeAxes: 0, matchedTotalShares: 0 } }),
+    ),
   );
 });
 
@@ -98,6 +101,44 @@ describe("Analytics page", () => {
       </MemoryRouter>,
     );
     expect(screen.getByTestId("alerts-badge")).toHaveTextContent("1");
+  });
+
+  it("renders axes table with stats header when axes tab is opened", async () => {
+    server.use(
+      http.get("/api/analytics/axes", () =>
+        HttpResponse.json({
+          axes: [
+            {
+              axeId: "ax-1",
+              clientId: "alpha-fund",
+              symbol: "NVDA",
+              side: "BUY",
+              quantity: 50000,
+              remaining: 35000,
+              limitPrice: 950.25,
+              publishedAt: 1717400000,
+              expiresAt: 1717403600,
+              confidence: 0.82,
+              refreshCount: 2,
+            },
+          ],
+          stats: { activeAxes: 1, matchedTotalShares: 15000 },
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <Analytics />
+      </MemoryRouter>,
+    );
+    await user.click(screen.getByTestId("tab-axes"));
+    await waitFor(() => {
+      expect(screen.getByTestId("axes-section")).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Active axes: 1/)).toBeInTheDocument();
+    expect(screen.getByText("alpha-fund")).toBeInTheDocument();
+    expect(screen.getByText("NVDA")).toBeInTheDocument();
   });
 
   it("renders toxicity table with threshold header", async () => {

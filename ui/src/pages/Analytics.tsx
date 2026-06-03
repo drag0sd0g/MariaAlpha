@@ -56,12 +56,31 @@ interface ToxicityResponse {
   horizonsSeconds: number[];
 }
 
-type Tab = "tca" | "pnl" | "toxicity" | "alerts";
+interface AxeRow {
+  axeId: string;
+  clientId: string;
+  symbol: string;
+  side: "BUY" | "SELL";
+  quantity: number;
+  remaining: number;
+  limitPrice: number | null;
+  publishedAt: number;
+  expiresAt: number;
+  confidence: number;
+  refreshCount: number;
+}
+interface AxesResponse {
+  axes: AxeRow[];
+  stats: { activeAxes: number; matchedTotalShares: number };
+}
+
+type Tab = "tca" | "pnl" | "toxicity" | "axes" | "alerts";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "tca", label: "TCA" },
   { id: "pnl", label: "PnL attribution" },
   { id: "toxicity", label: "Flow toxicity" },
+  { id: "axes", label: "Axes" },
   { id: "alerts", label: "Risk alerts" },
 ];
 
@@ -76,6 +95,7 @@ export default function Analytics() {
   const [tcaRows, setTcaRows] = useState<TcaRow[]>([]);
   const [pnl, setPnl] = useState<PnlAttributionRow[]>([]);
   const [toxicity, setToxicity] = useState<ToxicityResponse | null>(null);
+  const [axes, setAxes] = useState<AxesResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filterSymbol, setFilterSymbol] = useState("");
   const [filterStrategy, setFilterStrategy] = useState("");
@@ -119,11 +139,25 @@ export default function Analytics() {
     }
   }, []);
 
+  const loadAxes = useCallback(async (): Promise<void> => {
+    const params = new URLSearchParams();
+    if (filterSymbol) params.set("symbol", filterSymbol);
+    const url = params.size > 0 ? `/api/analytics/axes?${params.toString()}` : "/api/analytics/axes";
+    try {
+      const body = await api<AxesResponse>(url);
+      setAxes(body);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [filterSymbol]);
+
   useEffect(() => {
     if (tab === "tca") void loadTca();
     else if (tab === "pnl") void loadPnl();
     else if (tab === "toxicity") void loadToxicity();
-  }, [tab, loadTca, loadPnl, loadToxicity]);
+    else if (tab === "axes") void loadAxes();
+  }, [tab, loadTca, loadPnl, loadToxicity, loadAxes]);
 
   const chartData = useMemo(
     () =>
@@ -143,7 +177,7 @@ export default function Analytics() {
       <h1 className="text-2xl font-semibold">Analytics</h1>
       <p className="text-sm text-slate-600">
         Transaction-cost analysis (TCA, Phase 1.7.1), PnL attribution (analytics 2.2.5), flow
-        toxicity (2.2.4) and live risk alerts streamed off Kafka (2.5.5).
+        toxicity (2.2.4), axe matching (2.2.6) and live risk alerts streamed off Kafka (2.5.5).
       </p>
 
       <div className="flex items-center gap-2 border-b border-slate-200">
@@ -179,7 +213,7 @@ export default function Analytics() {
         </div>
       )}
 
-      {(tab === "tca" || tab === "pnl") && (
+      {(tab === "tca" || tab === "pnl" || tab === "axes") && (
         <div className="flex gap-3 items-end" data-testid="filters">
           <div>
             <label className="block text-sm text-slate-700">Symbol</label>
@@ -192,23 +226,26 @@ export default function Analytics() {
               }}
             />
           </div>
-          <div>
-            <label className="block text-sm text-slate-700">Strategy</label>
-            <input
-              data-testid="filter-strategy"
-              className="rounded border border-slate-300 px-2 py-1"
-              value={filterStrategy}
-              onChange={(e) => {
-                setFilterStrategy(e.target.value.toUpperCase());
-              }}
-            />
-          </div>
+          {tab !== "axes" && (
+            <div>
+              <label className="block text-sm text-slate-700">Strategy</label>
+              <input
+                data-testid="filter-strategy"
+                className="rounded border border-slate-300 px-2 py-1"
+                value={filterStrategy}
+                onChange={(e) => {
+                  setFilterStrategy(e.target.value.toUpperCase());
+                }}
+              />
+            </div>
+          )}
           <button
             data-testid="filter-apply"
             className="rounded bg-blue-600 px-3 py-1 text-white text-sm"
             onClick={() => {
               if (tab === "tca") void loadTca();
               if (tab === "pnl") void loadPnl();
+              if (tab === "axes") void loadAxes();
             }}
           >
             Apply
@@ -384,6 +421,64 @@ export default function Analytics() {
                         ) : (
                           <span className="text-slate-400 text-xs">ok</span>
                         )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          ) : (
+            <div className="py-12 text-center text-slate-500">Loading…</div>
+          )}
+        </div>
+      )}
+
+      {tab === "axes" && (
+        <div className="bg-white rounded shadow-sm overflow-hidden" data-testid="axes-section">
+          {axes ? (
+            <>
+              <div className="px-4 py-2 text-xs text-slate-500 bg-slate-50 border-b border-slate-200">
+                Active axes: {axes.stats.activeAxes} · Matched lifetime:{" "}
+                {axes.stats.matchedTotalShares.toLocaleString()} shares
+              </div>
+              <table className="min-w-full divide-y divide-slate-200">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-2 text-left">Axe</th>
+                    <th className="px-4 py-2 text-left">Client</th>
+                    <th className="px-4 py-2 text-left">Symbol</th>
+                    <th className="px-4 py-2 text-left">Side</th>
+                    <th className="px-4 py-2 text-right">Quantity</th>
+                    <th className="px-4 py-2 text-right">Remaining</th>
+                    <th className="px-4 py-2 text-right">Limit</th>
+                    <th className="px-4 py-2 text-right">Confidence</th>
+                    <th className="px-4 py-2 text-right">Refreshes</th>
+                    <th className="px-4 py-2 text-left">Expires</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {axes.axes.length === 0 && (
+                    <tr>
+                      <td colSpan={10} className="px-4 py-6 text-center text-slate-500">
+                        No active axes. POST to <code>/api/analytics/axes</code> to publish one.
+                      </td>
+                    </tr>
+                  )}
+                  {axes.axes.map((a) => (
+                    <tr key={a.axeId}>
+                      <td className="px-4 py-2 font-mono text-xs">{a.axeId}</td>
+                      <td className="px-4 py-2">{a.clientId}</td>
+                      <td className="px-4 py-2">{a.symbol}</td>
+                      <td className="px-4 py-2">{a.side}</td>
+                      <td className="px-4 py-2 text-right num">{a.quantity.toLocaleString()}</td>
+                      <td className="px-4 py-2 text-right num">{a.remaining.toLocaleString()}</td>
+                      <td className="px-4 py-2 text-right num">
+                        {a.limitPrice == null ? "—" : a.limitPrice.toFixed(2)}
+                      </td>
+                      <td className="px-4 py-2 text-right num">{a.confidence.toFixed(2)}</td>
+                      <td className="px-4 py-2 text-right num">{a.refreshCount}</td>
+                      <td className="px-4 py-2 text-xs text-slate-500">
+                        {new Date(a.expiresAt * 1000).toLocaleString()}
                       </td>
                     </tr>
                   ))}
