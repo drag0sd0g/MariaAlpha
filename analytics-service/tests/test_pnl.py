@@ -159,9 +159,7 @@ def test_timing_uses_decision_mid_when_present_buy():
     # BUY 100 @ arrival=100.10, decision-mid=100.00 → market drifted up between decision
     # and arrival → timing = (100.10 − 100.00) × +100 = +10.00 (favorable).
     eng = PnlAttributionEngine()
-    row = eng.attribute(
-        _tca(arrival_price=100.10, decision_mid_price=100.00)
-    )
+    row = eng.attribute(_tca(arrival_price=100.10, decision_mid_price=100.00))
     assert row.timing_usd == pytest.approx(10.0)
     # Components must still reconstruct realized PnL (residual absorbs any drift).
     assert row.total() == pytest.approx(row.realized_pnl_usd, abs=1e-3)
@@ -171,9 +169,7 @@ def test_timing_sign_flips_for_sell():
     # SELL 100 @ arrival=99.90, decision-mid=100.00 → market dropped between decision
     # and arrival → timing = (99.90 − 100.00) × −100 = +10.00 (favorable for a short).
     eng = PnlAttributionEngine()
-    row = eng.attribute(
-        _tca(side="SELL", arrival_price=99.90, decision_mid_price=100.00)
-    )
+    row = eng.attribute(_tca(side="SELL", arrival_price=99.90, decision_mid_price=100.00))
     assert row.timing_usd == pytest.approx(10.0)
 
 

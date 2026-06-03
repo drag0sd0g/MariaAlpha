@@ -142,7 +142,8 @@ export default function Analytics() {
   const loadAxes = useCallback(async (): Promise<void> => {
     const params = new URLSearchParams();
     if (filterSymbol) params.set("symbol", filterSymbol);
-    const url = params.size > 0 ? `/api/analytics/axes?${params.toString()}` : "/api/analytics/axes";
+    const url =
+      params.size > 0 ? `/api/analytics/axes?${params.toString()}` : "/api/analytics/axes";
     try {
       const body = await api<AxesResponse>(url);
       setAxes(body);
