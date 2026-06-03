@@ -1,0 +1,31 @@
+meta {
+  name: Accept Quote
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/rfq/accept
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "quoteId": "{{lastQuoteId}}",
+    "side": "BUY",
+    "price": "{{lastQuoteAsk}}"
+  }
+}
+
+docs {
+  Accepts a previously issued quote. The price must match the quoted bid (for
+  SELL) or ask (for BUY) within $0.01. Returns 410 if expired, 409 if price
+  mismatched. On success an OrderSignal is published to the signals topic and
+  the response includes the signal payload.
+}

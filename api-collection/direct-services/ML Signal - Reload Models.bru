@@ -1,0 +1,17 @@
+meta {
+  name: ML Signal Reload Models
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{mlSignalServiceUrl}}/v1/models/reload
+  body: none
+  auth: none
+}
+
+docs {
+  Forces the ML Signal Service to reload the LightGBM signal model and the
+  Random Forest regime model from disk (issue 2.3.1). Useful when an offline
+  training run drops a new joblib into `ml-models/`.
+}

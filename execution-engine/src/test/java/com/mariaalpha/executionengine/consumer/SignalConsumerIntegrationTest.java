@@ -45,6 +45,14 @@ class SignalConsumerIntegrationTest {
     registry.add("execution-engine.kafka.orders-lifecycle-topic", () -> "orders.lifecycle");
     registry.add("execution-engine.kafka.routing-decisions-topic", () -> "routing.decisions");
     registry.add("execution-engine.kafka.risk-alerts-topic", () -> "analytics.risk-alerts");
+    registry.add("execution-engine.redis.enabled", () -> "false");
+    registry.add("management.health.redis.enabled", () -> "false");
+    registry.add(
+        "spring.autoconfigure.exclude",
+        () ->
+            "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,"
+                + "org.springframework.boot.autoconfigure.data.redis"
+                + ".RedisRepositoriesAutoConfiguration");
   }
 
   @Test

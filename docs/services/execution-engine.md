@@ -180,6 +180,8 @@ Computes `lastTradePrice × quantity` and rejects if it exceeds the configured l
 
 Looks up the current position notional for the symbol (tracked by `PositionTracker`) and adds the order's notional. If the projected total exceeds the per-symbol limit (default: $500,000), the order is rejected. This prevents concentration risk — even if each individual order is small, accumulated exposure to a single symbol can be dangerous.
 
+`PositionTracker` is hydrated from the **Redis position cache** (issue 2.7.4): on startup `RedisPositionCacheClient` scans every `mariaalpha:position:*` key and seeds the tracker; thereafter every `mariaalpha.positions.updates` pub/sub message from the order-manager refreshes the in-memory row in real time. A direct `fetch(symbol)` fallback covers the warm-up window. If Redis is unreachable the tracker degrades to an empty/last-known state and the check still runs — risk decisions never block on cache I/O. Disable with `execution-engine.redis.enabled=false`.
+
 #### Check 3: MaxPortfolioExposure (`@Order(3)`)
 
 Computes the total gross exposure across all symbols (sum of absolute position notionals) and adds the order's notional. If the projected total exceeds the portfolio limit (default: $2,000,000), the order is rejected. This is a portfolio-level guard that limits total market exposure regardless of how well diversified the positions are.

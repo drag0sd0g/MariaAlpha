@@ -1,0 +1,24 @@
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+auth {
+  mode: none
+}
+
+docs {
+  # MariaAlpha API collection
+
+  This Bruno collection exercises every public REST endpoint exposed through the
+  API Gateway (port 8080). Every request reads the API key from the
+  `apiKey` environment variable and sends it as the `X-API-Key` header — the
+  gateway rejects anything else with HTTP 401.
+
+  Switch environments via the dropdown in the top-right corner:
+
+  - **Local Docker Compose**: gateway at http://localhost:8080, default API key `local-dev-key`.
+  - **OrbStack Helm**: gateway at http://api.mariaalpha.orb.local, override the API key per install.
+
+  Direct-to-service requests (bypassing the gateway) live under `direct-services/`
+  and are useful for debugging or when the gateway is unavailable.
+}

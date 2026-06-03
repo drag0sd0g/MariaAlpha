@@ -1,0 +1,23 @@
+meta {
+  name: List Positions
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/positions
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Returns every position the order-manager has on file — long, short, or flat.
+  Phase-2 (issue 2.7.4) Redis cache duplicates each row at
+  `mariaalpha:position:<symbol>` for sub-millisecond cross-service reads by
+  the execution-engine's risk checks; this REST endpoint remains the
+  authoritative read-from-Postgres path.
+}

@@ -1,0 +1,40 @@
+meta {
+  name: Submit Manual Order (ICEBERG)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/execution/orders
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "symbol": "AAPL",
+    "side": "BUY",
+    "orderType": "ICEBERG",
+    "quantity": 600,
+    "limitPrice": 175.50,
+    "displayQuantity": 100,
+    "tif": "DAY",
+    "clientOrderId": "iceberg-{{$randomUUID}}"
+  }
+}
+
+docs {
+  ICEBERG parent — the IcebergCoordinator slices into `displayQuantity`-sized
+  LIMIT children. Track per-slice progress with the Iceberg Progress request.
+}
+
+script:post-response {
+  if (res.status === 202 && res.body && res.body.orderId) {
+    bru.setVar("lastIcebergParentId", res.body.orderId);
+  }
+}

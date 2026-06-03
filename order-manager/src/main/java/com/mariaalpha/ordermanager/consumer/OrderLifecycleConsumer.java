@@ -1,6 +1,7 @@
 package com.mariaalpha.ordermanager.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mariaalpha.ordermanager.cache.RedisPositionCachePublisher;
 import com.mariaalpha.ordermanager.controller.dto.PositionSnapshot;
 import com.mariaalpha.ordermanager.model.OrderLifecycleEvent;
 import com.mariaalpha.ordermanager.publisher.PositionUpdatePublisher;
@@ -10,6 +11,7 @@ import java.time.Instant;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,16 +25,19 @@ public class OrderLifecycleConsumer {
   private final OrderPersistenceService persistenceService;
   private final PositionService positionService;
   private final PositionUpdatePublisher publisher;
+  private final ObjectProvider<RedisPositionCachePublisher> cachePublisher;
 
   public OrderLifecycleConsumer(
       ObjectMapper objectMapper,
       OrderPersistenceService persistenceService,
       PositionService positionService,
-      PositionUpdatePublisher publisher) {
+      PositionUpdatePublisher publisher,
+      ObjectProvider<RedisPositionCachePublisher> cachePublisher) {
     this.objectMapper = objectMapper;
     this.persistenceService = persistenceService;
     this.positionService = positionService;
     this.publisher = publisher;
+    this.cachePublisher = cachePublisher;
   }
 
   @KafkaListener(topics = "${order-manager.kafka.orders-lifecycle-topic}")
@@ -71,6 +76,7 @@ public class OrderLifecycleConsumer {
                   position.getLastMarkPrice(),
                   Instant.now());
           publisher.publish(positionSnapshot);
+          cachePublisher.ifAvailable(p -> p.publish(positionSnapshot));
         });
   }
 }

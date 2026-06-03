@@ -1,0 +1,20 @@
+meta {
+  name: Portfolio Summary
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/portfolio/summary
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Aggregate portfolio dashboard data: total value, cash, gross/net exposure,
+  realized + unrealized PnL, open position count. Refreshed on every fill.
+}

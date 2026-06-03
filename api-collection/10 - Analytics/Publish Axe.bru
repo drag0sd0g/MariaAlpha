@@ -1,0 +1,34 @@
+meta {
+  name: Publish Axe
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/analytics/axes
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "axe_id": "axe-{{$randomUUID}}",
+    "client_id": "buy-side-client-42",
+    "symbol": "AAPL",
+    "side": "BUY",
+    "quantity": 2500,
+    "limit_price": 175.00,
+    "ttl_seconds": 300
+  }
+}
+
+docs {
+  Phase-2 (issue 2.2.6) — publish a client interest / axe. The matcher
+  surfaces overlapping interest for incoming SUBMITTED orders ranked by
+  `confidence × remaining_size`. Returns 201 with the persisted axe payload.
+}

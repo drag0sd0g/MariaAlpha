@@ -1,0 +1,27 @@
+meta {
+  name: Set Active Strategy
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/api/strategies/AAPL
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "strategyName": "VWAP"
+  }
+}
+
+docs {
+  Binds a strategy to a symbol. Returns 200 on success, 400 if the strategy
+  name is unknown.
+}

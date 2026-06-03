@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "MariaAlpha API",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

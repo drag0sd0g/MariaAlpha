@@ -1,0 +1,16 @@
+meta {
+  name: Analytics Service Health (direct)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{analyticsServiceUrl}}/health
+  body: none
+  auth: none
+}
+
+docs {
+  Direct read of the analytics service health endpoint, bypassing the gateway.
+  Useful when the gateway is unreachable.
+}

@@ -1,0 +1,17 @@
+meta {
+  name: ML Signal Health
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{mlSignalServiceUrl}}/health
+  body: none
+  auth: none
+}
+
+docs {
+  ML Signal Service (Python/FastAPI) liveness. The gRPC port is 50051; this
+  REST endpoint is for health and admin only — strategy engine consumes
+  signals over gRPC.
+}

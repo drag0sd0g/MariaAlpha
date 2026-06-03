@@ -1,0 +1,24 @@
+meta {
+  name: Axe Matches For Order
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/analytics/axes/matches/{{orderId}}
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+vars:pre-request {
+  orderId: 00000000-0000-0000-0000-000000000000
+}
+
+docs {
+  Returns the ranked axe matches the matcher computed for a given submitted
+  order. 503 if the orders consumer is not running (analytics still booting).
+}

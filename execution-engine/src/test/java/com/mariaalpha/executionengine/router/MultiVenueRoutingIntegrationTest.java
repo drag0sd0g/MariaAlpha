@@ -61,6 +61,14 @@ class MultiVenueRoutingIntegrationTest {
     registry.add("execution-engine.dark-pool.match-probability-per-tick", () -> 1.0);
     registry.add("execution-engine.internal-crossing.seed", () -> 7L);
     registry.add("execution-engine.internal-crossing.cross-probability-on-submit", () -> 1.0);
+    registry.add("execution-engine.redis.enabled", () -> "false");
+    registry.add("management.health.redis.enabled", () -> "false");
+    registry.add(
+        "spring.autoconfigure.exclude",
+        () ->
+            "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,"
+                + "org.springframework.boot.autoconfigure.data.redis"
+                + ".RedisRepositoriesAutoConfiguration");
   }
 
   @BeforeAll

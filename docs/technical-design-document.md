@@ -460,6 +460,8 @@ graph LR
         K -->|events| PT[Post-Trade & Recon]
         K -->|events| AN[Analytics Service]
         OM --> PG[(PostgreSQL)]
+        OM -->|position snapshots + pub/sub| RD[(Redis cache)]
+        RD -->|warm + pub/sub| EE
         PT --> PG
         AN --> PG
     end
@@ -627,7 +629,7 @@ public interface ExchangeAdapter {
 | **Framework** | Spring Boot 3 with Spring Data JPA |
 | **Role** | Persists orders and fills, maintains position book, computes real-time P&L |
 
-**Position Calculation:** On every fill: (1) adjust quantity and weighted avg entry price, (2) compute realized P&L on position-reducing fills, (3) mark-to-market open positions against latest tick, (4) publish updated snapshot to `positions.updates`.
+**Position Calculation:** On every fill: (1) adjust quantity and weighted avg entry price, (2) compute realized P&L on position-reducing fills, (3) mark-to-market open positions against latest tick, (4) publish updated snapshot to `positions.updates` (Kafka, authoritative async path) and to the **Redis position cache** introduced in issue 2.7.4 (key `mariaalpha:position:<symbol>` with a 24 h TTL, plus a pub/sub event on `mariaalpha.positions.updates` so subscribers can refresh without polling). Redis is a pure cache — PostgreSQL remains the system of record and Kafka is the durable event log; cache failures degrade gracefully (warn + continue) so a Redis outage never blocks fill processing.
 
 #### 5.2.6 Post-Trade and Reconciliation Engine
 
@@ -864,6 +866,36 @@ graph TB
 
 The Electronic Trading REST API (Phase 3) would expose endpoints for programmatic algo execution: `POST /api/v1/algo/vwap`, `POST /api/v1/algo/twap`, `POST /api/v1/algo/is`, etc. — each accepting order parameters and returning a tracking ID for monitoring execution progress via WebSocket. The FIX gateway (also Phase 3) would accept standard FIX 4.4 NewOrderSingle messages and route them through the same pipeline.
 
+#### 5.3.8 Distributed Position Cache (issue 2.7.4)
+
+Phase 2 introduces Redis as a **cache layer** for hot-path cross-service reads of the order-manager's authoritative position book. PostgreSQL remains the system of record and Kafka's `positions.updates` topic remains the durable event log; Redis adds sub-millisecond visibility for the pre-trade risk checks running inside the execution-engine.
+
+```mermaid
+sequenceDiagram
+    participant OM as Order Manager
+    participant PG as PostgreSQL
+    participant RD as Redis
+    participant K as Kafka
+    participant EE as Execution Engine
+
+    OM->>PG: persist fill + updated position
+    OM->>K: positions.updates (durable)
+    OM->>RD: SET mariaalpha:position:<symbol> (TTL 24h)
+    OM->>RD: PUBLISH mariaalpha.positions.updates
+    Note over EE: @PostConstruct: SCAN mariaalpha:position:* → seed PositionTracker
+    RD->>EE: pub/sub message → applyMessage()
+    EE->>EE: PositionTracker.updatePosition(symbol, notional)
+    EE->>EE: risk checks read in-process tracker
+```
+
+**Order-manager (writer):** `RedisPositionCachePublisher` writes the snapshot on every fill (after the existing Kafka publish) and emits a pub/sub event so any subscriber can refresh in-process state without polling. Failures are swallowed at WARN level so a Redis hiccup never blocks fill processing.
+
+**Execution-engine (reader):** `RedisPositionCacheClient` warms the in-process `PositionTracker` on startup by scanning every `mariaalpha:position:*` key, then subscribes to the pub/sub channel for incremental updates. A direct `fetch(symbol)` path exists as a fallback when the in-memory state is empty (e.g. between warm-up failure and the first pub/sub message).
+
+**Metrics:** `mariaalpha_position_cache_writes_total`, `mariaalpha_position_cache_write_failures_total`, `mariaalpha_position_cache_write_latency`, `mariaalpha_position_cache_hits_total`, `mariaalpha_position_cache_misses_total`, `mariaalpha_position_cache_pubsub_updates_total`, `mariaalpha_position_cache_read_failures_total`, `mariaalpha_position_cache_read_latency`. Both sides set `management.health.redis.enabled=true` so the Redis component shows up in `/actuator/health`, but Redis is **not** in the readiness group — the cache is non-critical and a transient outage must not flap pod readiness.
+
+**Configuration:** `order-manager.redis.enabled` and `execution-engine.redis.enabled` default to `true`. Set either to `false` (and exclude `RedisAutoConfiguration`) to run a minimal local stack without Redis; the in-memory `PositionTracker` remains usable. Docker Compose adds a `redis:7.4-alpine` service with `--maxmemory-policy allkeys-lru` and a persistent volume; the Helm chart adds Bitnami `redis@20` as a standalone (single-node) subchart, addressable in-cluster at `redis-master.mariaalpha-data.svc.cluster.local:6379`.
+
 ### 5.4 Data Model
 
 ```mermaid
@@ -1005,7 +1037,7 @@ All topics start with **1 partition** and **minimal retention** in the MVP. Part
 | Database migrations | Liquibase | Supports XML/YAML/JSON/SQL changelogs. Rollback support. Widely used in enterprise Java. Runs automatically on Spring Boot startup. |
 | Code formatting | Spotless (Google Java Format) | Gradle plugin that auto-formats Java source code to Google Java Style on build. Enforced via `spotlessCheck` in CI, auto-fixed via `spotlessApply` locally (`just format`). Complements Checkstyle (which checks but does not fix). |
 | Command runner | just | Modern alternative to Make. No tab-sensitivity issues, cleaner syntax, built-in argument passing, cross-platform. `justfile` replaces `Makefile`. |
-| API testing (Phase 2) | Bruno | Open-source API client. Collections stored as files in the repo. Replaces Postman. |
+| API testing (Phase 2) | Bruno | Open-source API client. Collection shipped in [`api-collection/`](../api-collection/) — issue 2.7.5; covers every gateway-routed REST endpoint plus direct-to-service health/admin calls. Collections stored as files in the repo. Replaces Postman. |
 | Stream processing (Phase 4) | Apache Flink (consideration) | Complex event processing for multi-symbol pattern detection, windowed portfolio-level VaR computation, and real-time aggregation across high-volume streams. Adds significant infrastructure complexity — justified only at scale beyond MVP. |
 
 ---
@@ -1179,6 +1211,14 @@ These are instrumented explicitly in application code:
 | `mariaalpha_recon_runs_total` | Counter | `status`, `source` | EOD reconciliation runs by status (SUCCESS/FAILED) and source (SCHEDULED/MANUAL) |
 | `mariaalpha_recon_duration_seconds` | Timer | — | Wall-clock duration of EOD reconciliation runs |
 | `mariaalpha_tca_slippage_bps` | Histogram | `strategy` | Slippage distribution |
+| `mariaalpha_position_cache_writes_total` | Counter | — | Redis position-cache writes (issue 2.7.4, order-manager) |
+| `mariaalpha_position_cache_write_failures_total` | Counter | — | Failed Redis position-cache writes |
+| `mariaalpha_position_cache_write_latency` | Histogram | — | Latency of Redis position-cache writes |
+| `mariaalpha_position_cache_hits_total` | Counter | — | Direct Redis fetch returned a snapshot (execution-engine) |
+| `mariaalpha_position_cache_misses_total` | Counter | — | Direct Redis fetch returned no snapshot |
+| `mariaalpha_position_cache_pubsub_updates_total` | Counter | — | Pub/sub messages applied to in-memory PositionTracker |
+| `mariaalpha_position_cache_read_failures_total` | Counter | — | Redis read errors swallowed by the cache client |
+| `mariaalpha_position_cache_read_latency` | Histogram | — | Latency of Redis position-cache reads |
 
 ### 8.3 Grafana Dashboards
 
@@ -1429,8 +1469,8 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 | [2.7.1](https://github.com/drag0sd0g/MariaAlpha/issues/82) ✅ | Create Helm charts for full Kubernetes deployment | Deployment |
 | [2.7.2](https://github.com/drag0sd0g/MariaAlpha/issues/83)✅ | Implement Docker image publish workflow | CI/CD |
 | [2.7.3](https://github.com/drag0sd0g/MariaAlpha/issues/84)✅ | Add mutation testing (PITest + mutmut) to CI | CI/CD |
-| [2.7.4](https://github.com/drag0sd0g/MariaAlpha/issues/85) | Introduce Redis for distributed position cache | Infrastructure |
-| [2.7.5](https://github.com/drag0sd0g/MariaAlpha/issues/86) | Create Bruno API collection with example requests | Developer Experience |
+| [2.7.4](https://github.com/drag0sd0g/MariaAlpha/issues/85)✅  | Introduce Redis for distributed position cache | Infrastructure |
+| [2.7.5](https://github.com/drag0sd0g/MariaAlpha/issues/86)✅  | Create Bruno API collection with example requests | Developer Experience |
 
 ### Phase 3: Derivatives + Tokyo Market + Program Tradingare
 | # | Issue Title | Component |

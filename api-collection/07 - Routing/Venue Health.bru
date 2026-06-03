@@ -1,0 +1,21 @@
+meta {
+  name: Venue Health
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/routing/venues/PRIMARY/health
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Per-venue adapter health (UP/DOWN). Available venues match the
+  application.yml `execution-engine.sor.venues[].name` list (e.g.
+  PRIMARY, DARK_POOL_A, INTERNAL_CROSS).
+}

@@ -1,6 +1,6 @@
 # MariaAlpha Helm Chart
 
-Umbrella Helm chart that deploys the full MariaAlpha trading platform — 7 application services + UI + Postgres + Kafka + Prometheus/Grafana/Loki/Tempo/Alloy — on a Kubernetes cluster.
+Umbrella Helm chart that deploys the full MariaAlpha trading platform — 7 application services + UI + Postgres + Kafka + Redis + Prometheus/Grafana/Loki/Tempo/Alloy — on a Kubernetes cluster.
 
 `values.yaml` defaults are tuned for a single-node **OrbStack** cluster. Override with `-f values-<env>.yaml` for cloud targets.
 
@@ -81,7 +81,7 @@ Flip `secrets.useSealedSecrets: true` and enable the controller via `sealed-secr
 
 ## What is in scope
 
-This chart covers issue 2.7.1 — local Kubernetes deployability. CI/CD image-publishing automation lives in 2.7.2. NetworkPolicies, HPA tuning, PDBs, and TLS via cert-manager `ClusterIssuer` are deferred to follow-up tickets.
+This chart covers issue 2.7.1 — local Kubernetes deployability. CI/CD image-publishing automation lives in 2.7.2, mutation testing in 2.7.3, and the Bitnami Redis subchart wired into order-manager + execution-engine is the distributed position cache from issue 2.7.4 (cluster DNS: `redis-master.mariaalpha-data.svc.cluster.local:6379`, auth disabled for the local install). NetworkPolicies, HPA tuning, PDBs, and TLS via cert-manager `ClusterIssuer` are deferred to follow-up tickets.
 
 ## Layout
 

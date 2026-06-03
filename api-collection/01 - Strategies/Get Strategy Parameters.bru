@@ -1,0 +1,22 @@
+meta {
+  name: Get Strategy Parameters
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/strategies/VWAP/parameters
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  VWAP parameters are keyed by ISO-8601 instants for the start/end window plus a
+  target volume fraction (see [[vwap_strategy_params]] memory). The shape varies
+  per strategy — TWAP exposes `sliceCount` and `interval`, MOMENTUM exposes
+  `lookbackBars` and `signalThreshold`, etc.
+}

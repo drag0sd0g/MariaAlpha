@@ -1,0 +1,19 @@
+meta {
+  name: Internal Crossing Book
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/execution/internal-crossing/book
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Live snapshot of per-symbol resting interest in the internal book.
+}

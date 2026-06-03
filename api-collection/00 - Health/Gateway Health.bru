@@ -1,0 +1,20 @@
+meta {
+  name: Gateway Health
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/actuator/health
+  body: none
+  auth: none
+}
+
+headers {
+  ~X-API-Key: {{apiKey}}
+}
+
+docs {
+  Liveness + readiness aggregated. Returns 200 with JSON body. The `/actuator/**`
+  prefix is on the excluded-paths allowlist so no API key is required here.
+}

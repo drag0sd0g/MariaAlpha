@@ -1,0 +1,20 @@
+meta {
+  name: List Strategies
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/strategies
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Returns the set of available strategy names (VWAP, TWAP, MOMENTUM,
+  IMPLEMENTATION_SHORTFALL, POV, CLOSE).
+}

@@ -1,0 +1,20 @@
+meta {
+  name: List Venues
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/routing/venues
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Configured venues with their scoring inputs (latency, fees, leakage score,
+  fill rate, enabled flag).
+}

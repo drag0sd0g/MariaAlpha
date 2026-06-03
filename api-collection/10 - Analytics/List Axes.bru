@@ -1,0 +1,25 @@
+meta {
+  name: List Axes
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/analytics/axes
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+params:query {
+  ~symbol: AAPL
+  ~side: BUY
+}
+
+docs {
+  Snapshot of every active axe, optionally filtered by symbol and side. Each
+  row carries a refresh-derived confidence score that decays without renewal.
+}

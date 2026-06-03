@@ -1,0 +1,37 @@
+meta {
+  name: Request Quote
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/rfq/quote
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "symbol": "AAPL",
+    "quantity": 1000
+  }
+}
+
+docs {
+  Inventory- and volatility-aware two-way quote (issues 2.4.1 / 2.4.2). Returns
+  `quoteId`, `bid`, `ask`, `validForMs`, `symbol`, `quantity`. Save the
+  `quoteId` to accept in the next request.
+}
+
+script:post-response {
+  if (res.status === 200 && res.body && res.body.quoteId) {
+    bru.setVar("lastQuoteId", res.body.quoteId);
+    bru.setVar("lastQuoteBid", res.body.bid);
+    bru.setVar("lastQuoteAsk", res.body.ask);
+  }
+}

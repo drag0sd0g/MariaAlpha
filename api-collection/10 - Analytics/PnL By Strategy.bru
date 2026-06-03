@@ -1,0 +1,20 @@
+meta {
+  name: PnL Attribution By Strategy
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/analytics/pnl/attribution/by-strategy/VWAP
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Per-strategy distribution of PnL components — useful for spotting which
+  algos are spread-dominated vs market-impact-dominated.
+}

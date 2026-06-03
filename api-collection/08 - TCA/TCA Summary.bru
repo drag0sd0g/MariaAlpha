@@ -1,0 +1,20 @@
+meta {
+  name: TCA Summary
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/tca
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Aggregate TCA across all completed orders — slippage (bps), implementation
+  shortfall (bps), VWAP benchmark gap, spread cost.
+}

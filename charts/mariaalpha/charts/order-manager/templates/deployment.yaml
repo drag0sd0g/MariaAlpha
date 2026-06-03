@@ -56,6 +56,9 @@ spec:
                   name: postgres-app-credentials
                   key: postgres-password
             - { name: SPRING_LIQUIBASE_LIQUIBASE_SCHEMA, value: "liq_om" }
+            # Phase-2 (issue 2.7.4) Redis position cache wiring
+            - { name: SPRING_DATA_REDIS_HOST, value: "redis-master.mariaalpha-data.svc.cluster.local" }
+            - { name: SPRING_DATA_REDIS_PORT, value: "6379" }
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

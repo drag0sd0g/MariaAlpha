@@ -1,0 +1,21 @@
+meta {
+  name: Resume After Halt
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/execution/resume
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Clears the trading-halt flag set by DailyLossLimitCheck. Daily PnL is NOT
+  reset by this call — that happens automatically at the next trading-day
+  boundary.
+}

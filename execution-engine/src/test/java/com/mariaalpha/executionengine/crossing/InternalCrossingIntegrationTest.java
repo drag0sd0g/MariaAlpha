@@ -60,6 +60,14 @@ class InternalCrossingIntegrationTest {
     registry.add("execution-engine.internal-crossing.cross-probability-on-submit", () -> 0.0);
     registry.add("execution-engine.internal-crossing.match-probability-per-tick", () -> 0.0);
     registry.add("execution-engine.internal-crossing.seed", () -> 7L);
+    registry.add("execution-engine.redis.enabled", () -> "false");
+    registry.add("management.health.redis.enabled", () -> "false");
+    registry.add(
+        "spring.autoconfigure.exclude",
+        () ->
+            "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,"
+                + "org.springframework.boot.autoconfigure.data.redis"
+                + ".RedisRepositoriesAutoConfiguration");
   }
 
   @BeforeEach

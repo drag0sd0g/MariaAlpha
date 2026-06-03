@@ -77,6 +77,19 @@
         <Class name="com.mariaalpha.strategyengine.metrics.StrategyMetrics"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
+    <!-- Phase-2 (issue 2.7.4): Redis position cache infrastructure -->
+    <Match>
+        <Class name="com.mariaalpha.executionengine.cache.RedisPositionCacheClient"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.cache.RedisPositionCacheClient$PubSubHandler"/>
+        <Bug pattern="DM_DEFAULT_ENCODING"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.ordermanager.cache.RedisPositionCachePublisher"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
     <Match>
         <Class name="com.mariaalpha.executionengine.model.ExecutionInstruction"/>
         <Bug pattern="EI_EXPOSE_REP"/>

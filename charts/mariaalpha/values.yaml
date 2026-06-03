@@ -160,6 +160,32 @@ postgresql:
           CREATE SCHEMA IF NOT EXISTS liq_om;
           CREATE SCHEMA IF NOT EXISTS liq_pt;
 
+## --- Redis (Bitnami) — Phase-2 (issue 2.7.4) distributed position cache -----
+redis:
+  enabled: true
+  fullnameOverride: redis
+  namespaceOverride: mariaalpha-data
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/redis
+  global:
+    security:
+      allowInsecureImages: true
+    redis:
+      password: ""
+  # Open-mode single-node — the cache is non-critical (Kafka remains the system
+  # of record) and binding to in-cluster traffic only makes the unauthenticated
+  # path acceptable for a local install. Production overlays should set auth.
+  auth:
+    enabled: false
+  architecture: standalone
+  master:
+    persistence:
+      size: 4Gi
+    resources:
+      requests: { cpu: 100m, memory: 128Mi }
+      limits:   { cpu: 500m, memory: 256Mi }
+
 ## --- Kafka (Bitnami, KRaft combined mode) -----------------------------------
 kafka:
   enabled: true

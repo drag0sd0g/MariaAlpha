@@ -1,0 +1,25 @@
+meta {
+  name: Flow Toxicity
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/analytics/flow/toxicity
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+params:query {
+  ~strategy: VWAP
+}
+
+docs {
+  Phase-2 (issue 2.2.4) adverse-selection detector — rolling markout in bps
+  at configurable horizons (default 60s/300s/1800s). Positive bps = adverse.
+  The gateway rewrites `/api/analytics/**` to `/v1/analytics/**`.
+}
