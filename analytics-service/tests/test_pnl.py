@@ -1,4 +1,4 @@
-"""Unit tests for the PnL-attribution engine (issue 2.2.5)."""
+"""Unit tests for the PnL-attribution engine."""
 
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ def _tca(
     spread_cost_bps: float = 5.0,
     commission_total: float | None = None,
     computed_at: datetime | None = None,
+    decision_mid_price: float | None = None,
 ) -> TcaInput:
     return TcaInput(
         order_id=order_id,
@@ -35,6 +36,7 @@ def _tca(
         spread_cost_bps=spread_cost_bps,
         commission_total=commission_total,
         computed_at=computed_at or datetime(2026, 5, 30, 14, 30, 0),
+        decision_mid_price=decision_mid_price,
     )
 
 
@@ -144,6 +146,31 @@ def test_strategy_distribution_reports_min_median_max_sum():
     assert realized["median"] == pytest.approx(10.0)
     assert realized["max"] == pytest.approx(15.0)
     assert realized["sum"] == pytest.approx(30.0)
+
+
+def test_timing_is_zero_when_decision_mid_absent():
+    # No decision_mid_price → timing must collapse to 0 (legacy TCA rows).
+    eng = PnlAttributionEngine()
+    row = eng.attribute(_tca())
+    assert row.timing_usd == pytest.approx(0.0)
+
+
+def test_timing_uses_decision_mid_when_present_buy():
+    # BUY 100 @ arrival=100.10, decision-mid=100.00 → market drifted up between decision
+    # and arrival → timing = (100.10 − 100.00) × +100 = +10.00 (favorable).
+    eng = PnlAttributionEngine()
+    row = eng.attribute(_tca(arrival_price=100.10, decision_mid_price=100.00))
+    assert row.timing_usd == pytest.approx(10.0)
+    # Components must still reconstruct realized PnL (residual absorbs any drift).
+    assert row.total() == pytest.approx(row.realized_pnl_usd, abs=1e-3)
+
+
+def test_timing_sign_flips_for_sell():
+    # SELL 100 @ arrival=99.90, decision-mid=100.00 → market dropped between decision
+    # and arrival → timing = (99.90 − 100.00) × −100 = +10.00 (favorable for a short).
+    eng = PnlAttributionEngine()
+    row = eng.attribute(_tca(side="SELL", arrival_price=99.90, decision_mid_price=100.00))
+    assert row.timing_usd == pytest.approx(10.0)
 
 
 def test_all_rows_returns_all_attributions_as_dicts():

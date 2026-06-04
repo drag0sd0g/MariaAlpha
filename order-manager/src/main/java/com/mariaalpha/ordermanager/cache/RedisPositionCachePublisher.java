@@ -16,11 +16,11 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Phase-2 (issue 2.7.4) — writes the latest {@link PositionSnapshot} for each symbol into Redis
- * (key {@code mariaalpha:position:<symbol>}) for sub-millisecond cross-service reads, and publishes
- * a pub/sub event on {@code mariaalpha.positions.updates} so subscribers can invalidate any local
- * cache without polling. Redis remains a pure cache; PostgreSQL is the system of record. Failures
- * here never block fill processing — a warning is logged and processing continues.
+ * Writes the latest {@link PositionSnapshot} for each symbol into Redis (key {@code
+ * mariaalpha:position:<symbol>}) for sub-millisecond cross-service reads, and publishes a pub/sub
+ * event on {@code mariaalpha.positions.updates} so subscribers can invalidate any local cache
+ * without polling. Redis remains a pure cache; PostgreSQL is the system of record. Failures here
+ * never block fill processing — a warning is logged and processing continues.
  */
 @Component
 @ConditionalOnProperty(prefix = "order-manager.redis", name = "enabled", matchIfMissing = true)

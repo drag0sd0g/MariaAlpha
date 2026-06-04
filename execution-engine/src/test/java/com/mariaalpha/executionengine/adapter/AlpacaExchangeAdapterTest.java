@@ -101,4 +101,59 @@ class AlpacaExchangeAdapterTest {
     listener.onFailure(mockWs, new RuntimeException("connection lost"), null);
     assertThat(connected.get()).isFalse();
   }
+
+  @Test
+  void webSocketFailureTriggersReconnect() {
+    // The reconnect Runnable is invoked so the adapter can schedule a backoff retry — without
+    // this, a single network blip silently drops every subsequent fill.
+    var connected = new AtomicBoolean(true);
+    var reconnectCount = new java.util.concurrent.atomic.AtomicInteger(0);
+    var listener =
+        new AlpacaWebSocketListener(
+            config,
+            objectMapper,
+            () -> r -> {},
+            connected,
+            reconnectCount::incrementAndGet,
+            () -> {});
+    var mockWs = mock(okhttp3.WebSocket.class);
+
+    listener.onFailure(mockWs, new RuntimeException("connection lost"), null);
+    assertThat(reconnectCount.get()).isEqualTo(1);
+  }
+
+  @Test
+  void abnormalCloseTriggersReconnectButCleanCloseDoesNot() {
+    // Code 1000 is the normal-shutdown reason code our PreDestroy sends. We must not reconnect
+    // when the close was intentional, but every other code (server kick, network drop) must.
+    var connected = new AtomicBoolean(true);
+    var reconnectCount = new java.util.concurrent.atomic.AtomicInteger(0);
+    var listener =
+        new AlpacaWebSocketListener(
+            config,
+            objectMapper,
+            () -> r -> {},
+            connected,
+            reconnectCount::incrementAndGet,
+            () -> {});
+    var mockWs = mock(okhttp3.WebSocket.class);
+
+    listener.onClosed(mockWs, 1000, "shutdown");
+    assertThat(reconnectCount.get()).isZero();
+    listener.onClosed(mockWs, 1006, "abnormal");
+    assertThat(reconnectCount.get()).isEqualTo(1);
+  }
+
+  @Test
+  void onOpenInvokesSuccessCallbackSoBackoffCanReset() {
+    var connected = new AtomicBoolean(false);
+    var onOpenCount = new java.util.concurrent.atomic.AtomicInteger(0);
+    var listener =
+        new AlpacaWebSocketListener(
+            config, objectMapper, () -> r -> {}, connected, () -> {}, onOpenCount::incrementAndGet);
+    var mockWs = mock(okhttp3.WebSocket.class);
+
+    listener.onOpen(mockWs, mock(okhttp3.Response.class));
+    assertThat(onOpenCount.get()).isEqualTo(1);
+  }
 }

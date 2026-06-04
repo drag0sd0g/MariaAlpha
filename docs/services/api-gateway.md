@@ -318,8 +318,9 @@ from receiving traffic until all required downstreams are healthy.
 | `post-trade` | true | `localhost:8088` / mgmt `localhost:8089` |
 | `analytics-service` | **false** | `localhost:8095` (same for mgmt) |
 
-`analytics-service` is optional because it is a Phase 2 component not yet deployed in the default
-docker-compose stack. Marking it non-required prevents it from blocking readiness.
+`analytics-service` is non-required so the gateway can come up healthy even when the analytics
+component is intentionally turned off (e.g. lighter dev deployments). The docker-compose stack
+does run it by default.
 
 ---
 

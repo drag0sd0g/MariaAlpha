@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Top-level orchestrator for issue 2.6.1. Implements the sequence diagram in §2.6.3:
+ * Top-level orchestrator for end-of-day reconciliation. Implements the sequence diagram in §2.6.3:
  *
  * <pre>
  *   fetch internal fills(date)

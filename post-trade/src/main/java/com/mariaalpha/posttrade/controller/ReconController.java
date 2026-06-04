@@ -21,10 +21,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Read + write reconciliation API consumed by the UI Reconciliation page (issue 2.5.4) and any
- * automation that needs to trigger an ad-hoc run. The {@code POST /api/recon/run} endpoint runs
- * synchronously — fast enough for the simulated stack, and useful in production for re-running
- * after a known-bad earlier attempt.
+ * Read + write reconciliation API consumed by the UI Reconciliation page and any automation that
+ * needs to trigger an ad-hoc run. The {@code POST /api/recon/run} endpoint runs synchronously —
+ * fast enough for the simulated stack, and useful in production for re-running after a known-bad
+ * earlier attempt.
  */
 @RestController
 @RequestMapping("/api/recon")

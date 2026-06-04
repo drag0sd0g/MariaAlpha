@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 import org.springframework.stereotype.Component;
 
 /**
- * Issue 2.2.1 — pre-trade sector concentration check.
+ * Pre-trade sector concentration check.
  *
  * <p>Aggregates the absolute notional of every existing position by sector (looked up via {@link
  * SymbolReferenceData}), projects the incoming order onto that sector, and rejects when the

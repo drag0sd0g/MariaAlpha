@@ -62,9 +62,9 @@ public class OrderController {
 
   /**
    * Returns every fill recorded on a calendar date (UTC). Powers the post-trade EOD reconciliation
-   * engine (issue 2.6.1). Each row is enriched with the parent order's {@code clientOrderId} and
-   * {@code exchangeOrderId} so the consumer can match against external venue activity without a
-   * follow-up call.
+   * engine. Each row is enriched with the parent order's {@code clientOrderId} and {@code
+   * exchangeOrderId} so the consumer can match against external venue activity without a follow-up
+   * call.
    */
   @GetMapping("/fills/by-date")
   public List<FillForReconResponse> fillsByDate(

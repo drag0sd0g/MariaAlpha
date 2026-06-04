@@ -22,9 +22,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * Phase-2 (issue 2.7.4) integration test against a real Redis. Verifies the end-to-end flow: a
- * producer writes a snapshot to Redis + publishes the pub/sub event; the cache client warms and
- * applies updates onto {@link PositionTracker}.
+ * Integration test against a real Redis. Verifies the end-to-end flow: a producer writes a snapshot
+ * to Redis + publishes the pub/sub event; the cache client warms and applies updates onto {@link
+ * PositionTracker}.
  */
 @Tag("integration")
 @Testcontainers

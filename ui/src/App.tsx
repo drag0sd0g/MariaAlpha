@@ -16,7 +16,7 @@ import { useOrderStore } from "@/stores/orderStore";
 import type { OrderEvent, PositionUpdate, RiskAlert } from "@/types/api";
 
 /**
- * App-wide WebSocket consumers — issue 2.5.5.
+ * App-wide WebSocket consumers.
  *
  * The Dashboard and OrderEntry pages historically each opened their own `/ws/positions` and
  * `/ws/orders` connections, so navigating between pages tore down + recreated them. Mounting all

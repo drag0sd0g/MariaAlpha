@@ -158,18 +158,17 @@ a stable string key (`orderIds.sort().join(",")`) rather than comparing Map refe
 
 ---
 
-### Planned screens (Phase 2)
+### Screens
 
-The remaining five routes currently render a `ComingSoon` placeholder. Each is listed in the
-sidebar already so navigation is stable as they are built out.
-
-| Route | Planned purpose |
+| Route | Purpose |
 |-------|----------------|
-| `/market-data` | Live market tick viewer, bid/ask spread, volume; driven by `WS /ws/market-data` |
-| `/rfq` | Request-for-quote workflow for block orders where price discovery is needed before committing |
-| `/strategies` | Enable/disable individual strategy instances; tune parameters; show last signal timestamp |
-| `/analytics` | Transaction cost analysis; slippage vs. VWAP; fill quality over time; driven by TCA methodology |
-| `/reconciliation` | End-of-day position reconciliation; compare internal position book against exchange records |
+| `/` | Dashboard — live positions, portfolio P&L, exposure, fills history. |
+| `/orders` | Order Entry — submit manual orders, active-order blotter, recent fills. |
+| `/rfq` | Request-for-quote workflow: two-way pricing for block orders + acceptance flow. |
+| `/strategies` | Strategy Control — enable/disable strategies per symbol, edit parameters, view regime classification. |
+| `/analytics` | TCA, PnL attribution (Kissell-Glantz components), flow toxicity, axe matcher visualisation. |
+| `/reconciliation` | End-of-day break review — internal vs. external fill comparison, severity breakdown. |
+| `/market-data` | Reserved placeholder — currently renders `<ComingSoon>`; intended for a live market tick viewer driven by `WS /ws/market-data`. |
 
 ---
 
@@ -438,7 +437,7 @@ ui/src/
 │   ├── IcebergProgressBadge.tsx       # Polled progress badge for ICEBERG parents
 │   ├── IcebergProgressBadge.test.tsx  # Vitest
 │   ├── FillHistoryTable.tsx # Recent fills fetched from order detail
-│   └── ComingSoon.tsx       # Placeholder for Phase 2 screens
+│   └── ComingSoon.tsx       # Placeholder for the /market-data route
 ├── hooks/
 │   └── useWebSocket.ts      # Reconnecting WS hook with exponential backoff
 ├── stores/
@@ -500,8 +499,8 @@ browser WebSocket connections.
 |----------|-------------|-------------|
 | `/ws/positions` | `PositionUpdate` | Dashboard |
 | `/ws/orders` | `OrderEvent` | OrderEntry |
-| `/ws/market-data` | `MarketTick` | Phase 2 (Market Data screen) |
-| `/ws/alerts` | `RiskAlert` | Phase 2 (alerts panel) |
+| `/ws/market-data` | `MarketTick` | Reserved for the planned Market Data screen |
+| `/ws/alerts` | `RiskAlert` | Alerts banner (active) |
 
 The `WsEndpoint` union type in `wsUrl.ts` is the exhaustive list of allowed endpoints; passing any
 other string is a compile-time error.
@@ -680,7 +679,7 @@ Key design decisions:
 
 ---
 
-## Known Limitations and Phase 2 Notes
+## Known Limitations
 
 - **Fill history is O(n) API calls**: `FillHistoryTable` fetches `/api/orders/{id}` for every
   known order. This works acceptably for tens of orders but would need a dedicated

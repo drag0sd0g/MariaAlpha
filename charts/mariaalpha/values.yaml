@@ -160,7 +160,7 @@ postgresql:
           CREATE SCHEMA IF NOT EXISTS liq_om;
           CREATE SCHEMA IF NOT EXISTS liq_pt;
 
-## --- Redis (Bitnami) — Phase-2 (issue 2.7.4) distributed position cache -----
+## --- Redis (Bitnami) — distributed position cache ---------------------------
 redis:
   enabled: true
   fullnameOverride: redis

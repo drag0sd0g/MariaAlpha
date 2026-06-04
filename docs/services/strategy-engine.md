@@ -5,8 +5,8 @@
 The Strategy Engine is the Java 21 / Spring Boot 3 microservice that sits **between** the Market Data Gateway (upstream, via Kafka) and the Execution Engine (downstream, via Kafka). It is the brain that turns ticks into trading intent. Three jobs live here:
 
 1. **Run execution strategies** — VWAP, TWAP, Momentum, Implementation Shortfall, POV, Close — through a pluggable `TradingStrategy` interface and a `StrategyRegistry`. Each strategy decides whether the current tick warrants emitting an order, and the engine publishes the resulting `OrderSignal` to `strategy.signals` on Kafka.
-2. **Confirm or veto signals against the ML model** — the `MlSignalGate` (issue 2.3.2) calls the ML Signal Service over gRPC for every signal a strategy produces and applies the FR-12 / TDD §5.2.2 policy: high-confidence agreement confirms (and optionally scales) the trade, high-confidence contradiction suppresses it, low confidence is a pass-through.
-3. **Price two-way RFQ quotes** — the `RfqPricingEngine` (issues 2.4.1 + 2.4.2) builds an inventory-aware, volatility-adjusted, size-relative-to-ADV two-way quote on demand from the React UI, and on accept publishes an `OrderSignal` with `strategyName="RFQ"` so the same execution pipeline picks it up.
+2. **Confirm or veto signals against the ML model** — the `MlSignalGate` calls the ML Signal Service over gRPC for every signal a strategy produces and applies the FR-12 / TDD §5.2.2 policy: high-confidence agreement confirms (and optionally scales) the trade, high-confidence contradiction suppresses it, low confidence is a pass-through.
+3. **Price two-way RFQ quotes** — the `RfqPricingEngine` builds an inventory-aware, volatility-adjusted, size-relative-to-ADV two-way quote on demand from the React UI, and on accept publishes an `OrderSignal` with `strategyName="RFQ"` so the same execution pipeline picks it up.
 
 The service has two HTTP interfaces and one Kafka consumer + producer pair:
 
@@ -155,7 +155,7 @@ The split between `evaluate(tick)` (push, per tick) and the strategy's internal 
 
 ---
 
-## ML Signal Gate (issue 2.3.2)
+## ML Signal Gate
 
 ### The policy
 

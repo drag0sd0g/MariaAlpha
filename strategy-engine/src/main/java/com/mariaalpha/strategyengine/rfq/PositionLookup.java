@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Looks up the desk's current net position in a single symbol from the Order Manager REST API. Used
- * by {@link RfqPricingEngine} to skew the mid for inventory (issue 2.4.1).
+ * by {@link RfqPricingEngine} to skew the mid for inventory.
  *
  * <p>Falls back to a flat position (zero net quantity) when:
  *

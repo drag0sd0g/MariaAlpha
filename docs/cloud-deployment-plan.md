@@ -6,8 +6,7 @@
 
 **Decision required from this document:**
 1. Approve removal of NG-5 from the TDD and the expansion of §10.
-2. Approve the proposed Phase 2 re-prioritization.
-3. Approve the platform choice: Oracle Cloud Always-Free (Ampere A1 + OKE).
+2. Approve the platform choice: Oracle Cloud Always-Free (Ampere A1 + OKE).
 
 ---
 
@@ -21,17 +20,16 @@ Total time to complete: **~1–2 weeks of focused work**, broken into eight new 
 
 ---
 
-## 2. Sequencing decision
+## 2. Sequencing
 
-Issues 2.1.3 (IOC/FOK) and 2.1.4 (GTC/Iceberg) have **landed** on `main` (commits `87cbb54` and `cb96a14`). The branch is in a clean, mergeable state and the cloud-deployment milestone described in this document is the natural next milestone to open.
+The core platform (all functional capabilities described in TDD §3 through §10) is implemented and
+running locally via Docker Compose + the umbrella Helm chart on local Kubernetes. The cloud-deployment
+milestone described in this document is the natural next step before picking up the roadmap items in TDD §11.
 
-| Step | Status / Effort | Outcome |
-| --- | --- | --- |
-| ~~Finish 2.1.3 (IOC/FOK) + 2.1.4 (GTC/Iceberg)~~ | ✅ Merged (`87cbb54`, `cb96a14`) | Branch was at a clean, mergeable commit before the pivot |
-| Open the cloud-deployment milestone (this document) | ~1–2 weeks | Every subsequent feature PR auto-deploys |
-| Resume Phase 2 starting at 2.1.5 (TWAP) | — | Each merge ships to cloud |
-
-Rationale (still load-bearing for the *next* mid-feature pivot decision): pivoting mid-feature leaves a half-built ExchangeAdapter behaviour set on the branch, which complicates the next PR's diff and obscures whether the cloud pipeline broke the new feature or the new feature broke itself. The same logic will apply when this document is revisited.
+Rationale: the cloud target is independent of any specific roadmap item, so it can land cleanly
+without interleaving with feature work. Once auto-deploy is wired up, every subsequent feature PR
+ships to the cloud cluster on merge — turning the local-only platform into a real productionised
+product.
 
 ---
 
@@ -686,55 +684,39 @@ Add a row to the table:
 
 ---
 
-## 13. Phase 2 re-prioritization
+## 13. Cloud milestone breakdown
 
-### 13.1 New milestone: "2.8 Cloud Deployment" (inserted before resuming 2.1.5)
+Eight new GitHub issues span the cloud-deploy work, plus targeted expansions to the existing
+multi-arch image publish workflow.
 
-| # | New/Modified | Title | Description |
-| --- | --- | --- | --- |
-| (existing) #82 | Modify | [2.7.1] Create Helm charts for K8s deployment | Expand acceptance: chart works against single-node OKE; `values-cloud.yaml` override file for cloud vs local; resource limits match §5 above; namespace separation (app/data/o11y/infra) |
-| (existing) #83 | Modify | [2.7.2] Implement Docker image publish workflow | Expand acceptance: multi-arch manifests (amd64 + arm64); native ARM runners (`ubuntu-22.04-arm`); GHCR push with `:sha-<7>` and `:latest`; build-time <8 min |
-| 2.8.1 | New | Provision Oracle OKE cluster and VCN | Terraform module creates VCN, 1 Ampere A1 worker node (4 OCPU / 24 GB), free flexible LB, 2 reserved IPs, security lists per §6.2. Documented retry strategy for Ampere capacity (hitrov script). |
-| 2.8.2 | New | Set up ingress, DNS, and TLS | NGINX Ingress Controller via Helm; cert-manager + Let's Encrypt ClusterIssuer; nip.io domain mapping. Smoke: `curl https://<IP>.nip.io` returns UI with valid cert. |
-| 2.8.3 | New | Implement sealed-secrets for cloud secrets management | Install controller; document `kubeseal` workflow; convert all `.env` keys to SealedSecret resources committed to the Helm chart. |
-| 2.8.4 | New | Configure persistent storage and backups | PVCs for PostgreSQL (20 GB), Kafka (20 GB), Prometheus (10 GB), Loki (10 GB), Tempo (5 GB), Grafana (1 GB) bind to `oci-bv` storage class. CronJob for daily pg_dump with 7-day rotation. |
-| 2.8.5 | New | Implement `deploy.yml` workflow | GitHub Actions workflow auths to OKE via OCI key, runs `helm upgrade --atomic`. Post-deploy smoke test green-gates the workflow. |
-| 2.8.6 | New | Cloud security hardening | Block actuator endpoints at ingress, enable NetworkPolicies for stateful namespace, rotate Grafana admin password, enable Cloud Guard. |
-| 2.8.7 | New | Cloud smoke test runbook + observability check | Adapted from `docs/runbooks/alpaca-smoke-test.md` — runs against `https://api.<IP>.nip.io`. Verify Grafana dashboards load with cloud data. |
-
-**Estimated effort:** 1.5–2 weeks of focused work for a single engineer, broken down:
-- 2.8.1 (cluster provisioning): 2–3 days (variable based on Ampere capacity wait)
-- 2.8.2 (ingress/DNS/TLS): 1 day
-- 2.8.3 (sealed-secrets): 0.5 day
-- 2.8.4 (storage + backups): 1 day
-- #82 expansion (Helm charts): 2 days
-- #83 expansion (multi-arch CI): 1 day
-- 2.8.5 (deploy workflow): 1 day
-- 2.8.6 (security hardening): 1 day
-- 2.8.7 (smoke runbook): 0.5 day
-
-### 13.2 Existing issues to defer or pull forward
-
-| Action | Issue | Reason |
+| # | Title | Description |
 | --- | --- | --- |
-| Pull forward | #82, #83 | Now blocking 2.8.x rather than parking at the end of Phase 2 |
-| Keep where they are | #84 (mutation testing) | Independent of cloud — finish after cloud milestone |
-| Keep where they are | #85 (Redis) | Adds memory pressure on free tier; defer indefinitely until needed |
-| Keep where they are | #86 (Bruno API collection) | Independent of cloud |
-| Modify | #110 [4.5.1] Cloud IaC (Terraform) | Original "GCP/AWS multi-cloud" scope is obsolete; rewrite as "Phase 4 multi-region HA expansion of OKE deployment" |
+| Cloud-1 | Provision Oracle OKE cluster and VCN | Terraform module creates VCN, 1 Ampere A1 worker node (4 OCPU / 24 GB), free flexible LB, 2 reserved IPs, security lists per §6.2. Documented retry strategy for Ampere capacity (hitrov script). |
+| Cloud-2 | Set up ingress, DNS, and TLS | NGINX Ingress Controller via Helm; cert-manager + Let's Encrypt ClusterIssuer; nip.io domain mapping. Smoke: `curl https://<IP>.nip.io` returns UI with valid cert. |
+| Cloud-3 | Sealed-secrets for cloud secrets management | Install controller; document `kubeseal` workflow; convert all `.env` keys to SealedSecret resources committed to the Helm chart. |
+| Cloud-4 | Persistent storage and backups | PVCs for PostgreSQL (20 GB), Kafka (20 GB), Prometheus (10 GB), Loki (10 GB), Tempo (5 GB), Grafana (1 GB) bind to `oci-bv` storage class. CronJob for daily pg_dump with 7-day rotation. |
+| Cloud-5 | `deploy.yml` workflow | GitHub Actions workflow auths to OKE via OCI key, runs `helm upgrade --atomic`. Post-deploy smoke test green-gates the workflow. |
+| Cloud-6 | Cloud security hardening | Block actuator endpoints at ingress, enable NetworkPolicies for stateful namespace, rotate Grafana admin password, enable Cloud Guard. |
+| Cloud-7 | Cloud smoke test runbook + observability check | Adapted from `docs/runbooks/alpaca-smoke-test.md` — runs against `https://api.<IP>.nip.io`. Verify Grafana dashboards load with cloud data. |
+| Cloud-8 | Helm chart adjustments for cloud | `values-cloud.yaml` override file for cloud vs local; resource limits match §5 above; namespace separation (app/data/o11y/infra). |
 
-### 13.3 Suggested Phase 2 order (post-cloud milestone)
+Estimated effort: 1.5–2 weeks of focused work for a single engineer, broken down:
+- Cloud-1 (cluster provisioning): 2–3 days (variable based on Ampere capacity wait)
+- Cloud-2 (ingress/DNS/TLS): 1 day
+- Cloud-3 (sealed-secrets): 0.5 day
+- Cloud-4 (storage + backups): 1 day
+- Cloud-8 (Helm chart adjustments): 2 days
+- Cloud-5 (deploy workflow): 1 day
+- Cloud-6 (security hardening): 1 day
+- Cloud-7 (smoke runbook): 0.5 day
 
-The rest of Phase 2 doesn't strictly need reordering. Original order is fine:
-- 2.1.5 (TWAP) → 2.1.6 (Momentum) → 2.1.7 (IS) → 2.1.8 (POV) → 2.1.9 (Close) → 2.1.10 (Internalization)
-- Then 2.2.x risk checks
-- Then 2.3.x ML
-- Then 2.4.x RFQ pricing
-- Then 2.5.x UI pages
-- Then 2.6.x reconciliation + dashboards
-- Then 2.7.3, 2.7.4, 2.7.5 leftovers (mutation testing, Redis, Bruno)
+### 13.1 Related roadmap rework
 
-Every PR from 2.1.5 onward will auto-deploy to cloud, so the cloud serves as a continuous integration target.
+Roadmap item [4.5.1] (Cloud IaC, Terraform) was originally scoped as "GCP/AWS multi-cloud." That
+scope is obsolete now that OKE is the chosen target — the item should be re-scoped as
+"multi-region HA expansion of the OKE deployment."
+
+Once auto-deploy is wired up, every roadmap item from TDD §11 ships to cloud on merge.
 
 ---
 
@@ -1012,16 +994,15 @@ curl -fsS https://api.$LB_IP.nip.io/actuator/health/readiness
 
 Once you approve this document, the execution sequence is:
 
-1. ~~**Finish 2.1.3 + 2.1.4** on the current branch and open a PR. Merge.~~ ✅ Done (commits `87cbb54`, `cb96a14`).
-2. **Sign up for Oracle Cloud** with home region Frankfurt. Run `hitrov` script in the background to acquire Ampere capacity (no impact on Step 3 — runs in parallel).
-3. **Create the 8 new issues** listed in §13.1 (2.8.1 – 2.8.7) and expand the acceptance criteria on #82 and #83.
-4. **Edit the TDD** (NG-5 → G-10, §10 expansion) as a separate PR for clean history.
-5. **Begin work on 2.8.1** once the Ampere node provisions successfully.
-6. **Each subsequent 2.8.x issue** lands as its own PR; together they unblock the continuous deploy of Phase 2 features starting at 2.1.5.
+1. **Sign up for Oracle Cloud** with home region Frankfurt. Run `hitrov` script in the background to acquire Ampere capacity (no impact on Step 2 — runs in parallel).
+2. **Create the 8 new issues** listed in §13 (Cloud-1 – Cloud-8).
+3. **Edit the TDD** (NG-5 → G-10, §10 expansion) as a separate PR for clean history.
+4. **Begin work on Cloud-1** once the Ampere node provisions successfully.
+5. **Each subsequent cloud issue** lands as its own PR; together they unblock continuous deploy.
 
-If at step 2 we cannot acquire Ampere capacity within 2 weeks despite the retry script:
+If at step 1 we cannot acquire Ampere capacity within 2 weeks despite the retry script:
 - Park the cloud milestone
-- Continue Phase 2 feature work locally (no deploy step gating)
+- Continue roadmap feature work locally (no deploy step gating)
 - Retry capacity weekly
 - Cloud deploy ships when capacity is acquired, retroactively bringing all merged commits into the cloud
 

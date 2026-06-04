@@ -6,6 +6,7 @@ import com.mariaalpha.strategyengine.ml.MlSignalClient;
 import com.mariaalpha.strategyengine.ml.MlSignalGate;
 import com.mariaalpha.strategyengine.model.MarketTick;
 import com.mariaalpha.strategyengine.publisher.SignalPublisher;
+import com.mariaalpha.strategyengine.routing.RegimeBasedStrategySelector;
 import com.mariaalpha.strategyengine.routing.SymbolStrategyRouter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,7 @@ public class StrategyEvaluationService {
   private static final Logger LOG = LoggerFactory.getLogger(StrategyEvaluationService.class);
 
   private final SymbolStrategyRouter router;
+  private final RegimeBasedStrategySelector regimeSelector;
   private final MlSignalClient mlClient;
   private final MlSignalGate mlGate;
   private final SignalPublisher signalPublisher;
@@ -24,11 +26,13 @@ public class StrategyEvaluationService {
 
   public StrategyEvaluationService(
       SymbolStrategyRouter router,
+      RegimeBasedStrategySelector regimeSelector,
       MlSignalClient mlClient,
       MlSignalGate mlGate,
       SignalPublisher signalPublisher,
       StrategyMetrics metrics) {
     this.router = router;
+    this.regimeSelector = regimeSelector;
     this.mlClient = mlClient;
     this.mlGate = mlGate;
     this.signalPublisher = signalPublisher;
@@ -36,7 +40,13 @@ public class StrategyEvaluationService {
   }
 
   public void evaluate(MarketTick tick) {
-    var strategyOptional = router.getActiveStrategy(tick.symbol());
+    // FR-17: when regime auto-select is enabled and the ML service produces a high-confidence
+    // regime, route to the strategy the regime prescribes. Otherwise fall back to the manual
+    // SymbolStrategyRouter binding.
+    var strategyOptional = regimeSelector.selectFor(tick.symbol());
+    if (strategyOptional.isEmpty()) {
+      strategyOptional = router.getActiveStrategy(tick.symbol());
+    }
     if (strategyOptional.isEmpty()) {
       return;
     }

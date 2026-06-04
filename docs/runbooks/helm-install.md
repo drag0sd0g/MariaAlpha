@@ -46,12 +46,12 @@ The `--wait` flag holds until every Deployment is Ready. First install takes 3â€
 
 ```bash
 kubectl -n mariaalpha get pods                  # all Running, all 1/1 Ready
-kubectl -n mariaalpha-data get pods              # postgresql, kafka, redis-master (issue 2.7.4)
+kubectl -n mariaalpha-data get pods              # postgresql, kafka, redis-master (position cache)
 kubectl -n mariaalpha-o11y get pods              # prometheus, grafana, loki, tempo, alloy
 helm test mariaalpha -n mariaalpha --logs       # actuator-health + iceberg e2e pods
 ```
 
-To inspect the Phase-2 distributed position cache:
+To inspect the distributed position cache:
 
 ```bash
 kubectl -n mariaalpha-data exec -it redis-master-0 -- redis-cli KEYS 'mariaalpha:position:*'

@@ -1,4 +1,4 @@
-"""Client interest / axe matching model — issue 2.2.6.
+"""Client interest / axe matching model.
 
 Sell-side desks maintain *axes* — standing client expressions of interest in a symbol and side
 ("client X wants to buy up to 50,000 NVDA over the next hour"). The matcher tracks active
@@ -9,8 +9,8 @@ The matcher provides three operations:
 
 - **publish_axe** — register or refresh an axe. Each axe has a TTL after which it auto-expires.
 - **match** — given an incoming order (symbol/side/quantity), return ranked counter-axes that
-  could absorb some/all of the flow. Ranking is *price-time-weighted*: axes with a higher
-  ``confidence`` (refreshed frequently by the client) score higher; ties broken by recency.
+  could absorb some/all of the flow. Ranking is by the product ``confidence × remaining-size``
+  (TDD §5.2.7); ties broken by refresh count then by publication time (FIFO).
 - **snapshot** — list active axes, optionally filtered by symbol/side. Used by the UI.
 
 The confidence model is intentionally simple in MVP:
@@ -185,11 +185,12 @@ class AxeMatcher:
                 ttl_remaining = max(0.0, axe.expires_at - now)
                 ttl_total = max(1.0, axe.expires_at - axe.published_at)
                 axe.confidence = max(0.0, min(1.0, ttl_remaining / ttl_total))
-            # Rank: higher confidence first, then larger remaining, then more refreshes.
+            # Rank by the spec product (confidence × remaining). Tie-breakers:
+            # more refreshes (proves it's actively maintained) then older
+            # published_at (FIFO among equally-scored axes).
             candidates.sort(
                 key=lambda a: (
-                    -a.confidence,
-                    -a.remaining,
+                    -(a.confidence * a.remaining),
                     -a.refresh_count,
                     a.published_at,
                 )
@@ -205,7 +206,9 @@ class AxeMatcher:
                 axe.remaining -= take
                 remaining_to_match -= take
                 self._matched_total += take
-                score = axe.confidence * (take / max(1, leg.quantity))
+                # Spec score = confidence × axe-remaining-before-this-match.
+                # Reported on the suggestion so the UI can sort/group identically.
+                score = axe.confidence * axe_remaining_before
                 suggestions.append(
                     MatchSuggestion(
                         axe_id=axe.axe_id,

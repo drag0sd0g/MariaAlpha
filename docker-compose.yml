@@ -53,7 +53,7 @@ services:
     environment:
       KAFKA_BOOTSTRAP_SERVER: kafka:9094
 
-  # Phase-2 (issue 2.7.4): Redis distributed position cache. Order-manager publishes
+  # Redis distributed position cache. Order-manager publishes
   # position snapshots here on every fill alongside the Kafka positions.updates topic;
   # execution-engine reads from it for sub-millisecond pre-trade risk checks.
   redis:
@@ -261,7 +261,7 @@ services:
       ML_SERVICE_HOST: ml-signal-service
       ML_SERVICE_PORT: 50051
       MANAGEMENT_PORT: 8083
-      # RFQ pricing (2.4.1) reads positions from order-manager; falls back to flat on timeout.
+      # RFQ pricing reads positions from order-manager; falls back to flat on timeout.
       ORDER_MANAGER_BASE_URL: http://order-manager:8086
     ports:
       - "8082:8082"
@@ -288,7 +288,7 @@ services:
       ALPACA_API_SECRET_KEY: ${ALPACA_API_SECRET_KEY:-}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
-      # Phase-2 risk-check overrides — exposed so the Phase2RiskChecksE2ETest can tighten
+      # Extended risk-check overrides — exposed so ExtendedRiskChecksE2ETest can tighten
       # thresholds at runtime. Defaults match application.yml.
       EXECUTION_ENGINE_RISK_MAX_ADV_PARTICIPATION: ${EXECUTION_ENGINE_RISK_MAX_ADV_PARTICIPATION:-0.10}
       EXECUTION_ENGINE_RISK_MAX_ABSOLUTE_BETA_WEIGHTED_EXPOSURE: ${EXECUTION_ENGINE_RISK_MAX_ABSOLUTE_BETA_WEIGHTED_EXPOSURE:-2500000}

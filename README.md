@@ -4,23 +4,28 @@
 
 Full-stack algorithmic trading engine — see [Technical Design Document](docs/technical-design-document.md) for architecture and details.
 
-## What Phase 1 Delivers
+## Capabilities
 
-Phase 1 is complete. MariaAlpha ships as a working, end-to-end algorithmic trading engine with the following capabilities:
+MariaAlpha is a working, end-to-end algorithmic trading engine:
 
-- **Live market data ingestion** — simulated CSV replay (default) or Alpaca IEX WebSocket, with auto-reconnect and per-symbol in-memory order book
-- **VWAP, TWAP, Momentum/trend-following, Implementation Shortfall, POV (Percentage of Volume), and Close (Market-on-Close benchmark) strategies** enhanced by an ML signal — LightGBM classifier (15 technical indicators) called over gRPC with a Resilience4j circuit breaker; strategy hot-swap at runtime via REST
-- **Risk check chain** — five composable checks (max notional, max position, max portfolio exposure, max open orders, daily loss limit) with trading halt and resume
-- **Dual exchange routing** — simulated exchange (configurable fill latency + slippage) or Alpaca paper trading (REST + `trade_updates` WebSocket), switchable via `EXECUTION_PROFILE`
-- **Real-time position and P&L tracking** — mark-to-market unrealized P&L, portfolio aggregates, fill history, all persisted in PostgreSQL
-- **Transaction Cost Analysis** — slippage vs. arrival mid, implementation shortfall, VWAP benchmark deviation, and spread cost per completed order
-- **React UI** — portfolio dashboard, order entry with WebSocket live updates, daily P&L chart, served from nginx in Docker Compose
-- **Full observability** — Grafana LGTM stack (Alloy, Prometheus, Loki, Tempo, Grafana 11) with a provisioned Trading Pipeline dashboard covering all 7 services
-- **Production-grade CI** — lint, unit, integration, and end-to-end tests gating every pull request; CodeQL and Snyk security scans
+- **Live market data ingestion** — simulated CSV replay (default) or Alpaca IEX WebSocket, with auto-reconnect and per-symbol in-memory order book.
+- **Six execution algorithms + RFQ pricing** — VWAP, TWAP, Momentum/trend-following, Implementation Shortfall, POV (Percentage of Volume), Close (Market-on-Close benchmark), and a two-way RFQ engine with inventory-skewed, vol- and ADV-relative pricing. Every signal is gated by an ML confirm/veto (LightGBM signal model + Random Forest regime classifier called over gRPC with a Resilience4j circuit breaker). Strategy hot-swap at runtime via REST.
+- **Eight pre-trade risk checks** — max notional, max position, max portfolio exposure, max open orders, daily loss limit, plus sector / beta / ADV-participation checks driven by per-symbol reference data. Composable chain that short-circuits on first failure; daily-loss trip halts trading and is resumable via REST.
+- **Smart Order Router** with scored multi-criteria venue selection across LIT, DARK, and INTERNAL venues, plus an in-process **internal crossing engine** that matches offsetting BUY/SELL interest at the NBBO midpoint.
+- **Seven order types** — MARKET, LIMIT, STOP, IOC, FOK, GTC, Iceberg (with a dedicated coordinator that slices parents into LIMIT children).
+- **Dual exchange routing** — simulated exchange (configurable fill latency + slippage) or Alpaca paper trading (REST + `trade_updates` WebSocket with reconnect), switchable via `EXECUTION_PROFILE`.
+- **Real-time position and P&L tracking** — mark-to-market unrealized P&L, portfolio aggregates, fill history persisted in PostgreSQL with a Redis hot-path cache for sub-millisecond pre-trade reads.
+- **Transaction Cost Analysis + PnL attribution + flow toxicity + axe matching** — slippage, implementation shortfall, VWAP benchmark, spread cost per order; Kissell-Glantz five-component PnL decomposition; per-counterparty markout-based toxicity; client-interest axe matcher.
+- **End-of-day reconciliation** — scheduled comparison of internal fills against the external venue's activity log, with four break categories (MISSING / EXTRA / QUANTITY / PRICE) published to `analytics.risk-alerts`.
+- **React UI** — Dashboard, Order Entry, RFQ, Strategy Control, Analytics, Reconciliation, all driven by live WebSocket streams. Served via nginx in Docker Compose; via an init-container config-render under Helm.
+- **Full observability** — Grafana LGTM stack (Alloy, Prometheus, Loki, Tempo, Grafana 11) with three provisioned dashboards: Trading Pipeline, Portfolio & Risk, Post-Trade & Quality.
+- **Production-grade CI** — Spotless / Checkstyle / SpotBugs / ESLint / Prettier / ruff / mypy, JUnit unit + Testcontainers integration tests + Docker-Compose-driven end-to-end suite, mutation testing (PITest + mutmut), CodeQL and Snyk security scans, multi-arch Docker image publish, Helm lint + kubeconform.
+- **Two deployment targets** — Docker Compose for local development, an umbrella Helm chart for Kubernetes (validated against OrbStack, Docker Desktop, minikube, kind).
+- **Importable API collection** — [`api-collection/`](api-collection/) is a Bruno collection covering every gateway-routed REST endpoint plus direct-to-service health/admin calls.
 
-The Phase 1 acceptance test — `SimulatedHappyPathE2ETest` — boots the full Docker Compose stack (15 long-running services + a one-shot Kafka topics initializer) and traverses the complete Tick-to-Trade pipeline on every CI run. See [`docs/phase-1-completion.md`](docs/phase-1-completion.md) for the full record of what was built.
+The end-to-end acceptance suite under `e2e-tests/` boots the full Docker Compose stack and traverses the complete Tick-to-Trade pipeline on every CI run.
 
-Phase 2 work has begun landing on `main`: the Smart Order Router (issue 2.1.1), the advanced order-type handlers IOC / FOK / GTC / Iceberg (2.1.3, 2.1.4), the TWAP execution strategy (2.1.5), the Momentum / trend-following strategy (2.1.6), the Implementation Shortfall execution strategy (2.1.7), the POV (Percentage of Volume) execution strategy (2.1.8), the Close (Market-on-Close) execution strategy (2.1.9), the internal crossing / internalization engine (2.1.10), the sector / beta / ADV pre-trade risk checks (2.2.1 / 2.2.2 / 2.2.3), the Analytics Service with flow-toxicity / PnL attribution / axe matcher (2.2.4 / 2.2.5 / 2.2.6), the umbrella Helm chart for Kubernetes deployment (2.7.1), the docker image publish workflow (2.7.2), mutation testing in CI (2.7.3), the **Redis distributed position cache (2.7.4)**, and the **Bruno API collection (2.7.5, in [`api-collection/`](api-collection/))** are all shipped. See [§11 of the Technical Design Document](docs/technical-design-document.md#phase-2-full-desk-workflows--sor--rich-analytics) for the full Phase 2 roadmap.
+See [§11 of the Technical Design Document](docs/technical-design-document.md#11-roadmap) for the roadmap of additional capabilities not yet built (multi-broker integration via IBKR, options/Greeks, Tokyo Stock Exchange microstructure, program/basket trading, FIX gateway, backtesting, OAuth/RBAC, ML-driven SOR, and others).
 
 ## Prerequisites
 
@@ -286,7 +291,7 @@ docker compose down -v
 | --- | --- | --- |
 | PostgreSQL 16 | 5432 | Credentials via `.env` |
 | Kafka (KRaft) | 9092 | Single-node, no ZooKeeper |
-| Redis 7 | 6379 | Phase-2 (issue 2.7.4) position cache; `allkeys-lru` eviction |
+| Redis 7 | 6379 | Distributed position cache; `allkeys-lru` eviction |
 | Prometheus | 9090 | Metrics storage, remote-write enabled |
 | Grafana | 3001 | Dashboards — anonymous admin access |
 | Alloy | 12345 | Telemetry collector UI; OTLP on 4317/4318 |
@@ -324,7 +329,7 @@ just run
 
 ### React UI (port 5173 in dev)
 
-The web UI is a Vite + React 18 + TypeScript single-page app. The Phase-1 MVP exposes a Dashboard (live positions, P&L, exposure) and an Order Entry page (manual order submission, active orders, fills). Five additional pages (Market Data, RFQ, Strategies, Analytics, Reconciliation) are scaffolded as placeholders for Phase 2.
+The web UI is a Vite + React 18 + TypeScript single-page app with seven pages: Dashboard (live positions, P&L, exposure), Order Entry (manual order submission, active orders, fills), RFQ, Strategy Control, Analytics, Reconciliation, and a Market Data placeholder reserved for a future page.
 
 #### Quickstart
 

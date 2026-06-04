@@ -31,9 +31,9 @@ public class FokOrderHandler implements OrderTypeHandler {
       return ValidationResult.fail("No market data available for " + order.getSymbol());
     }
 
-    // Pre-flight marketability — FOK kills on insufficient liquidity. The MVP simulator
-    // uses an "infinite top-of-book" approximation so we only reject non-marketable
-    // limits here; depth-aware liquidity checks are deferred to issue 2.1.10.
+    // Pre-flight marketability — FOK kills on insufficient liquidity. The simulator uses an
+    // "infinite top-of-book" approximation so we only reject non-marketable limits here;
+    // depth-aware liquidity checks are a future enhancement.
     if (order.getSide() == Side.BUY
         && order.getLimitPrice().compareTo(marketState.askPrice()) < 0) {
       return ValidationResult.fail(
@@ -43,7 +43,7 @@ public class FokOrderHandler implements OrderTypeHandler {
     if (order.getSide() == Side.SELL
         && order.getLimitPrice().compareTo(marketState.bidPrice()) > 0) {
       return ValidationResult.fail(
-          "FOK SELL limit is not marketable against curren bid " + marketState.bidPrice());
+          "FOK SELL limit is not marketable against current bid " + marketState.bidPrice());
     }
 
     return ValidationResult.ok();

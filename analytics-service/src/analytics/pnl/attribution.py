@@ -1,4 +1,4 @@
-"""PnL attribution — issue 2.2.5.
+"""PnL attribution.
 
 Decomposes the realized PnL of every completed parent order into five components, all in USD
 notional (positive = profit for the desk, negative = cost):
@@ -8,9 +8,9 @@ notional (positive = profit for the desk, negative = cost):
   spread-cost portion. The TCA service already computes ``spreadCostBps``; we re-frame it as
   a signed USD figure that adds across components.
 - **timing** — the drift between the strategy's *decision* mid and the *arrival* mid. Positive
-  if the market moved in our favour between signal and execution-start. Modelled as zero
-  whenever a decision-mid isn't carried on the TCA row (MVP); placeholder for the regime
-  classifier work in 2.3.x.
+  if the market moved in our favour between signal and execution-start. Computed from
+  ``decision_mid_price`` when the TCA row carries one (``(arrival_mid − decision_mid) ×
+  signed_qty``); falls back to zero otherwise so legacy payloads still attribute cleanly.
 - **market** — the move on the underlying between the arrival mid and the VWAP benchmark
   ("market drift" during execution). Positive if the market moved with us.
 - **commission** — fixed-bps haircut applied to traded notional; configurable via
@@ -52,6 +52,8 @@ class TcaInput:
     spread_cost_bps: float
     commission_total: float | None
     computed_at: datetime
+    # Optional decision-time mid for the timing component. None ⇒ timing contribution is 0.
+    decision_mid_price: float | None = None
 
 
 @dataclass(slots=True, frozen=True)
@@ -112,8 +114,12 @@ class PnlAttributionEngine:
         spread_usd = -(tca.spread_cost_bps / 10_000.0) * tca.arrival_price * tca.quantity
         # Market drift between arrival and VWAP benchmark.
         market_usd = (tca.vwap_benchmark_price - tca.arrival_price) * signed_qty
-        # Timing slot reserved; needs a decision-time mid the TCA row doesn't carry yet.
-        timing_usd = 0.0
+        # Timing: drift between decision-mid and arrival-mid, when available. Positive when
+        # the market moved with us between signal and execution-start.
+        if tca.decision_mid_price is not None:
+            timing_usd = (tca.arrival_price - tca.decision_mid_price) * signed_qty
+        else:
+            timing_usd = 0.0
         # Commission: configurable bps haircut. Use the TCA-reported total when present;
         # otherwise estimate.
         if tca.commission_total is not None:

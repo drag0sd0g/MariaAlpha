@@ -30,10 +30,10 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.KafkaContainer;
 
 /**
- * Wiring test for issue 2.1.10. Verifies that when orders are submitted directly to the simulated
- * internal-crossing venue adapter, the embedded {@link InternalCrossingEngine} matches them and
- * both legs flow through {@link OrderExecutionService}'s execution-report callback into the {@link
- * OrderLifecycleManager} as FILLED.
+ * Wiring test for the internal crossing engine. Verifies that when orders are submitted directly to
+ * the simulated internal-crossing venue adapter, the embedded {@link InternalCrossingEngine}
+ * matches them and both legs flow through {@link OrderExecutionService}'s execution-report callback
+ * into the {@link OrderLifecycleManager} as FILLED.
  *
  * <p>Submitting via the SOR isn't deterministic (other venues outscore INTERNAL_CROSS on the
  * stock-simulated config), so this test calls the adapter directly to keep the assertion sharp. The

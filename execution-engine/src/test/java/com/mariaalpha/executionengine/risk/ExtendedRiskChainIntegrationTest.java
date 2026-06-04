@@ -22,7 +22,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.KafkaContainer;
 
 /**
- * Verifies that Phase-2 risk checks (issues 2.2.1, 2.2.2, 2.2.3) are wired into the chain in the
+ * Verifies that the sector / beta / ADV-participation risk checks are wired into the chain in the
  * expected order and the configured limits from {@code application.yml} (mode {@code simulated})
  * load via the standard {@code @ConfigurationProperties} path.
  */
@@ -31,7 +31,7 @@ import org.testcontainers.kafka.KafkaContainer;
 @ActiveProfiles("simulated")
 @Tag("integration")
 @DirtiesContext
-class Phase2RiskChainIntegrationTest {
+class ExtendedRiskChainIntegrationTest {
 
   @Container static KafkaContainer kafka = new KafkaContainer("apache/kafka:latest");
 
@@ -65,9 +65,9 @@ class Phase2RiskChainIntegrationTest {
   }
 
   @Test
-  void chainIncludesPhase2Checks() {
-    // Inspect the chain by triggering every check on a passing order — every Phase-2 check must
-    // appear at least once in the bean container.
+  void chainIncludesExtendedChecks() {
+    // Inspect the chain by triggering every check on a passing order — each of the sector, beta,
+    // and ADV-participation checks must appear at least once in the bean container.
     var names = chainCheckNames();
     assertThat(names).contains("SectorExposure", "BetaExposure", "AdvParticipation");
   }
@@ -95,8 +95,9 @@ class Phase2RiskChainIntegrationTest {
                 Instant.now()));
     var result = chain.evaluate(order);
     assertThat(result.passed()).isFalse();
-    // MaxOrderNotional fires before ADV in the chain; assert it's at least one of the Phase-2
-    // checks that gates a clearly-too-large order. We assert the failure reason names a known
+    // MaxOrderNotional fires before ADV in the chain; assert it's at least one of the
+    // configured checks that gates a clearly-too-large order. We assert the failure reason names a
+    // known
     // check rather than ADV specifically so the test stays robust if ordering shifts.
     assertThat(result.checkName())
         .as("expected a hard pre-trade reject, regardless of which check fires first")
@@ -118,7 +119,7 @@ class Phase2RiskChainIntegrationTest {
             new BigDecimal("178.54"),
             new BigDecimal("178.52"),
             Instant.now()));
-    // A 100-share AAPL order is well below every Phase-2 limit and the chain should pass.
+    // A 100-share AAPL order is well below every configured limit and the chain should pass.
     var order =
         new com.mariaalpha.executionengine.model.Order(
             new com.mariaalpha.executionengine.model.OrderSignal(

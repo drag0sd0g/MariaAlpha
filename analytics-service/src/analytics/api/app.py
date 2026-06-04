@@ -1,4 +1,4 @@
-"""FastAPI app — health, metrics, and the three Phase-2 REST surfaces."""
+"""FastAPI app — health, metrics, and the three analytics REST surfaces."""
 
 from __future__ import annotations
 
@@ -41,10 +41,7 @@ def create_app(
     app = FastAPI(
         title="MariaAlpha Analytics Service",
         version="0.1.0",
-        description=(
-            "Phase-2 analytics: flow toxicity (2.2.4), PnL attribution (2.2.5), "
-            "axe matching (2.2.6)."
-        ),
+        description=("MariaAlpha analytics: flow toxicity, PnL attribution, and axe matching."),
         docs_url="/openapi.json",
     )
 

@@ -1,6 +1,6 @@
 name: Docker Publish
 
-# Issue 2.7.2 — multi-arch image build, GHCR push, Helm tag bump.
+# Multi-arch image build, GHCR push, Helm tag bump.
 #
 # Tag selection is event-driven via docker/metadata-action:
 #   • pull_request          → build only, do NOT push (proves Dockerfiles build)

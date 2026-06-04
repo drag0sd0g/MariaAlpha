@@ -12,7 +12,7 @@
 8. [Observability](#8-observability)
 9. [Security](#9-security)
 10. [Deployment](#10-deployment)
-11. [Iteration Roadmap](#11-iteration-roadmap)
+11. [Roadmap](#11-roadmap)
 
 ---
 
@@ -333,7 +333,7 @@ sequenceDiagram
 | FR-19 | The Execution Engine SHALL accept order signals from the Strategy Engine and submit them to the configured exchange adapter (Alpaca or simulated). |
 | FR-20 | The system SHALL implement an Alpaca exchange adapter using Alpaca's REST API (`POST /v2/orders`) for order submission and the WebSocket trade updates stream for fill notifications. |
 | FR-21 | The system SHALL implement a simulated exchange adapter with a basic price-time priority matching engine that fills orders against the current market data, simulating realistic latency and partial fills. |
-| FR-22 | The Execution Engine SHALL support order types: MARKET, LIMIT, and STOP in the MVP, plus IOC, FOK, GTC, Iceberg from Phase 2 (issues 2.1.3, 2.1.4). Order type handling SHALL be implemented via an `OrderTypeHandler` interface with a registry, so that additional types (e.g. Pegged in Phase 3) can be added by implementing the interface and registering the handler — without modifying existing order processing logic. Iceberg is implemented via a dedicated `IcebergCoordinator` (sibling of the handler registry) that slices a parent into LIMIT children, rather than as a stateless handler. ✅ Implemented through 2.1.4. |
+| FR-22 | The Execution Engine SHALL support order types MARKET, LIMIT, STOP, IOC, FOK, GTC, and Iceberg. Order type handling SHALL be implemented via an `OrderTypeHandler` interface with a registry, so that additional types (e.g. Pegged) can be added by implementing the interface and registering the handler — without modifying existing order processing logic. Iceberg is implemented via a dedicated `IcebergCoordinator` (sibling of the handler registry) that slices a parent into LIMIT children, rather than as a stateless handler. |
 | FR-23 | The Execution Engine SHALL maintain the full order lifecycle state machine: NEW → SUBMITTED → PARTIALLY_FILLED → FILLED / CANCELLED / REJECTED, with all state transitions published to the `orders.lifecycle` Kafka topic. |
 | FR-24 | The Execution Engine SHALL enforce pre-trade risk checks before submitting any order via a composable `RiskCheck` chain. MVP checks include: maximum order notional value, maximum position size per symbol, and maximum total portfolio exposure. The chain is configured via `config/risk-limits.yml` and designed so that additional checks (sector exposure limits, beta limits, intraday VaR, ADV-relative sizing) can be added by implementing the `RiskCheck` interface and appending to the chain — without modifying existing checks. |
 
@@ -440,7 +440,7 @@ sequenceDiagram
 
 ### 5.1 High-Level Architecture
 
-The system is **microservice-based with a shared PostgreSQL database** — a pragmatic choice for a portfolio project that avoids the operational overhead of per-service databases (distributed transactions, eventual consistency, cross-service JOIN complexity) while maintaining service independence through Kafka-based event communication. Introducing Redis in Phase 2 does **not** change this — Redis serves as a **cache layer** for the hot path (sub-millisecond position lookups, shared order book state), not as a replacement for PostgreSQL. PostgreSQL remains the single system of record for all durable state. The hot path (in-memory order book, current positions, latest ML features) is held in-process within each service for low latency in the MVP, with Redis providing cross-service cache coherence in Phase 2.
+The system is **microservice-based with a shared PostgreSQL database** — a pragmatic choice for a single-team product that avoids the operational overhead of per-service databases (distributed transactions, eventual consistency, cross-service JOIN complexity) while maintaining service independence through Kafka-based event communication. Redis serves as a **cache layer** for the hot path (sub-millisecond position lookups, shared order book state), not as a replacement for PostgreSQL. PostgreSQL remains the single system of record for all durable state. The hot path (in-memory order book, current positions, latest ML features) is held in-process within each service for low latency, with Redis providing cross-service cache coherence where it's needed (notably for pre-trade risk checks).
 
 ```mermaid
 graph LR
@@ -629,7 +629,7 @@ public interface ExchangeAdapter {
 | **Framework** | Spring Boot 3 with Spring Data JPA |
 | **Role** | Persists orders and fills, maintains position book, computes real-time P&L |
 
-**Position Calculation:** On every fill: (1) adjust quantity and weighted avg entry price, (2) compute realized P&L on position-reducing fills, (3) mark-to-market open positions against latest tick, (4) publish updated snapshot to `positions.updates` (Kafka, authoritative async path) and to the **Redis position cache** introduced in issue 2.7.4 (key `mariaalpha:position:<symbol>` with a 24 h TTL, plus a pub/sub event on `mariaalpha.positions.updates` so subscribers can refresh without polling). Redis is a pure cache — PostgreSQL remains the system of record and Kafka is the durable event log; cache failures degrade gracefully (warn + continue) so a Redis outage never blocks fill processing.
+**Position Calculation:** On every fill: (1) adjust quantity and weighted avg entry price, (2) compute realized P&L on position-reducing fills, (3) mark-to-market open positions against latest tick, (4) publish updated snapshot to `positions.updates` (Kafka, authoritative async path) and to the **Redis position cache** (key `mariaalpha:position:<symbol>` with a 24 h TTL, plus a pub/sub event on `mariaalpha.positions.updates` so subscribers can refresh without polling). Redis is a pure cache — PostgreSQL remains the system of record and Kafka is the durable event log; cache failures degrade gracefully (warn + continue) so a Redis outage never blocks fill processing.
 
 #### 5.2.6 Post-Trade and Reconciliation Engine
 
@@ -641,7 +641,7 @@ public interface ExchangeAdapter {
 
 **TCA Metrics Per Order:** slippage (bps), implementation shortfall (bps), VWAP benchmark (bps), spread cost (bps). See sequence diagram in §2.6.3 for reconciliation flow.
 
-**EOD reconciliation engine (issue 2.6.1):** A Spring `@Scheduled` cron (default `0 0 22 * * MON-FRI` in `America/New_York`) fires `EodReconciliationService.runForDate(...)` for the configured target date. The engine pulls internal fills from `order-manager` via `GET /api/orders/fills/by-date?date=...` and external activities from the venue via `GET /v2/account/activities?activity_types=FILL&date=...`. A pure `ReconciliationComparator` aggregates fills per order (keyed by exchange order id with a `client_order_id` fallback) and emits breaks of four types: `MISSING_FILL` (external-only), `EXTRA_FILL` (internal-only), `QUANTITY_MISMATCH` (|qty diff| > tolerance), and `PRICE_MISMATCH` (|relative diff| > priceToleranceBps). Severity scales with absolute notional (`HIGH` ≥ $10k, `CRITICAL` ≥ $100k) or, for price breaks, with the bps-diff magnitude relative to the configured tolerance. Each break is persisted to `reconciliation_breaks`, counted on `mariaalpha_recon_breaks_total{break_type,severity}`, and published as a `RECON_BREAK` event on `analytics.risk-alerts` — the same topic the api-gateway forwards over `/ws/alerts`. The run itself upserts one row in `reconciliation_runs` keyed by `recon_date` (§7.3 idempotency: re-running for the same date wipes prior breaks first). Manual triggers go through `POST /api/recon/run?date=YYYY-MM-DD`. Two modes are supported via `post-trade.recon.mode`: `EXTERNAL` (Alpaca HTTP) and `MIRROR` (echoes internal fills back as external for the simulated docker-compose stack — keeps the engine end-to-end exercisable without venue credentials).
+**EOD reconciliation engine:** A Spring `@Scheduled` cron (default `0 0 22 * * MON-FRI` in `America/New_York`) fires `EodReconciliationService.runForDate(...)` for the configured target date. The engine pulls internal fills from `order-manager` via `GET /api/orders/fills/by-date?date=...` and external activities from the venue via `GET /v2/account/activities?activity_types=FILL&date=...`. A pure `ReconciliationComparator` aggregates fills per order (keyed by exchange order id with a `client_order_id` fallback) and emits breaks of four types: `MISSING_FILL` (external-only), `EXTRA_FILL` (internal-only), `QUANTITY_MISMATCH` (|qty diff| > tolerance), and `PRICE_MISMATCH` (|relative diff| > priceToleranceBps). Severity scales with absolute notional (`HIGH` ≥ $10k, `CRITICAL` ≥ $100k) or, for price breaks, with the bps-diff magnitude relative to the configured tolerance. Each break is persisted to `reconciliation_breaks`, counted on `mariaalpha_recon_breaks_total{break_type,severity}`, and published as a `RECON_BREAK` event on `analytics.risk-alerts` — the same topic the api-gateway forwards over `/ws/alerts`. The run itself upserts one row in `reconciliation_runs` keyed by `recon_date` (§7.3 idempotency: re-running for the same date wipes prior breaks first). Manual triggers go through `POST /api/recon/run?date=YYYY-MM-DD`. Two modes are supported via `post-trade.recon.mode`: `EXTERNAL` (Alpaca HTTP) and `MIRROR` (echoes internal fills back as external for the simulated docker-compose stack — keeps the engine end-to-end exercisable without venue credentials).
 
 #### 5.2.7 Analytics Service
 
@@ -651,7 +651,7 @@ public interface ExchangeAdapter {
 | **Framework** | FastAPI |
 | **Role** | Consumes trade/position events from Kafka, computes aggregate analytics, exposes REST API |
 
-Key endpoints: `/v1/analytics/pnl/daily`, `/v1/analytics/pnl/cumulative`, `/v1/analytics/performance`, `/v1/analytics/performance/{strategy}`, `/v1/analytics/tca/{orderId}`, `/v1/analytics/tca/summary`, `/v1/analytics/risk/alerts`. Phase 2 adds: `/v1/analytics/pnl/attribution`, `/v1/analytics/flow/toxicity`, `/v1/analytics/axes`.
+Key endpoints: `/v1/analytics/pnl/daily`, `/v1/analytics/pnl/cumulative`, `/v1/analytics/performance`, `/v1/analytics/performance/{strategy}`, `/v1/analytics/tca/{orderId}`, `/v1/analytics/tca/summary`, `/v1/analytics/risk/alerts`, `/v1/analytics/pnl/attribution`, `/v1/analytics/flow/toxicity`, `/v1/analytics/axes`.
 
 **Phase-2 sub-modules (delivered):**
 - **Flow toxicity detector (2.2.4)** — listens to `analytics.tca` fills, looks up post-fill market-data at configurable horizons (default 60s/300s/1800s) via the `MarketDataCache`, computes signed markout in bps (positive = adverse selection), and publishes `FLOW_TOXICITY` events to `analytics.risk-alerts` when the rolling mean breaches `ANALYTICS_TOXICITY_THRESHOLD_BPS`. Snapshot endpoint: `GET /api/analytics/flow/toxicity?strategy=`.
@@ -666,9 +666,9 @@ Exposed Prometheus metrics: `mariaalpha_analytics_toxicity_markout_bps`, `mariaa
 | --- | --- |
 | **Language** | Java 21 |
 | **Framework** | Spring Cloud Gateway (reactive) |
-| **Role** | Unified REST + WebSocket entry point for the React UI, external electronic trading clients (REST API, FIX gateway in Phase 3), and any programmatic consumers |
+| **Role** | Unified REST + WebSocket entry point for the React UI, programmatic consumers, and (roadmap) external electronic trading clients via REST API + FIX gateway |
 
-Routes: `/api/market-data/**`, `/api/strategies/**`, `/api/orders/**`, `/api/analytics/**`, `/api/recon/**`, `/api/routing/**` (Phase 2). WebSocket endpoints: `/ws/market-data`, `/ws/positions`, `/ws/orders`, `/ws/alerts`.
+Routes: `/api/market-data/**`, `/api/strategies/**`, `/api/orders/**`, `/api/analytics/**`, `/api/recon/**`, `/api/routing/**`. WebSocket endpoints: `/ws/market-data`, `/ws/positions`, `/ws/orders`, `/ws/alerts`.
 
 #### 5.2.9 React UI
 
@@ -708,7 +708,7 @@ classDiagram
     StrategyRegistry o-- TradingStrategy
 ```
 
-Status: VWAP/TWAP/Momentum, Implementation Shortfall (issue 2.1.7 — front-loaded execution along an Almgren–Chriss trajectory; see [`strategies/implementation-shortfall.md`](strategies/implementation-shortfall.md)), POV (issue 2.1.8 — reactive participation as a fraction of traded volume; see [`strategies/pov.md`](strategies/pov.md)), and Close (issue 2.1.9 — working-into-the-close plus Market-on-Close child; see [`strategies/close.md`](strategies/close.md)) have all landed. Future algorithms: Mean Reversion (Phase 3), Statistical Arbitrage (Phase 3).
+Implemented strategies: VWAP, TWAP, Momentum, Implementation Shortfall (front-loaded execution along an Almgren–Chriss trajectory; see [`strategies/implementation-shortfall.md`](strategies/implementation-shortfall.md)), POV (reactive participation as a fraction of traded volume; see [`strategies/pov.md`](strategies/pov.md)), and Close (working-into-the-close plus Market-on-Close child; see [`strategies/close.md`](strategies/close.md)). Candidate future algorithms: Mean Reversion, Statistical Arbitrage.
 
 #### 5.3.2 Order Type Handler Registry
 
@@ -753,7 +753,7 @@ classDiagram
     IcebergCoordinator ..> OrderTypeHandler : delegates to LimitOrderHandler for children
 ```
 
-Status: all seven handlers landed in Phase 2 (MARKET/LIMIT/STOP in MVP; IOC/FOK in issue 2.1.3; GTC/Iceberg in issue 2.1.4). Pegged remains Phase 3.
+All seven handlers are implemented: MARKET, LIMIT, STOP, IOC, FOK, GTC, and Iceberg. Pegged is on the roadmap.
 
 The `AlpacaOrderTypeMapper` collapses IOC/FOK/GTC into Alpaca's `type=limit` with the appropriate `time_in_force` wire value; ICEBERG never reaches the Alpaca adapter directly because the `IcebergCoordinator` slices it into LIMIT children that flow through the regular path.
 
@@ -777,13 +777,13 @@ graph LR
 
 Phase-2 additions (all landed):
 
-- **`SectorExposureCheck`** (issue 2.2.1) — aggregates the absolute notional of every open position by sector, projects the incoming order onto its sector, rejects when the projection exceeds the configured ceiling. Per-sector ceilings live under `execution-engine.risk.sector-exposure-limits.<SECTOR>` with a global fallback (`default-sector-exposure-limit`). Sector classification is provided by `SymbolReferenceData`; symbols missing reference data land in a synthetic `UNKNOWN` sector that uses the fallback.
-- **`BetaExposureCheck`** (issue 2.2.2) — caps |Σ position_notional × beta| in dollars. Catches the case where MaxPortfolioExposure passes (gross $ is fine) but the underlying mix has drifted into a high-beta concentration that would amplify a market drawdown. Self-disables when `max-absolute-beta-weighted-exposure ≤ 0`.
-- **`AdvParticipationCheck`** (issue 2.2.3) — rejects parents whose share count exceeds `max-adv-participation × ADV(symbol)`. Runs against the **parent** quantity, not the first slice, so oversized parents are caught regardless of how they'd be chopped. Refuses any order on a symbol with missing reference data (the conservative default ADV of 0).
+- **`SectorExposureCheck`** — aggregates the absolute notional of every open position by sector, projects the incoming order onto its sector, rejects when the projection exceeds the configured ceiling. Per-sector ceilings live under `execution-engine.risk.sector-exposure-limits.<SECTOR>` with a global fallback (`default-sector-exposure-limit`). Sector classification is provided by `SymbolReferenceData`; symbols missing reference data land in a synthetic `UNKNOWN` sector that uses the fallback.
+- **`BetaExposureCheck`** — caps |Σ position_notional × beta| in dollars. Catches the case where MaxPortfolioExposure passes (gross $ is fine) but the underlying mix has drifted into a high-beta concentration that would amplify a market drawdown. Self-disables when `max-absolute-beta-weighted-exposure ≤ 0`.
+- **`AdvParticipationCheck`** — rejects parents whose share count exceeds `max-adv-participation × ADV(symbol)`. Runs against the **parent** quantity, not the first slice, so oversized parents are caught regardless of how they'd be chopped. Refuses any order on a symbol with missing reference data (the conservative default ADV of 0).
 
 `SymbolReferenceData` owns sector / beta / ADV lookup. Reference rows live under `execution-engine.risk.reference-data.symbols[]` in `application.yml` for the MVP simulator universe; production deployments would back this with a periodic vendor refresh (Bloomberg FLDS, Refinitiv RDP, etc.). Unmapped symbols fall through to `defaults` (sector=UNKNOWN, β=1.0, ADV=0).
 
-Future checks: Intraday VaR (Phase 3 — issue 3.5.1), Correlated Positions (Phase 3 — issue 3.5.2).
+Roadmap checks: Intraday VaR (issue 3.5.1), Correlated Positions (issue 3.5.2).
 
 #### 5.3.4 Exchange Adapter SPI
 
@@ -804,13 +804,12 @@ the risk-check chain and the exchange adapter. Two implementations ship today, s
   and the market snapshot used. The router exposes `/api/routing/{venues,score,decisions/{orderId}}`
   endpoints documented via springdoc.
 
-Three venue types are modelled (`LIT`, `DARK`, `INTERNAL`). The MVP profile registers a single LIT
-venue (`SIMULATED` or `ALPACA`); issue 2.1.2 introduces simulated dark and internal venue
-**adapters** and a `VenueAdapterRegistry` that submits each routed child order to the right
-adapter. Issue 2.1.10 replaces the original internalization stub with a real midpoint crossing
-engine (see §5.3.7). ML-based adaptive scoring is deferred to Phase 4 (issue 4.8.1).
+Three venue types are modelled (`LIT`, `DARK`, `INTERNAL`). A `VenueAdapterRegistry` submits each
+routed child order to the right adapter — the simulated profile ships a LIT venue (`SIMULATED` or
+`ALPACA`), a simulated dark venue, and an internal venue backed by the real midpoint crossing
+engine described below. ML-based adaptive scoring is on the roadmap (issue 4.8.1).
 
-#### 5.3.7 Internal Crossing Engine (issue 2.1.10)
+#### 5.3.7 Internal Crossing Engine
 
 `InternalCrossingEngine` is the in-process matching engine behind the `INTERNAL_CROSS` venue. It
 maintains a per-symbol, side-keyed FIFO book of resting orders and crosses offsetting BUY/SELL
@@ -848,27 +847,27 @@ The adapter dispatches `ExecutionReport` callbacks **asynchronously** through it
 `OrderExecutionService.processOrder` time to transition both orders to `SUBMITTED` before the
 `FILLED` events arrive.
 
-#### 5.3.6 Electronic Trading API (Phase 3)
+#### 5.3.6 Electronic Trading API (Roadmap)
 
 The architecture decouples **inbound order channels** from the **execution pipeline**. In the MVP, orders originate exclusively from the React UI via the API Gateway. The same Strategy Engine → Risk Check Chain → SOR → Exchange Adapter pipeline processes all orders regardless of origin. This means adding new inbound channels requires **no changes to the execution pipeline** — only a new entry point that produces `OrderSignal` objects:
 
 ```mermaid
 graph TB
     subgraph "Inbound Channels"
-        UI[React UI<br/>MVP] -->|REST/WS| GW[API Gateway]
-        FIX[FIX Gateway<br/>Phase 3] -->|QuickFIX/J| GW
-        REST[Electronic Trading<br/>REST API<br/>Phase 3] -->|OpenAPI| GW
+        UI[React UI] -->|REST/WS| GW[API Gateway]
+        FIX[FIX Gateway<br/>roadmap] -->|QuickFIX/J| GW
+        REST[Electronic Trading<br/>REST API<br/>roadmap] -->|OpenAPI| GW
     end
 
     GW --> SE[Strategy Engine<br/>+ Risk Checks<br/>+ SOR]
     SE --> EE[Exchange<br/>Adapter]
 ```
 
-The Electronic Trading REST API (Phase 3) would expose endpoints for programmatic algo execution: `POST /api/v1/algo/vwap`, `POST /api/v1/algo/twap`, `POST /api/v1/algo/is`, etc. — each accepting order parameters and returning a tracking ID for monitoring execution progress via WebSocket. The FIX gateway (also Phase 3) would accept standard FIX 4.4 NewOrderSingle messages and route them through the same pipeline.
+The Electronic Trading REST API (roadmap items 3.4.4 / 3.4.5) would expose endpoints for programmatic algo execution: `POST /api/v1/algo/vwap`, `POST /api/v1/algo/twap`, `POST /api/v1/algo/is`, etc. — each accepting order parameters and returning a tracking ID for monitoring execution progress via WebSocket. The FIX gateway (roadmap item 3.4.3) would accept standard FIX 4.4 NewOrderSingle messages and route them through the same pipeline.
 
-#### 5.3.8 Distributed Position Cache (issue 2.7.4)
+#### 5.3.8 Distributed Position Cache
 
-Phase 2 introduces Redis as a **cache layer** for hot-path cross-service reads of the order-manager's authoritative position book. PostgreSQL remains the system of record and Kafka's `positions.updates` topic remains the durable event log; Redis adds sub-millisecond visibility for the pre-trade risk checks running inside the execution-engine.
+Redis serves as a **cache layer** for hot-path cross-service reads of the order-manager's authoritative position book. PostgreSQL remains the system of record and Kafka's `positions.updates` topic remains the durable event log; Redis adds sub-millisecond visibility for the pre-trade risk checks running inside the execution-engine.
 
 ```mermaid
 sequenceDiagram
@@ -996,7 +995,7 @@ erDiagram
 
 > **Table ownership:** Each service owns its tables exclusively — no cross-service foreign keys. `order-manager` owns `orders`, `fills`, `positions`, `portfolio_snapshots`. `post-trade` owns `reconciliation_breaks`, `tca_results`. `market-data-gateway` owns `market_data_daily`. Cross-service references (e.g. `order_id` in post-trade tables) are stored as UUIDs without FK constraints; consistency is maintained via Kafka events.
 
-> **Note:** `venue` on orders, `venue` on fills, `sector` and `beta` on positions are nullable Phase 2 columns. `venue` was activated by issue 2.1.1 (SOR); `sector`/`beta` remain Phase 2 placeholders. `display_quantity` and `parent_order_id` on orders are activated by issue 2.1.4 — `display_quantity` is required for ICEBERG parents (gated by migration `005-orders-display-quantity-check.yaml`, CHECK constraint `display_quantity IS NULL OR (display_quantity > 0 AND display_quantity < quantity)`); `parent_order_id` (migration `006-orders-parent-order-id.yaml`) is populated on every ICEBERG child row and indexed for `findByParentOrderId` queries.
+> **Note:** `venue` on orders and fills is populated by the SOR. `sector` and `beta` on positions exist as nullable columns reserved for future portfolio-level analytics; the live sector/beta values consumed by the risk checks today are sourced from `SymbolReferenceData` rather than this column. `display_quantity` and `parent_order_id` on orders are populated by the Iceberg coordinator — `display_quantity` is required for ICEBERG parents (gated by migration `005-orders-display-quantity-check.yaml`, CHECK constraint `display_quantity IS NULL OR (display_quantity > 0 AND display_quantity < quantity)`); `parent_order_id` (migration `006-orders-parent-order-id.yaml`) is populated on every ICEBERG child row and indexed for `findByParentOrderId` queries.
 
 #### Kafka Topics
 
@@ -1024,7 +1023,7 @@ All topics start with **1 partition** and **minimal retention** in the MVP. Part
 | Java ↔ Python | gRPC (real-time) + Kafka (async) | gRPC provides sub-5ms latency for the signal path. Kafka handles async analytics with durability and replay. |
 | Event backbone | Apache Kafka (KRaft) | Event-driven decoupling. Durability, replayability, consumer groups. KRaft eliminates Zookeeper. |
 | Database | PostgreSQL 16 | Battle-tested RDBMS for transactional (orders, fills) and analytical (TCA, snapshots) workloads. |
-| Distributed cache | Redis (Phase 2) | Sub-millisecond position lookups for pre-trade risk. Shared order book state. Pub/sub for dashboard updates. |
+| Distributed cache | Redis | Sub-millisecond position lookups for pre-trade risk. Shared order book state. Pub/sub for dashboard updates. |
 | Exchange API (MVP) | Alpaca | Free paper trading. Real-time WebSocket. REST order management. Zero cost. |
 | UI framework | React 18 + TypeScript + Vite | Vite provides near-instant HMR. Recharts for visualization. TailwindCSS for styling. |
 | API gateway | Spring Cloud Gateway | Reactive routing with WebSocket support. Native Spring integration. |
@@ -1037,8 +1036,8 @@ All topics start with **1 partition** and **minimal retention** in the MVP. Part
 | Database migrations | Liquibase | Supports XML/YAML/JSON/SQL changelogs. Rollback support. Widely used in enterprise Java. Runs automatically on Spring Boot startup. |
 | Code formatting | Spotless (Google Java Format) | Gradle plugin that auto-formats Java source code to Google Java Style on build. Enforced via `spotlessCheck` in CI, auto-fixed via `spotlessApply` locally (`just format`). Complements Checkstyle (which checks but does not fix). |
 | Command runner | just | Modern alternative to Make. No tab-sensitivity issues, cleaner syntax, built-in argument passing, cross-platform. `justfile` replaces `Makefile`. |
-| API testing (Phase 2) | Bruno | Open-source API client. Collection shipped in [`api-collection/`](../api-collection/) — issue 2.7.5; covers every gateway-routed REST endpoint plus direct-to-service health/admin calls. Collections stored as files in the repo. Replaces Postman. |
-| Stream processing (Phase 4) | Apache Flink (consideration) | Complex event processing for multi-symbol pattern detection, windowed portfolio-level VaR computation, and real-time aggregation across high-volume streams. Adds significant infrastructure complexity — justified only at scale beyond MVP. |
+| API testing | Bruno | Open-source API client. Collection shipped in [`api-collection/`](../api-collection/) — covers every gateway-routed REST endpoint plus direct-to-service health/admin calls. Collections stored as files in the repo. Replaces Postman. |
+| Stream processing (roadmap) | Apache Flink (under consideration) | Complex event processing for multi-symbol pattern detection, windowed portfolio-level VaR computation, and real-time aggregation across high-volume streams. Adds significant infrastructure complexity — justified only at scale. |
 
 ---
 
@@ -1202,16 +1201,16 @@ These are instrumented explicitly in application code:
 | `mariaalpha_exec_orders_submitted_total` | Counter | `symbol`, `side`, `type` | Orders submitted |
 | `mariaalpha_exec_order_latency_ms` | Histogram | — | Signal to exchange ack |
 | `mariaalpha_exec_risk_rejections_total` | Counter | `reason` | Risk check rejections |
-| `mariaalpha_exec_sor_routing_total` | Counter | `venue`, `venue_type` | SOR routing by venue (Phase 2) |
+| `mariaalpha_exec_sor_routing_total` | Counter | `venue`, `venue_type` | SOR routing by venue |
 | `mariaalpha_positions_count` | Gauge | — | Open positions |
 | `mariaalpha_portfolio_total_pnl` | Gauge | — | Total P&L |
 | `mariaalpha_portfolio_gross_exposure` | Gauge | — | Gross exposure |
 | `mariaalpha_ml_inference_duration_ms` | Histogram | `model` | Model inference latency |
-| `mariaalpha_recon_breaks_total` | Counter | `break_type`, `severity` | Reconciliation breaks (issue 2.6.1) |
+| `mariaalpha_recon_breaks_total` | Counter | `break_type`, `severity` | Reconciliation breaks |
 | `mariaalpha_recon_runs_total` | Counter | `status`, `source` | EOD reconciliation runs by status (SUCCESS/FAILED) and source (SCHEDULED/MANUAL) |
 | `mariaalpha_recon_duration_seconds` | Timer | — | Wall-clock duration of EOD reconciliation runs |
 | `mariaalpha_tca_slippage_bps` | Histogram | `strategy` | Slippage distribution |
-| `mariaalpha_position_cache_writes_total` | Counter | — | Redis position-cache writes (issue 2.7.4, order-manager) |
+| `mariaalpha_position_cache_writes_total` | Counter | — | Redis position-cache writes (order-manager) |
 | `mariaalpha_position_cache_write_failures_total` | Counter | — | Failed Redis position-cache writes |
 | `mariaalpha_position_cache_write_latency` | Histogram | — | Latency of Redis position-cache writes |
 | `mariaalpha_position_cache_hits_total` | Counter | — | Direct Redis fetch returned a snapshot (execution-engine) |
@@ -1224,11 +1223,11 @@ These are instrumented explicitly in application code:
 
 Three Grafana dashboards are provisioned from `config/grafana/provisioning/dashboards/*.json` (compose) and `charts/mariaalpha/files/grafana-dashboards/*.json` (Helm). Both copies are kept in sync byte-for-byte by `GrafanaDashboardTest` in the post-trade module, which also asserts every PromQL expression in every dashboard references a metric this codebase actually registers — a renamed metric fails the build instead of silently producing a "No data" panel.
 
-**Dashboard 1: Trading Pipeline** (issue 2.6.2, uid `mariaalpha-trading-pipeline`) — four rows. **Data Ingestion** holds tick ingestion rate (`mariaalpha_md_ticks_received_total` by symbol), market-data WebSocket reconnect counter (`mariaalpha_md_websocket_reconnects_total`), and strategy-signal rate (`mariaalpha_strategy_signals_total` by strategy). **ML Signal Service** shows gRPC p99 latency, the Resilience4j circuit-breaker state mapped to CLOSED/HALF_OPEN/OPEN (`mariaalpha_strategy_ml_circuit_breaker_state`), and ML-gate decisions stacked by outcome (`mariaalpha_strategy_ml_decisions_total`). **Execution** covers orders persisted by side (`mariaalpha_orders_persisted_total`), fill rate by venue (`mariaalpha_fills_persisted_total`), risk rejections by reason (`mariaalpha_execution_risk_rejections_total`), p99 order latency (`mariaalpha_execution_order_latency_ms_seconds_bucket`), and SOR routing distribution by venue (`mariaalpha_execution_sor_routing_total`). The bottom **Service Health** row is a strip of `up{}` stat tiles.
+**Dashboard 1: Trading Pipeline** (uid `mariaalpha-trading-pipeline`) — four rows. **Data Ingestion** holds tick ingestion rate (`mariaalpha_md_ticks_received_total` by symbol), market-data WebSocket reconnect counter (`mariaalpha_md_websocket_reconnects_total`), and strategy-signal rate (`mariaalpha_strategy_signals_total` by strategy). **ML Signal Service** shows gRPC p99 latency, the Resilience4j circuit-breaker state mapped to CLOSED/HALF_OPEN/OPEN (`mariaalpha_strategy_ml_circuit_breaker_state`), and ML-gate decisions stacked by outcome (`mariaalpha_strategy_ml_decisions_total`). **Execution** covers orders persisted by side (`mariaalpha_orders_persisted_total`), fill rate by venue (`mariaalpha_fills_persisted_total`), risk rejections by reason (`mariaalpha_execution_risk_rejections_total`), p99 order latency (`mariaalpha_execution_order_latency_ms_seconds_bucket`), and SOR routing distribution by venue (`mariaalpha_execution_sor_routing_total`). The bottom **Service Health** row is a strip of `up{}` stat tiles.
 
-**Dashboard 2: Portfolio & Risk** (issue 2.6.3, uid `mariaalpha-portfolio-risk`) — four rows. **Portfolio** has total P&L / gross / net exposure stat tiles plus a single time-series panel overlaying all three. **Pre-Trade Risk** plots rejections-by-reason as a stacked bar over the last 5 m and a cumulative-by-reason horizontal stat strip. **Risk Alerts** combines the analytics-service flow-toxicity markout (bps) per strategy with the rate of `RECON_BREAK` and `FLOW_TOXICITY` events published to `analytics.risk-alerts`. **PnL Attribution & Axes (Phase 2)** stacks PnL attribution by component (Kissell-Glantz spread/market/commission/timing/residual, issue 2.2.5) and overlays active axe count + matches/min (issue 2.2.6).
+**Dashboard 2: Portfolio & Risk** (uid `mariaalpha-portfolio-risk`) — four rows. **Portfolio** has total P&L / gross / net exposure stat tiles plus a single time-series panel overlaying all three. **Pre-Trade Risk** plots rejections-by-reason as a stacked bar over the last 5 m and a cumulative-by-reason horizontal stat strip. **Risk Alerts** combines the analytics-service flow-toxicity markout (bps) per strategy with the rate of `RECON_BREAK` and `FLOW_TOXICITY` events published to `analytics.risk-alerts`. **PnL Attribution & Axes** stacks PnL attribution by component (Kissell-Glantz spread/market/commission/timing/residual) and overlays active axe count + matches/min.
 
-**Dashboard 3: Post-Trade & Quality** (issue 2.6.4, uid `mariaalpha-post-trade-quality`) — three rows. **Reconciliation** (issue 2.6.1) shows EOD run rate by status (`SUCCESS`/`FAILED` × `SCHEDULED`/`MANUAL`), breaks by type+severity, a p95 duration stat, and cumulative-by-status stat tiles. **Transaction Cost Analysis** plots TCA slippage p50/p95 by strategy from `mariaalpha_tca_slippage_bps_bucket`, TCA computations/min, and the average IS / VWAP / spread components computed from `_sum`/`_count` ratios. **Internalisation** (issue 2.1.10) gauges internalisation rate as `mariaalpha_execution_internal_crosses_total` / `mariaalpha_execution_venue_fills_total`, plus crosses/min, shares/min, average spread captured (bps), and the live buy/sell/resting depth of the internal book.
+**Dashboard 3: Post-Trade & Quality** (uid `mariaalpha-post-trade-quality`) — three rows. **Reconciliation** shows EOD run rate by status (`SUCCESS`/`FAILED` × `SCHEDULED`/`MANUAL`), breaks by type+severity, a p95 duration stat, and cumulative-by-status stat tiles. **Transaction Cost Analysis** plots TCA slippage p50/p95 by strategy from `mariaalpha_tca_slippage_bps_bucket`, TCA computations/min, and the average IS / VWAP / spread components computed from `_sum`/`_count` ratios. **Internalisation** gauges internalisation rate as `mariaalpha_execution_internal_crosses_total` / `mariaalpha_execution_venue_fills_total`, plus crosses/min, shares/min, average spread captured (bps), and the live buy/sell/resting depth of the internal book.
 
 Each dashboard cross-links to the others via dashboard tags (`mariaalpha` + one of `trading|portfolio|post-trade`). Refresh rates: 5 s (Trading Pipeline), 10 s (Portfolio & Risk), 30 s (Post-Trade & Quality) — chosen so the busiest dashboards see real-time changes without hammering Prometheus for the long-horizon ones.
 
@@ -1247,7 +1246,7 @@ All services emit structured JSON logs (Logback for Java, structlog for Python) 
 | API Gateway Auth | `X-API-Key` header. Keys stored as K8s Secret. HTTP 401 without valid key. |
 | Internal Services | Kafka + gRPC within cluster network. No external exposure. |
 | Alpaca API Key | K8s Secret. Only Market Data GW and Execution Engine have access. |
-| React UI | No separate auth in MVP (single-user). JWT/OAuth2 in Phase 4. |
+| React UI | No separate auth today (single-user). JWT/OAuth2 are on the roadmap (4.2.1 / 4.2.2). |
 
 ### 9.2 Rate Limiting
 
@@ -1277,11 +1276,11 @@ graph LR
     end
 ```
 
-A `helm` job inside `ci.yml` (added by issue 2.7.1) runs `helm dependency update`, `helm lint`, and `kubeconform -strict` against the rendered umbrella chart on every PR.
+A `helm` job inside `ci.yml` runs `helm dependency update`, `helm lint`, and `kubeconform -strict` against the rendered umbrella chart on every PR.
 
-Mutation testing (issue 2.7.3) is intentionally **not** on the per-PR critical path — it is O(mutants × tests) and far too slow. It runs in a dedicated `mutation.yml` workflow on a weekly schedule (plus manual `workflow_dispatch`). PITest covers the six Java services and mutmut covers the Python ML Signal Service; both are advisory (no score gate) and publish their HTML/XML reports as build artifacts.
+Mutation testing is intentionally **not** on the per-PR critical path — it is O(mutants × tests) and far too slow. It runs in a dedicated `mutation.yml` workflow on a weekly schedule (plus manual `workflow_dispatch`). PITest covers the six Java services and mutmut covers the Python ML Signal Service; both are advisory (no score gate) and publish their HTML/XML reports as build artifacts.
 
-The multi-arch image publish workflow shipped in issue 2.7.2 as `docker-publish.yml`:
+The multi-arch image publish workflow lives in `docker-publish.yml`:
 
 ```mermaid
 graph LR
@@ -1294,7 +1293,7 @@ Tag selection is event-driven (`docker/metadata-action`): pull requests build th
 
 ### 10.2 Kubernetes Deployment (Helm)
 
-> **Status:** issue 2.7.1 has shipped the umbrella Helm chart at `charts/mariaalpha/`. See [`charts/mariaalpha/README.md`](../charts/mariaalpha/README.md) and the runbook [`docs/runbooks/helm-install.md`](runbooks/helm-install.md). The Analytics Service row below is not yet implemented and is excluded from the chart.
+> The umbrella Helm chart lives at `charts/mariaalpha/` — see [`charts/mariaalpha/README.md`](../charts/mariaalpha/README.md) and the runbook [`docs/runbooks/helm-install.md`](runbooks/helm-install.md). The Analytics Service row below is not yet covered by the chart.
 
 The table below is the **Phase-2 sizing target**, not what the local chart currently ships. The local chart defaults to `replicaCount: 1` with `autoscaling.enabled: false` for every Java service to keep the OrbStack laptop install lean — HPA templates exist behind the flag so a cloud overlay can enable them without touching templates.
 
@@ -1321,158 +1320,20 @@ The table below is the **Phase-2 sizing target**, not what the local chart curre
 
 ---
 
-## 11. Iteration Roadmap
+## 11. Roadmap
 
-Each item below is scoped to be a single GitHub Issue with specific acceptance criteria. Issues are organized by milestone (phase) and labeled by component.
+The capabilities described in §3 (functional requirements) through §10 (deployment) are all
+**implemented** and form the core of MariaAlpha today. This section records the work that has not
+yet been picked up — features that would extend the platform into derivatives, additional markets,
+or production-hardening directions. Each row is scoped to a single GitHub issue so the backlog stays
+trackable; none of them is required to run the system.
 
-### Phase 1: MVP (Happy Path) ✅
+### Multi-Market & Derivatives Capabilities
 
-> **Status: complete.** All 47 issues (1.1.1 – 1.10.3) are merged to `main`. See [`docs/phase-1-completion.md`](phase-1-completion.md) for the full record.
+Broker integration with Interactive Brokers, options pricing, Japanese-market microstructure rules,
+and program/basket trading. These extend MariaAlpha beyond a single broker (Alpaca, US equities)
+into multi-asset, multi-region territory.
 
-#### 1.1 Project Scaffolding & Infrastructure ✅
-
-| # | Issue Title | Acceptance Criteria |
-| --- | --- | --- |
-| [1.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/1) | Initialize monorepo with Gradle multi-project build | Root `build.gradle.kts` and `settings.gradle.kts` with shared dependency versions, Java 21 toolchain, Checkstyle/SpotBugs/JaCoCo/Spotless plugins. All Java sub-projects compile. |
-| [1.1.2](https://github.com/drag0sd0g/MariaAlpha/issues/2) | Create `justfile` with core command recipes | `justfile` with recipes: `run` (docker compose up), `stop`, `clean`, `test`, `test-java`, `test-python`, `lint`, `docker-build`, `proto` (gRPC codegen), `migrate`. All recipes documented with `just --list`. |
-| [1.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/3) | Set up Docker Compose with PostgreSQL and Kafka (KRaft) | `docker-compose.yml` starts PostgreSQL 16 and Kafka in KRaft mode. Health checks pass. `just run` brings up infrastructure. |
-| [1.1.4](https://github.com/drag0sd0g/MariaAlpha/issues/4) | Create database migration (Liquibase) with initial schema | Liquibase changelog creates all tables from §5.4. Migration runs automatically on Spring Boot startup. Verified via `psql`. |
-| [1.1.5](https://github.com/drag0sd0g/MariaAlpha/issues/5) | Set up Grafana LGTM observability stack in Docker Compose | Prometheus, Loki, Tempo, Alloy, Grafana containers start. Alloy scrapes Prometheus metrics. Grafana accessible at `:3001`. |
-| [1.1.6](https://github.com/drag0sd0g/MariaAlpha/issues/6) | Configure GitHub Actions CI pipeline (lint + test) | `ci.yml` runs Spotless, Checkstyle, SpotBugs, JaCoCo (Java), ruff, mypy, pytest (Python). Fails on violations. Coverage uploaded as artifact. |
-| [1.1.7](https://github.com/drag0sd0g/MariaAlpha/issues/7) | Add CodeQL and Snyk to CI pipeline | CodeQL analysis runs for Java, Python, TypeScript. Snyk scans dependencies. Both block merge on critical findings. |
-| [1.1.8](https://github.com/drag0sd0g/MariaAlpha/issues/8) | Create Kafka topics init container | Docker Compose init service creates all topics from §5.4 with 1 partition and configured retention before any consumer starts. |
-| [1.1.9](https://github.com/drag0sd0g/MariaAlpha/issues/9) | Set up shared proto module and gRPC code generation | `proto/signal.proto` defined. Gradle task generates Java stubs. Python script generates Python stubs. Both compile successfully. |
-
-#### 1.2 Market Data Gateway ✅
-
-| # | Issue Title | Acceptance Criteria |
-| --- | --- | --- |
-| [1.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/10) | Implement `MarketDataAdapter` interface and `SimulatedMarketDataAdapter` | Interface defined per §5.2.1. Simulated adapter replays a CSV file at configurable speed. Unit tests pass with >80% coverage. |
-| [1.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/11) | Implement `AlpacaMarketDataAdapter` with WebSocket connection | Connects to Alpaca paper trading WebSocket. Subscribes to configurable symbols from `config/symbols.yml`. Receives and deserializes ticks. Integration test with Alpaca sandbox. |
-| [1.2.3](https://github.com/drag0sd0g/MariaAlpha/issues/12) | Implement MarketTick normalization and Kafka publishing | Incoming Alpaca ticks normalized to `MarketTick` schema. Published to `market-data.ticks` topic. Verified via Kafka console consumer. Testcontainers integration test with real Kafka. |
-| [1.2.4](https://github.com/drag0sd0g/MariaAlpha/issues/13) | Implement in-memory order book per symbol | Maintains best bid/ask, last price, cumulative volume per symbol. Updated on every tick. Accessible via gRPC streaming API. Unit tests for concurrent updates. |
-| [1.2.5](https://github.com/drag0sd0g/MariaAlpha/issues/14) | Implement historical bar backfill from Alpaca REST API | Fetches daily bars from Alpaca REST API for configured symbols and date range. Persists to `market_data_daily` table. Idempotent on re-fetch. |
-| [1.2.6](https://github.com/drag0sd0g/MariaAlpha/issues/15) | Add Prometheus metrics and health/ready endpoints | Metrics from §8.2 exposed on `/actuator/prometheus`. Health endpoint checks Kafka and Alpaca connectivity. Ready endpoint confirms subscription is active. |
-| [1.2.7](https://github.com/drag0sd0g/MariaAlpha/issues/16) | Add WebSocket auto-reconnect with exponential backoff | On disconnect: retries with 1s, 2s, 4s, 8s, 16s delays. Max 5 attempts. Serves stale data with STALE flag during reconnect. Reconnect counter metric increments. |
-
-#### 1.3 Strategy Engine ✅
-
-| # | Issue Title | Acceptance Criteria |
-| --- | --- | --- |
-| [1.3.1](https://github.com/drag0sd0g/MariaAlpha/issues/17) | Implement `TradingStrategy` interface and `StrategyRegistry` | Interface defined per §5.3.1. Registry auto-discovers Spring `@Component` strategies. REST endpoint lists available strategies. Unit tests for registry. |
-| [1.3.2](https://github.com/drag0sd0g/MariaAlpha/issues/18) | Implement VWAP strategy | Accepts `targetQuantity`, `startTime`, `endTime`, `volumeProfile`. Slices orders proportional to volume curve. Emits child `OrderSignal`s at correct intervals. Unit tests with mock market data covering full trading day. |
-| [1.3.3](https://github.com/drag0sd0g/MariaAlpha/issues/19) | Implement Kafka tick consumer and strategy evaluation loop | Consumes ticks from `market-data.ticks`. Routes to active strategy per symbol. Emits order signals to Execution Engine. Testcontainers integration test. |
-| [1.3.4](https://github.com/drag0sd0g/MariaAlpha/issues/20) | Implement ML Signal Service gRPC client with circuit breaker | Calls `GetSignal` before acting on strategy signals. Resilience4j circuit breaker (threshold: 5, open: 30s). On timeout/open: proceeds without ML signal. Metrics for call count, latency, circuit breaker state. |
-| [1.3.5](https://github.com/drag0sd0g/MariaAlpha/issues/21) | Implement runtime strategy switching via REST API | `PUT /api/strategies/{symbol}` changes active strategy. No restart required. Strategy registry queried dynamically. |
-| [1.3.6](https://github.com/drag0sd0g/MariaAlpha/issues/22) | Add Prometheus metrics and health/ready endpoints | Strategy signals counter, evaluation duration histogram, ML call metrics per §8.2. |
-
-#### 1.4 ML Signal Service ✅
-
-| # | Issue Title | Acceptance Criteria |
-| --- | --- | --- |
-| [1.4.1](https://github.com/drag0sd0g/MariaAlpha/issues/23) | Set up Python service scaffold with FastAPI and gRPC server | FastAPI sidecar running on port 8090 with `/health`, `/ready`, `/metrics`. gRPC server on port 50051. Dockerfile builds and runs. |
-| [1.4.2](https://github.com/drag0sd0g/MariaAlpha/issues/24) | Implement feature computation engine | Consumes ticks from Kafka. Computes EMA(20), EMA(50), RSI(14), MACD, ATR(14), volume ratios per symbol. Maintains rolling window. Unit tests with known input/output pairs. |
-| [1.4.3](https://github.com/drag0sd0g/MariaAlpha/issues/25) | Implement LightGBM signal model inference | Loads pre-trained `.joblib` model at startup. `GetSignal` gRPC endpoint returns direction + confidence. Unit test with mock features. |
-| [1.4.4](https://github.com/drag0sd0g/MariaAlpha/issues/26) | Implement `StreamSignals` gRPC endpoint | Server-streaming RPC pushes signal updates to connected clients on every feature window update. Integration test with gRPC client. |
-| [1.4.5](https://github.com/drag0sd0g/MariaAlpha/issues/27) | Implement model hot-reload endpoint | `POST /v1/models/reload` loads new model artifacts from disk without restart. Currently loaded model version exposed as metric. |
-| [1.4.6](https://github.com/drag0sd0g/MariaAlpha/issues/28) | Train and bundle initial signal model | Python script trains LightGBM on Alpaca historical 1-min bars (freely available). Model artifact saved as `ml-models/signal_model.joblib`. Training script documented in README. |
-
-#### 1.5 Execution Engine ✅
-
-| # | Issue Title | Acceptance Criteria |
-| --- | --- | --- |
-| [1.5.1](https://github.com/drag0sd0g/MariaAlpha/issues/29) | Implement `ExchangeAdapter` interface and `SimulatedExchangeAdapter` | Interface defined per §5.2.4. Simulated adapter fills orders against current market data with configurable latency. Supports MARKET, LIMIT, STOP. Unit tests. |
-| [1.5.2](https://github.com/drag0sd0g/MariaAlpha/issues/30) | Implement `AlpacaExchangeAdapter` | Submits orders via Alpaca REST API. Receives fills via WebSocket `trade_updates` stream. Rate limited to 200 req/min. Integration test with Alpaca paper account. |
-| [1.5.3](https://github.com/drag0sd0g/MariaAlpha/issues/31) | Implement `OrderTypeHandler` interface and MVP handlers | Interface defined per §5.3.2. `MarketOrderHandler`, `LimitOrderHandler`, `StopOrderHandler` implemented. Validation logic per order type. Unit tests. |
-| [1.5.4](https://github.com/drag0sd0g/MariaAlpha/issues/32) | Implement composable `RiskCheck` chain | Interface defined per §5.3.3. MVP checks: `MaxOrderNotionalCheck`, `MaxPositionPerSymbolCheck`, `MaxPortfolioExposureCheck`, `MaxOpenOrdersCheck`, `DailyLossLimitCheck`. Chain short-circuits on first failure. Config loaded from `config/risk-limits.yml`. Unit tests for each check and the chain. |
-| [1.5.5](https://github.com/drag0sd0g/MariaAlpha/issues/33) | Implement order lifecycle state machine and Kafka publishing | State transitions per §5.2.4 diagram. All transitions published to `orders.lifecycle`. Invalid transitions rejected with error. Unit tests for all state paths. |
-| [1.5.6](https://github.com/drag0sd0g/MariaAlpha/issues/34) | Implement `DirectRouter` (SOR stub) | Pass-through router that forwards all orders to the configured exchange adapter. `SmartOrderRouter` interface defined. Routing decisions published to `routing.decisions`. |
-| [1.5.7](https://github.com/drag0sd0g/MariaAlpha/issues/35) | Implement daily loss limit enforcement with trading halt | On breach: halt signal generation, cancel open orders, publish CRITICAL alert. Resume via `POST /api/strategies/resume` or next trading day. Integration test. |
-| [1.5.8](https://github.com/drag0sd0g/MariaAlpha/issues/36) | Add Resilience4j configuration for Alpaca API calls | Circuit breaker (threshold: 3, open: 60s), retry (3 attempts, exp backoff), timeout (5s), bulkhead (separate thread pools per §7.1). Verified under simulated failure conditions. |
-
-#### 1.6 Order Manager ✅
-
-| # | Issue Title | Acceptance Criteria |
-| --- | --- | --- |
-| [1.6.1](https://github.com/drag0sd0g/MariaAlpha/issues/37) | Implement order and fill persistence with Spring Data JPA | JPA entities for `orders`, `fills` tables. Repository interfaces. Orders persisted on creation, updated on state change. Fills persisted with foreign key to order. Testcontainers integration test with real PostgreSQL. |
-| [1.6.2](https://github.com/drag0sd0g/MariaAlpha/issues/38) | Implement position tracking and P&L computation | Position book updates on every fill per §5.2.5. Realized P&L computed on position-reducing fills. Unrealized P&L mark-to-market against latest tick. Unit tests for long/short/flat transitions. |
-| [1.6.3](https://github.com/drag0sd0g/MariaAlpha/issues/39) | Implement portfolio-level aggregates | Total P&L, gross/net exposure, open position count, cash balance. Computed in real time. Exposed via REST API. |
-| [1.6.4](https://github.com/drag0sd0g/MariaAlpha/issues/40) | Implement Kafka publishing of position updates | Position snapshots published to `positions.updates` on every fill. Includes all fields from position table + portfolio totals. Testcontainers integration test. |
-| [1.6.5](https://github.com/drag0sd0g/MariaAlpha/issues/41) | Add REST API for order and position queries | `GET /api/orders` (with filters), `GET /api/orders/{id}`, `GET /api/positions`, `GET /api/positions/{symbol}`, `GET /api/portfolio/summary`. OpenAPI spec auto-generated. |
-
-#### 1.7 Post-Trade ✅
-
-| # | Issue Title | Acceptance Criteria |
-| --- | --- | --- |
-| [1.7.1](https://github.com/drag0sd0g/MariaAlpha/issues/42) | Implement TCA computation | Computes slippage, implementation shortfall, VWAP benchmark, spread cost per completed order. Persisted to `tca_results`. Published to `analytics.tca`. Unit tests with known benchmarks. |
-
-#### 1.8 API Gateway ✅
-
-| # | Issue Title | Acceptance Criteria |
-| --- | --- | --- |
-| [1.8.1](https://github.com/drag0sd0g/MariaAlpha/issues/43) | Implement Spring Cloud Gateway with route configuration | Routes per §5.2.8 configured. Requests proxied to correct backend services. Health check aggregates downstream service health. |
-| [1.8.2](https://github.com/drag0sd0g/MariaAlpha/issues/44) | Implement API key authentication filter | `X-API-Key` header required. Keys loaded from environment variable. HTTP 401 on missing/invalid key. Key not logged. |
-| [1.8.3](https://github.com/drag0sd0g/MariaAlpha/issues/45) | Implement WebSocket proxy for real-time streams | WebSocket endpoints for market data, positions, orders. Proxied to respective backend services. Verified with `wscat`. |
-
-#### 1.9 React UI (MVP) ✅
-
-| # | Issue Title | Acceptance Criteria |
-| --- | --- | --- |
-| [1.9.1](https://github.com/drag0sd0g/MariaAlpha/issues/46) | Initialize React app with Vite, TypeScript, TailwindCSS | `npm create vite` scaffold. TypeScript configured. TailwindCSS + Recharts installed. ESLint + Prettier configured. App renders. |
-| [1.9.2](https://github.com/drag0sd0g/MariaAlpha/issues/47) | Implement Dashboard page | Portfolio summary cards (P&L, exposure, cash). Position blotter table with live P&L column. Daily P&L chart (Recharts). Data fetched from Order Manager REST API. |
-| [1.9.3](https://github.com/drag0sd0g/MariaAlpha/issues/48) | Implement Order Entry page | Order form (symbol, side, quantity, type, limit price). Submit via API Gateway. Active orders blotter with cancel button. Fill history table. WebSocket for real-time order status updates. |
-| [1.9.4](https://github.com/drag0sd0g/MariaAlpha/issues/49) | Implement WebSocket hook for real-time updates | `useWebSocket` hook connects to API Gateway WebSocket endpoints. Auto-reconnect with visual indicator. State updates trigger re-renders. |
-
-#### 1.10 End-to-End Integration ✅
-
-| # | Issue Title | Acceptance Criteria |
-| --- | --- | --- |
-| [1.10.1](https://github.com/drag0sd0g/MariaAlpha/issues/50) | End-to-end integration test with simulated exchange | Full pipeline test: simulated market data → VWAP strategy → ML signal → risk check → simulated exchange → fill → position update → P&L. All services running via Docker Compose. Test passes with assertions on final position and P&L. |
-| [1.10.2](https://github.com/drag0sd0g/MariaAlpha/issues/51) | End-to-end smoke test with Alpaca paper trading | Full pipeline with Alpaca paper trading. Place a LIMIT order, receive fill, verify position and P&L. Manual verification documented with screenshots. |
-| [1.10.3](https://github.com/drag0sd0g/MariaAlpha/issues/52) | Docker Compose full stack documentation | README.md with quickstart: prerequisites, `just run`, expected output, UI URL, API examples. Verified on clean checkout. |
-
-### Phase 2: Full Desk Workflows + SOR + Rich Analytics
-
-_(Each row below is a GitHub Issue — descriptions follow the same pattern as Phase 1)_
-
-| # | Issue Title | Component |
-| --- | --- | --- |
-| [2.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/53) ✅ | Implement full Smart Order Router with venue scoring | Execution Engine |
-| [2.1.2](https://github.com/drag0sd0g/MariaAlpha/issues/54) ✅ | Implement simulated dark pool and internal crossing venues | Execution Engine |
-| [2.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/55) ✅ | Implement IOC and FOK order type handlers | Execution Engine |
-| [2.1.4](https://github.com/drag0sd0g/MariaAlpha/issues/56) ✅ | Implement GTC and Iceberg order type handlers | Execution Engine |
-| [2.1.5](https://github.com/drag0sd0g/MariaAlpha/issues/57) ✅ | Implement TWAP strategy | Strategy Engine |
-| [2.1.6](https://github.com/drag0sd0g/MariaAlpha/issues/58) ✅ | Implement Momentum/Trend-following strategy | Strategy Engine |
-| [2.1.7](https://github.com/drag0sd0g/MariaAlpha/issues/59) ✅ | Implement Implementation Shortfall algorithm | Strategy Engine |
-| [2.1.8](https://github.com/drag0sd0g/MariaAlpha/issues/60) ✅ | Implement POV (Participation Rate) algorithm | Strategy Engine |
-| [2.1.9](https://github.com/drag0sd0g/MariaAlpha/issues/61) ✅ | Implement Close algorithm (targeting closing auction) | Strategy Engine |
-| [2.1.10](https://github.com/drag0sd0g/MariaAlpha/issues/62) ✅ | Implement internalization / crossing engine | Execution Engine |
-| [2.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/63) ✅ | Implement sector exposure risk check | Execution Engine |
-| [2.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/64) ✅ | Implement beta exposure risk check | Execution Engine |
-| [2.2.3](https://github.com/drag0sd0g/MariaAlpha/issues/65) ✅ | Implement ADV-relative sizing risk check | Execution Engine |
-| [2.2.4](https://github.com/drag0sd0g/MariaAlpha/issues/66) ✅ | Implement flow toxicity / adverse selection detector | Analytics Service |
-| [2.2.5](https://github.com/drag0sd0g/MariaAlpha/issues/67) ✅ | Implement PnL attribution (spread, hedging, market, timing) | Analytics Service |
-| [2.2.6](https://github.com/drag0sd0g/MariaAlpha/issues/68) ✅ | Implement client interest / axe matching model | Analytics Service |
-| [2.3.1](https://github.com/drag0sd0g/MariaAlpha/issues/69) ✅| Implement regime classifier (Random Forest) | ML Signal Service |
-| [2.3.2](https://github.com/drag0sd0g/MariaAlpha/issues/70) ✅| Implement ML signal confirmation/veto logic in Strategy Engine | Strategy Engine |
-| [2.4.1](https://github.com/drag0sd0g/MariaAlpha/issues/71)✅ | Implement inventory-aware RFQ pricing | Strategy Engine |
-| [2.4.2](https://github.com/drag0sd0g/MariaAlpha/issues/72)✅ | Implement volatility-adjusted and ADV-relative spread pricing | Strategy Engine |
-| [2.5.1](https://github.com/drag0sd0g/MariaAlpha/issues/73) ✅| Implement RFQ page in React UI | React UI |
-| [2.5.2](https://github.com/drag0sd0g/MariaAlpha/issues/74)✅ | Implement Strategy Control page with regime display | React UI |
-| [2.5.3](https://github.com/drag0sd0g/MariaAlpha/issues/75)✅ | Implement Analytics page (TCA, PnL attribution, performance) | React UI |
-| [2.5.4](https://github.com/drag0sd0g/MariaAlpha/issues/76)✅ | Implement Reconciliation page | React UI |
-| [2.5.5](https://github.com/drag0sd0g/MariaAlpha/issues/77)✅ | Implement WebSocket streaming for positions, orders, alerts | React UI |
-| [2.6.1](https://github.com/drag0sd0g/MariaAlpha/issues/78) ✅ | Implement end-of-day reconciliation engine | Post-Trade |
-| [2.6.2](https://github.com/drag0sd0g/MariaAlpha/issues/79)✅ | Create Grafana Trading Pipeline dashboard | Observability |
-| [2.6.3](https://github.com/drag0sd0g/MariaAlpha/issues/80) ✅| Create Grafana Portfolio & Risk dashboard | Observability |
-| [2.6.4](https://github.com/drag0sd0g/MariaAlpha/issues/81) ✅| Create Grafana Post-Trade & Quality dashboard | Observability |
-| [2.7.1](https://github.com/drag0sd0g/MariaAlpha/issues/82) ✅ | Create Helm charts for full Kubernetes deployment | Deployment |
-| [2.7.2](https://github.com/drag0sd0g/MariaAlpha/issues/83)✅ | Implement Docker image publish workflow | CI/CD |
-| [2.7.3](https://github.com/drag0sd0g/MariaAlpha/issues/84)✅ | Add mutation testing (PITest + mutmut) to CI | CI/CD |
-| [2.7.4](https://github.com/drag0sd0g/MariaAlpha/issues/85)✅  | Introduce Redis for distributed position cache | Infrastructure |
-| [2.7.5](https://github.com/drag0sd0g/MariaAlpha/issues/86)✅  | Create Bruno API collection with example requests | Developer Experience |
-
-### Phase 3: Derivatives + Tokyo Market + Program Tradingare
 | # | Issue Title | Component |
 | --- | --- | --- |
 | [3.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/87) | Implement IBKR `MarketDataAdapter` (TWS API) | Market Data GW |
@@ -1494,7 +1355,11 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 | [3.5.2](https://github.com/drag0sd0g/MariaAlpha/issues/102) | Implement correlated position limits | Execution Engine |
 | [3.5.3](https://github.com/drag0sd0g/MariaAlpha/issues/103) | Implement currency exposure tracking | Order Manager |
 
-### Phase 4: Advanced Features
+### Advanced Platform Features
+
+Backtesting, OAuth/RBAC, ML model lifecycle, IaC, portfolio optimization, ML-driven SOR, and other
+items that improve the operational and analytical surface of the product without changing what
+markets it trades.
 
 | # | Issue Title | Component |
 | --- | --- | --- |
@@ -1510,9 +1375,9 @@ _(Each row below is a GitHub Issue — descriptions follow the same pattern as P
 | [4.8.1](https://github.com/drag0sd0g/MariaAlpha/issues/113) | Implement ML-based adaptive SOR | Execution Engine |
 | [4.9.1](https://github.com/drag0sd0g/MariaAlpha/issues/114) | Evaluate Apache Flink for complex event processing | Infrastructure |
 
-### Future Considerations (unscheduled)
+### Other Considerations (unscheduled)
 
-Items below are deliberately **unscheduled** — they're recorded here so the rationale and trade-offs aren't lost, but the decision to take them on is deferred until either a concrete need or a phase boundary makes the cost/benefit clear.
+Items below are deliberately **unscheduled** — they're recorded here so the rationale and trade-offs aren't lost, but the decision to take them on is deferred until either a concrete need or a clear cost/benefit signal emerges.
 
 #### LMAX Disruptor refactor for in-process hot paths
 
@@ -1520,12 +1385,12 @@ The current architecture relies on Spring `@KafkaListener` (one thread per parti
 
 A Disruptor-based refactor becomes worthwhile once features appear that are bound by **in-process throughput** rather than network I/O:
 
-- **Backtesting engine** (4.1.1) — millions of historical ticks replayed through the full pipeline in a single process; no Kafka, no DB hot path.
-- **Internal crossing engine** (2.1.2) — an in-process matching engine is the canonical single-writer Disruptor use case.
+- **Backtesting engine** (roadmap issue 4.1.1) — millions of historical ticks replayed through the full pipeline in a single process; no Kafka, no DB hot path.
+- **Internal crossing engine** — an in-process matching engine is the canonical single-writer Disruptor use case; the existing engine is the natural pilot site.
 - **Program / basket trading engine** (3.4.1) and **FIX gateway** (3.4.3) — high in-process fan-out per parent order.
 - **Tokyo full-depth market data** (3.3.x) — if it materially exceeds NFR-3's 10k ticks/s budget per gateway instance.
 
-The natural insertion point is **after Phase 3 and before Phase 4** — early Phase-3 features generate the throughput where the gain becomes visible, and Phase-4 backtesting/ML retraining would then build on a Disruptor-backed core. Taking it on earlier (during Phase 2) would conflate the SOR/risk work with a separate skill and is not justified by current load. Taking it on later (after Phase 4) means re-platforming a backtester that was built on the older foundation.
+The natural insertion point is **after the multi-market / derivatives work lands** (the §11 *Multi-Market & Derivatives Capabilities* items) and **before backtesting** (the §11 *Advanced Platform Features* items) — that's when in-process throughput becomes the binding constraint, and backtesting then builds on a Disruptor-backed core rather than being re-platformed later.
 
 Three ambition levels worth keeping in mind:
 
@@ -1535,7 +1400,7 @@ Three ambition levels worth keeping in mind:
 | **B** | `execution-engine` in-process pipeline (signal-in → audit → validate → risk → SOR → submit; fills → lifecycle → publish) refactored to a Disruptor ring with pooled events. Kafka stays at the edges. Persistence in `order-manager` stays as-is. | ~3–4 weeks | LMAX-style architectural fingerprint without the inter-service rip. Resilience4j bulkheads removed on the in-process path; mutable pooled event slots replace per-event allocation. Benchmarks become a deliverable. |
 | **C** | Consolidate `execution-engine` + `order-manager` into one event-sourced "business-logic core" running on a single Disruptor pipeline (LMAX original). Postgres becomes a journal sink; state is in-memory and rebuilt by replay. Aeron/Chronicle Queue replaces Kafka for core transport. | ~8–12 weeks | Maximally HFT-realistic but reverses the §5.1 microservice choice for the trading core. |
 
-**Default recommendation when this is picked up: Level B, scheduled as a dedicated milestone between Phase 3 and Phase 4.** Level A remains the right scope-limited pilot if it ends up bundled into 2.1.2's internal crossing engine. Level C is documented for completeness but should not be considered without an explicit product-level decision to abandon the microservice boundary between execution and order management.
+**Default recommendation when this is picked up: Level B, scheduled as a dedicated milestone between the multi-market/derivatives work and the advanced-platform work.** Level A remains the right scope-limited pilot if it's bundled into a follow-up iteration of the internal crossing engine. Level C is documented for completeness but should not be considered without an explicit product-level decision to abandon the microservice boundary between execution and order management.
 
 Friction points that any of the above will have to address:
 

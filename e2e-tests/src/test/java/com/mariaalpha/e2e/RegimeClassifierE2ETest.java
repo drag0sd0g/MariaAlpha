@@ -8,7 +8,6 @@ import com.mariaalpha.proto.signal.RegimeRequest;
 import com.mariaalpha.proto.signal.SignalServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import java.io.File;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -21,11 +20,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.testcontainers.containers.ComposeContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
 
 /**
- * E2E coverage for issue 2.3.1 — the Random Forest regime classifier in ml-signal-service.
+ * E2E coverage for the Random Forest regime classifier in ml-signal-service.
  *
  * <p>Brings up the bare minimum compose profile needed to exercise the GetRegime gRPC: just the
  * ml-signal-service container (no Kafka dependency for the call itself — we only need the gRPC
@@ -46,58 +43,24 @@ import org.testcontainers.containers.wait.strategy.Wait;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RegimeClassifierE2ETest {
 
-  private static final String ML_SERVICE = "ml-signal-service";
   private static final int GRPC_PORT = 50051;
   private static final int API_PORT = 8090;
 
-  private ComposeContainer composeContainer;
   private HttpClient httpClient;
   private ManagedChannel channel;
   private SignalServiceGrpc.SignalServiceBlockingStub stub;
 
   @AfterAll
-  void stopStack() {
+  void closeChannel() {
     if (channel != null) {
       channel.shutdownNow();
     }
-    if (composeContainer != null) {
-      composeContainer.stop();
-    }
+    // The shared compose stack is owned by SharedComposeStack and stopped at JVM shutdown.
   }
 
   @BeforeAll
-  void startStack() throws Exception {
-    var dockerComposeFile = new File("../docker-compose.yml");
-    new ProcessBuilder(
-            "docker",
-            "compose",
-            "-f",
-            dockerComposeFile.getCanonicalPath(),
-            "down",
-            "-v",
-            "--remove-orphans")
-        .directory(dockerComposeFile.getCanonicalFile().getParentFile())
-        .redirectErrorStream(true)
-        .start()
-        .waitFor();
-
-    composeContainer =
-        new ComposeContainer(dockerComposeFile)
-            .withLocalCompose(true)
-            .withEnv("POSTGRES_USER", "mariaalpha")
-            .withEnv("POSTGRES_PASSWORD", "mariaalpha")
-            .withEnv("POSTGRES_DB", "mariaalpha")
-            .withEnv("ALPACA_API_KEY_ID", "unused")
-            .withEnv("ALPACA_API_SECRET_KEY", "unused")
-            .withBuild(true)
-            .withRemoveVolumes(true)
-            .waitingFor(
-                ML_SERVICE,
-                Wait.forLogMessage(".*grpc_server_started.*", 1)
-                    .withStartupTimeout(Duration.ofMinutes(4)))
-            .withLogConsumer(ML_SERVICE, f -> System.out.print("[ml] " + f.getUtf8String()));
-    composeContainer.start();
-
+  void startStack() {
+    SharedComposeStack.get().start();
     httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     channel = ManagedChannelBuilder.forAddress("localhost", GRPC_PORT).usePlaintext().build();
     stub = SignalServiceGrpc.newBlockingStub(channel);

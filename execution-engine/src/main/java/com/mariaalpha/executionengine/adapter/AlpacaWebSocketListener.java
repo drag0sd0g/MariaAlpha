@@ -26,16 +26,34 @@ public class AlpacaWebSocketListener extends WebSocketListener {
   private final ObjectMapper objectMapper;
   private final Supplier<Consumer<ExecutionReport>> reportCallbackSupplier;
   private final AtomicBoolean connected;
+  // Invoked on close (non-normal) or failure so the adapter can schedule a backoff reconnect.
+  // Optional — when null the listener falls back to log-only behavior (used in tests).
+  private final Runnable reconnectTrigger;
+  // Invoked when the server-accepted onOpen handshake fires; lets the adapter reset its backoff
+  // counter so the next disconnect starts from the 1s rung again.
+  private final Runnable onOpenSuccess;
 
   public AlpacaWebSocketListener(
       AlpacaConfig config,
       ObjectMapper objectMapper,
       Supplier<Consumer<ExecutionReport>> reportCallbackSupplier,
       AtomicBoolean connected) {
+    this(config, objectMapper, reportCallbackSupplier, connected, null, null);
+  }
+
+  public AlpacaWebSocketListener(
+      AlpacaConfig config,
+      ObjectMapper objectMapper,
+      Supplier<Consumer<ExecutionReport>> reportCallbackSupplier,
+      AtomicBoolean connected,
+      Runnable reconnectTrigger,
+      Runnable onOpenSuccess) {
     this.config = config;
     this.objectMapper = objectMapper;
     this.reportCallbackSupplier = reportCallbackSupplier;
     this.connected = connected;
+    this.reconnectTrigger = reconnectTrigger;
+    this.onOpenSuccess = onOpenSuccess;
   }
 
   @Override
@@ -48,6 +66,9 @@ public class AlpacaWebSocketListener extends WebSocketListener {
     webSocket.send(authMsg);
     webSocket.send("{\"action\":\"listen\",\"data\":{\"streams\":[\"trade_updates\"]}}");
     LOG.info("Alpaca WebSocket connected - sent auth + listen for trade_updates");
+    if (onOpenSuccess != null) {
+      onOpenSuccess.run();
+    }
   }
 
   @Override
@@ -111,6 +132,11 @@ public class AlpacaWebSocketListener extends WebSocketListener {
   public void onClosed(@NotNull WebSocket webSocket, int code, @NotNull String reason) {
     connected.set(false);
     LOG.warn("Alpaca WebSocket closed: {} {}", code, reason);
+    // 1000 is a clean shutdown initiated by us (PreDestroy). Anything else means the server or a
+    // network blip cut us off — reconnect or we silently stop receiving fills.
+    if (code != 1000 && reconnectTrigger != null) {
+      reconnectTrigger.run();
+    }
   }
 
   @Override
@@ -118,6 +144,8 @@ public class AlpacaWebSocketListener extends WebSocketListener {
       @NotNull WebSocket webSocket, @NotNull Throwable t, @Nullable Response response) {
     connected.set(false);
     LOG.warn("Alpaca WebSocket failure: {}", t.getMessage(), t);
-    // TODO reconnect
+    if (reconnectTrigger != null) {
+      reconnectTrigger.run();
+    }
   }
 }

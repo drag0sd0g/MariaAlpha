@@ -11,7 +11,7 @@ export default function Dashboard() {
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const replaceAll = usePositionStore((s) => s.replaceAll);
-  // App-wide /ws/positions connection lives in AppWideStreams (issue 2.5.5).
+  // App-wide /ws/positions connection lives in AppWideStreams.
   // We reload the REST snapshot whenever the shared connection becomes open
   // so a reconnect resyncs the table without each page owning its own socket.
   const positionsWsState = useConnectionStore((s) => s.states["/ws/positions"]);

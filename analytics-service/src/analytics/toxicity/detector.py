@@ -1,4 +1,4 @@
-"""Flow toxicity detector — issue 2.2.4.
+"""Flow toxicity detector.
 
 Computes per-strategy *markout*: the signed price move on the symbol over a fixed horizon
 after a fill, expressed in basis points and oriented so that **positive = adverse selection**

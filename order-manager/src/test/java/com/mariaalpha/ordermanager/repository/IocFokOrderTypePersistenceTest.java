@@ -20,10 +20,9 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
- * Verifies that the new IOC and FOK order types added in PR-A (2.1.3) round-trip correctly through
- * the JPA layer. The {@code order_type} column is a {@code varchar(16)} mapped via
- * {@code @Enumerated(EnumType.STRING)} so each new enum value must be writable and readable without
- * altering the column definition.
+ * Verifies that the IOC and FOK order types round-trip correctly through the JPA layer. The {@code
+ * order_type} column is a {@code varchar(16)} mapped via {@code @Enumerated(EnumType.STRING)} so
+ * each new enum value must be writable and readable without altering the column definition.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)

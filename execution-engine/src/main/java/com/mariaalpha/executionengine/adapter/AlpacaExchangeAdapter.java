@@ -15,7 +15,11 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -31,12 +35,25 @@ public class AlpacaExchangeAdapter implements ExchangeAdapter {
 
   private static final Logger LOG = LoggerFactory.getLogger(AlpacaExchangeAdapter.class);
 
+  // Same backoff curve and cap as the market-data Alpaca adapter.
+  static final long[] BACKOFF_MS = {1_000L, 2_000L, 4_000L, 8_000L, 16_000L};
+  static final int MAX_RECONNECTS = BACKOFF_MS.length;
+
   private final AlpacaConfig config;
   private final ObjectMapper objectMapper;
   private final AlpacaOrderTypeMapper typeMapper;
   private final HttpClient httpClient;
   private final OkHttpClient wsClient; // lightweight websocket client
   private final AtomicBoolean connected = new AtomicBoolean(false);
+  private final AtomicInteger reconnectAttempt = new AtomicInteger(0);
+  private final ScheduledExecutorService reconnectScheduler =
+      Executors.newSingleThreadScheduledExecutor(
+          r -> {
+            var t = new Thread(r, "alpaca-trade-updates-reconnect");
+            t.setDaemon(true);
+            return t;
+          });
+  private final AtomicBoolean shuttingDown = new AtomicBoolean(false);
   private volatile Consumer<ExecutionReport> reportCallback;
   private volatile WebSocket webSocket;
 
@@ -127,19 +144,52 @@ public class AlpacaExchangeAdapter implements ExchangeAdapter {
   @PostConstruct
   @Override
   public void start() {
+    reconnectAttempt.set(0);
+    doConnect();
+  }
+
+  void doConnect() {
     var request = new Request.Builder().url(config.websocketUrl()).build();
     this.webSocket =
         wsClient.newWebSocket(
             request,
-            new AlpacaWebSocketListener(config, objectMapper, () -> reportCallback, connected));
+            new AlpacaWebSocketListener(
+                config,
+                objectMapper,
+                () -> reportCallback,
+                connected,
+                this::scheduleReconnect,
+                () -> reconnectAttempt.set(0)));
+  }
+
+  void scheduleReconnect() {
+    if (shuttingDown.get()) {
+      return;
+    }
+    var attempt = reconnectAttempt.getAndIncrement();
+    if (attempt >= MAX_RECONNECTS) {
+      LOG.error(
+          "Alpaca trade_updates: max reconnect attempts ({}) exhausted — fills will be missed",
+          MAX_RECONNECTS);
+      return;
+    }
+    var delayMs = BACKOFF_MS[attempt];
+    LOG.warn(
+        "Alpaca trade_updates: scheduling reconnect attempt {}/{} in {}ms",
+        attempt + 1,
+        MAX_RECONNECTS,
+        delayMs);
+    reconnectScheduler.schedule(this::doConnect, delayMs, TimeUnit.MILLISECONDS);
   }
 
   @PreDestroy
   @Override
   public void shutdown() {
+    shuttingDown.set(true);
     if (webSocket != null) {
       webSocket.close(1000, "shutdown");
     }
+    reconnectScheduler.shutdownNow();
     wsClient.dispatcher().executorService().shutdown();
   }
 

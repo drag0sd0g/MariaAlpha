@@ -16,7 +16,7 @@ This is the canonical "principal-vs-agency" decision a sell-side desk makes for 
 - **Internalize** when there's offsetting interest already sitting on the desk and the regulator allows it.
 - **Route externally** otherwise.
 
-Issue **2.1.10** adds a real in-process matching engine to MariaAlpha's `INTERNAL_CROSS` venue so the Smart Order Router (issue 2.1.1) has a destination that actually behaves like a real internalization desk, not the random-fill stub from issue 2.1.2.
+The internal crossing engine is the in-process matching engine behind MariaAlpha's `INTERNAL_CROSS` venue. It gives the Smart Order Router a destination that behaves like a real internalization desk: a per-symbol FIFO book, midpoint-priced crosses, and tick-driven sweep so price-blocked LIMITs eventually fire when the NBBO moves into range.
 
 ## 2. The Matching Engine
 
@@ -131,7 +131,7 @@ All three are routed through the API Gateway (`/api/execution/**`) and require t
 | `mariaalpha.execution.internal.book.sell.depth` | Gauge | — | Live sell-side queue depth |
 | `mariaalpha.execution.internal.book.resting.orders` | Gauge | — | Total resting orders across all symbols/sides |
 
-The Phase 2 *Post-Trade & Quality* dashboard's "internalization rate" panel divides `mariaalpha_execution_internal_crosses_total{synthetic="false"}` by `mariaalpha_execution_venue_fills_total{venue_type="LIT"}` to show what fraction of flow stayed on-house.
+The *Post-Trade & Quality* dashboard's "internalization rate" panel divides `mariaalpha_execution_internal_crosses_total{synthetic="false"}` by `mariaalpha_execution_venue_fills_total{venue_type="LIT"}` to show what fraction of flow stayed on-house.
 
 ## 8. Configuration
 
@@ -152,7 +152,7 @@ Set both probability knobs to `0.0` for tests that require deterministic real ma
 
 ## 9. Trade-offs and What Was Deliberately Left Out
 
-- **Single global lock.** Submit / cancel / sweep all serialize on one `synchronized(lock)`. Internalization volumes in this simulator are tiny vs. the throughput where a single-writer Disruptor ring would pay off. The TDD's *Future Considerations* section ([§5.3.7 → LMAX Disruptor refactor](../technical-design-document.md#lmax-disruptor-refactor-for-in-process-hot-paths)) flags this as a candidate for the Disruptor-based refactor between Phase 3 and Phase 4.
-- **No price-time priority across symbols.** Each symbol has its own FIFO; we don't try to match A-symbol BUY against B-symbol SELL. That's the right call for issue 2.1.10 — cross-symbol matching is its own beast and belongs in a separate engine.
+- **Single global lock.** Submit / cancel / sweep all serialize on one `synchronized(lock)`. Internalization volumes in this simulator are tiny vs. the throughput where a single-writer Disruptor ring would pay off. The TDD's *Other Considerations* section ([§5.3.7 → LMAX Disruptor refactor](../technical-design-document.md#lmax-disruptor-refactor-for-in-process-hot-paths)) flags this as a natural pilot site for a Disruptor-based refactor.
+- **No price-time priority across symbols.** Each symbol has its own FIFO; we don't try to match A-symbol BUY against B-symbol SELL. Cross-symbol matching is its own engine and belongs separately.
 - **No per-order tag-based segregation.** A real desk would refuse to cross firm orders against client orders, or refuse to cross orders tagged "no internalize." The simulator doesn't carry that metadata yet; when 2.5.1 (RFQ + client tiering) lands, the engine will need a `crossingEligibility` predicate.
 - **Synthetic counterparties are accounting fictions.** They appear as `MidpointCross.synthetic = true` and are excluded from the "real internalization rate" panel. They keep the dashboard alive in single-strategy demos but never inflate the headline KPI.

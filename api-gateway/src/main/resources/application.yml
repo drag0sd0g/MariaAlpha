@@ -44,10 +44,9 @@ spring:
               predicates:
                 - Path=/api/market-data/**
 
-            - id: analytics
-              uri: ${ANALYTICS_SERVICE_URL:http://localhost:8095}
-              predicates:
-                - Path=/api/analytics/**
+            # Analytics route lives in RouteConfiguration.java because it needs a
+            # RewritePath filter to map /api/analytics/** → /v1/analytics/** —
+            # the analytics-service registers its endpoints under /v1/.
 
 mariaalpha:
   gateway:

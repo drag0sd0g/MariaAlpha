@@ -6,20 +6,16 @@ import static org.awaitility.Awaitility.await;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import java.io.File;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.testcontainers.containers.ComposeContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
 
 /**
  * E2E coverage for the analytics-service (issues 2.2.4 / 2.2.5 / 2.2.6). Brings up the full
@@ -34,58 +30,16 @@ import org.testcontainers.containers.wait.strategy.Wait;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AnalyticsServiceE2ETest {
 
-  private static final String API_KEY = "analytics-service-e2e";
   private static final ObjectMapper MAPPER =
       new ObjectMapper().registerModule(new JavaTimeModule());
 
-  private ComposeContainer composeContainer;
+  private final String apiKey = SharedComposeStack.get().apiKey();
+  private final String gatewayBaseUrl = SharedComposeStack.get().gatewayBaseUrl();
   private HttpClient httpClient;
-  private String gatewayBaseUrl;
-
-  @AfterAll
-  void stopStack() {
-    if (composeContainer != null) {
-      composeContainer.stop();
-    }
-  }
 
   @BeforeAll
-  void startStack() throws Exception {
-    var dockerComposeFile = new File("../docker-compose.yml");
-    new ProcessBuilder(
-            "docker",
-            "compose",
-            "-f",
-            dockerComposeFile.getCanonicalPath(),
-            "down",
-            "-v",
-            "--remove-orphans")
-        .directory(dockerComposeFile.getCanonicalFile().getParentFile())
-        .redirectErrorStream(true)
-        .start()
-        .waitFor();
-    composeContainer =
-        new ComposeContainer(dockerComposeFile)
-            .withLocalCompose(true)
-            .withEnv("MARIAALPHA_API_KEY", API_KEY)
-            .withEnv("POSTGRES_USER", "mariaalpha")
-            .withEnv("POSTGRES_PASSWORD", "mariaalpha")
-            .withEnv("POSTGRES_DB", "mariaalpha")
-            .withEnv("ALPACA_API_KEY_ID", "unused")
-            .withEnv("ALPACA_API_SECRET_KEY", "unused")
-            .withBuild(true)
-            .withRemoveVolumes(true)
-            .waitingFor(
-                "api-gateway",
-                Wait.forLogMessage(".*Started Application in.*", 1)
-                    .withStartupTimeout(Duration.ofMinutes(4)))
-            .withLogConsumer(
-                "analytics-service",
-                f -> System.out.print("[analytics] " + f.getUtf8String()))
-            .withLogConsumer(
-                "api-gateway", f -> System.out.print("[api-gw] " + f.getUtf8String()));
-    composeContainer.start();
-    gatewayBaseUrl = "http://localhost:8080";
+  void startStack() {
+    SharedComposeStack.get().start();
     httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
   }
 
@@ -121,7 +75,7 @@ class AnalyticsServiceE2ETest {
         httpClient.send(
             HttpRequest.newBuilder()
                 .uri(URI.create(gatewayBaseUrl + "/api/analytics/axes"))
-                .header("X-API-Key", API_KEY)
+                .header("X-API-Key", apiKey)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(publishBody))
                 .timeout(Duration.ofSeconds(5))
@@ -166,7 +120,7 @@ class AnalyticsServiceE2ETest {
         httpClient.send(
             HttpRequest.newBuilder()
                 .uri(URI.create(gatewayBaseUrl + path))
-                .header("X-API-Key", API_KEY)
+                .header("X-API-Key", apiKey)
                 .GET()
                 .timeout(Duration.ofSeconds(5))
                 .build(),

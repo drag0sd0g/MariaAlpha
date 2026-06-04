@@ -1,6 +1,6 @@
 """Analytics Service entry point.
 
-Wires up the three Phase-2 components, the Kafka consumers that feed them, and the FastAPI
+Wires up the three analytics components, the Kafka consumers that feed them, and the FastAPI
 HTTP surface. Mirrors the layout of ``ml-signal-service.__main__``:
 
 - FastAPI runs on the main thread (uvicorn blocks).

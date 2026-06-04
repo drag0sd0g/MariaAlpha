@@ -24,8 +24,8 @@ import org.springframework.data.redis.listener.Topic;
 import org.springframework.stereotype.Component;
 
 /**
- * Phase-2 (issue 2.7.4) — keeps the in-process {@link PositionTracker} in sync with the
- * order-manager's authoritative position book via the Redis cache:
+ * Keeps the in-process {@link PositionTracker} in sync with the order-manager's authoritative
+ * position book via the Redis cache:
  *
  * <ul>
  *   <li>Warms the tracker on startup by scanning {@code mariaalpha:position:*} keys.

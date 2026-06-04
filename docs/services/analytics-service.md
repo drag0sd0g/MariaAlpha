@@ -62,7 +62,7 @@ the `analytics.tca` stream into five USD components:
 | Component | Formula |
 | --- | --- |
 | `spread_usd` | `−(spread_cost_bps / 10_000) × arrival_price × qty` (always a cost) |
-| `timing_usd` | `0.0` placeholder — needs decision-time mid (Phase 2.3.x) |
+| `timing_usd` | `(arrival_price − decision_mid_price) × signed_qty` when the TCA payload carries `decision_mid_price`; `0.0` otherwise |
 | `market_usd` | `(vwap_benchmark − arrival_price) × signed_qty` |
 | `commission_usd` | `−|commission_total|` or `−(commission_bps / 10_000) × realized_avg × qty` |
 | `residual_usd` | `realized_pnl − (spread + timing + market + commission)` — surfaces model error |
@@ -138,8 +138,7 @@ All knobs are environment-variable driven with the `ANALYTICS_` prefix:
 - **Kafka topic produced**: `analytics.risk-alerts` (FLOW_TOXICITY events).
 - **docker-compose** — service block at `analytics-service:8095`,
   `depends_on: kafka: service_healthy`, healthcheck pings `/health`.
-- **Helm** — not yet wired into the umbrella chart; tracked as a Phase 2
-  follow-up.
+- **Helm** — not yet wired into the umbrella chart; tracked as a follow-up.
 
 ## Testing
 

@@ -177,7 +177,7 @@ All times are converted to `America/New_York` (US Eastern Time) since the primar
 
 3. **No fill tracking**: The strategy doesn't yet receive fill confirmations. It assumes each child order will fill completely. When the Execution Engine integration is complete (1.5.x), the strategy can track actual fills and adjust remaining quantities.
 
-4. **No adaptive behavior**: Production VWAP algorithms adapt in real-time -- if actual volume is running ahead of the profile, they accelerate; if behind, they slow down. This is a Phase 2 enhancement.
+4. **No adaptive behavior**: Production VWAP algorithms adapt in real-time -- if actual volume is running ahead of the profile, they accelerate; if behind, they slow down. This is a possible future enhancement.
 
 5. **No participation rate cap**: A production VWAP limits each child order to a percentage of actual volume (e.g., max 20% of the bar's volume) to avoid dominating the tape. This is a future enhancement.
 
@@ -191,9 +191,9 @@ All times are converted to `America/New_York` (US Eastern Time) since the primar
 | Benchmark tracking | Better for volume-weighted benchmark | Better for time-weighted benchmark |
 | Market impact | Lower (trades with the crowd) | Higher (may trade against thin volume) |
 
-MariaAlpha implements TWAP as a separate strategy (issue 2.1.5) which simply divides the target quantity into equal slices across evenly-spaced intervals. See [`twap.md`](twap.md) for the design and how it reuses the same `TradingStrategy` plumbing as VWAP.
+MariaAlpha implements TWAP as a separate strategy which simply divides the target quantity into equal slices across evenly-spaced intervals. See [`twap.md`](twap.md) for the design and how it reuses the same `TradingStrategy` plumbing as VWAP.
 
-VWAP and TWAP are *execution* algorithms — they work a pre-decided parent order into the market. The [Momentum / trend-following strategy](momentum.md) (issue 2.1.6) is the complementary *alpha* strategy on the same `TradingStrategy` interface: it decides **whether** to hold a position at all, based on EMA crossovers, RSI, and volume confirmation.
+VWAP and TWAP are *execution* algorithms — they work a pre-decided parent order into the market. The [Momentum / trend-following strategy](momentum.md) is the complementary *alpha* strategy on the same `TradingStrategy` interface: it decides **whether** to hold a position at all, based on EMA crossovers, RSI, and volume confirmation.
 
 ## 7. Further Reading
 
