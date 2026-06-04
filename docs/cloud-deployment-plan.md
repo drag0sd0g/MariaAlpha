@@ -994,16 +994,15 @@ curl -fsS https://api.$LB_IP.nip.io/actuator/health/readiness
 
 Once you approve this document, the execution sequence is:
 
-1. ~~**Finish 2.1.3 + 2.1.4** on the current branch and open a PR. Merge.~~ ✅ Done (commits `87cbb54`, `cb96a14`).
-2. **Sign up for Oracle Cloud** with home region Frankfurt. Run `hitrov` script in the background to acquire Ampere capacity (no impact on Step 3 — runs in parallel).
-3. **Create the 8 new issues** listed in §13.1 (2.8.1 – 2.8.7) and expand the acceptance criteria on #82 and #83.
-4. **Edit the TDD** (NG-5 → G-10, §10 expansion) as a separate PR for clean history.
-5. **Begin work on 2.8.1** once the Ampere node provisions successfully.
-6. **Each subsequent 2.8.x issue** lands as its own PR; together they unblock the continuous deploy of Phase 2 features starting at 2.1.5.
+1. **Sign up for Oracle Cloud** with home region Frankfurt. Run `hitrov` script in the background to acquire Ampere capacity (no impact on Step 2 — runs in parallel).
+2. **Create the 8 new issues** listed in §13 (Cloud-1 – Cloud-8).
+3. **Edit the TDD** (NG-5 → G-10, §10 expansion) as a separate PR for clean history.
+4. **Begin work on Cloud-1** once the Ampere node provisions successfully.
+5. **Each subsequent cloud issue** lands as its own PR; together they unblock continuous deploy.
 
-If at step 2 we cannot acquire Ampere capacity within 2 weeks despite the retry script:
+If at step 1 we cannot acquire Ampere capacity within 2 weeks despite the retry script:
 - Park the cloud milestone
-- Continue Phase 2 feature work locally (no deploy step gating)
+- Continue roadmap feature work locally (no deploy step gating)
 - Retry capacity weekly
 - Cloud deploy ships when capacity is acquired, retroactively bringing all merged commits into the cloud
 

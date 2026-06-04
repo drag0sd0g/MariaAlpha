@@ -81,7 +81,7 @@ Flip `secrets.useSealedSecrets: true` and enable the controller via `sealed-secr
 
 ## What is in scope
 
-This chart covers issue 2.7.1 — local Kubernetes deployability. CI/CD image-publishing automation lives in 2.7.2, mutation testing in 2.7.3, and the Bitnami Redis subchart wired into order-manager + execution-engine is the distributed position cache from issue 2.7.4 (cluster DNS: `redis-master.mariaalpha-data.svc.cluster.local:6379`, auth disabled for the local install). NetworkPolicies, HPA tuning, PDBs, and TLS via cert-manager `ClusterIssuer` are deferred to follow-up tickets.
+This chart deploys MariaAlpha to a local Kubernetes cluster. The Bitnami Redis subchart wired into order-manager + execution-engine is the distributed position cache (cluster DNS: `redis-master.mariaalpha-data.svc.cluster.local:6379`, auth disabled for the local install). NetworkPolicies, HPA tuning, PDBs, and TLS via cert-manager `ClusterIssuer` are deferred to follow-up tickets.
 
 ## Layout
 
