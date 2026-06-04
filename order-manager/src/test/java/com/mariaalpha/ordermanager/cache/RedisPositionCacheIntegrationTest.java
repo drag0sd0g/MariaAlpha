@@ -21,8 +21,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * Phase-2 (issue 2.7.4) integration test that exercises the publisher against a real Redis,
- * verifying the SET + TTL + PUBLISH path end-to-end.
+ * Integration test that exercises the publisher against a real Redis, verifying the SET + TTL +
+ * PUBLISH path end-to-end.
  */
 @Tag("integration")
 @Testcontainers

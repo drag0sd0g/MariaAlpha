@@ -5,9 +5,9 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
- * Phase-2 (issue 2.7.4) projection of the order-manager's PositionSnapshot that the
- * execution-engine deserializes from the Redis cache. Mirrors the order-manager's wire format —
- * extra fields are tolerated for forward compatibility.
+ * Projection of the order-manager's PositionSnapshot that the execution-engine deserializes from
+ * the Redis cache. Mirrors the order-manager's wire format — extra fields are tolerated for forward
+ * compatibility.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record PositionSnapshot(

@@ -1,4 +1,4 @@
-"""PnL attribution — issue 2.2.5.
+"""PnL attribution.
 
 Decomposes the realized PnL of every completed parent order into five components, all in USD
 notional (positive = profit for the desk, negative = cost):

@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Configuration for the EOD reconciliation engine (issue 2.6.1).
+ * Configuration for the EOD reconciliation engine.
  *
  * <p>{@link Mode#EXTERNAL} pulls the day's activity report from Alpaca and compares against
  * internal fills. {@link Mode#MIRROR} is the simulated-stack mode — every internal fill is treated

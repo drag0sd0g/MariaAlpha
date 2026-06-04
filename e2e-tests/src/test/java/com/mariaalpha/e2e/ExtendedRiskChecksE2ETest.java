@@ -23,26 +23,26 @@ import org.testcontainers.containers.ComposeContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 
 /**
- * E2E coverage for the Phase-2 risk checks (issues 2.2.1 / 2.2.2 / 2.2.3). Brings up the full
+ * E2E coverage for the sector / beta / ADV-participation risk checks. Brings up the full
  * docker-compose stack with the ADV-participation limit tightened via env override to a tiny
  * fraction (0.0000001 ≈ ~6 AAPL shares trigger), then verifies a manual order above that limit
  * comes back REJECTED with {@code AdvParticipation} as the failing check.
  *
- * <p>The other two Phase-2 checks (sector / beta exposure) are exercised by the unit + integration
- * tests — they require an accumulated position book to fire, which is harder to set up
- * deterministically in a docker-compose stack.
+ * <p>The sector / beta exposure checks are exercised by the unit + integration tests — they
+ * require an accumulated position book to fire, which is harder to set up deterministically in a
+ * docker-compose stack.
  */
 // Runs LAST among the e2e suite (ClassOrderer.OrderAnnotation, see junit-platform.properties).
 // `ClassOrderer.OrderAnnotation` treats unannotated classes as having order Integer.MAX_VALUE/2,
-// so this annotation must exceed that — MAX_VALUE guarantees Phase2 runs after every
+// so this annotation must exceed that — MAX_VALUE guarantees this class runs after every
 // shared-stack class. The setUp tears down the SharedComposeStack to swap in its own
 // ADV-tightened stack; every shared-stack test must complete before that destruction is safe.
 @Order(Integer.MAX_VALUE)
 @Tag("e2e")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class Phase2RiskChecksE2ETest {
+class ExtendedRiskChecksE2ETest {
 
-  private static final String API_KEY = "phase2-risk-e2e";
+  private static final String API_KEY = "extended-risk-e2e";
   private static final ObjectMapper MAPPER =
       new ObjectMapper().registerModule(new JavaTimeModule());
 
@@ -128,7 +128,7 @@ class Phase2RiskChecksE2ETest {
   @Test
   void smallNormalOrderStillPassesTheChain() throws Exception {
     // Establish that the chain still admits normal flow — a 1-share order is well below every
-    // Phase-2 limit even with the ADV check tightened.
+    // configured limit even with the ADV check tightened.
     var orderId = submitManualOrder("AAPL", "BUY", 1);
     var order =
         await()
@@ -140,7 +140,7 @@ class Phase2RiskChecksE2ETest {
                 json -> json != null && !"NEW".equals(json.get("status").asText()));
 
     assertThat(order.get("status").asText())
-        .as("1-share AAPL order must pass every Phase-2 risk check")
+        .as("1-share AAPL order must pass every risk check")
         .isIn("SUBMITTED", "PARTIALLY_FILLED", "FILLED");
   }
 

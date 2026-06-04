@@ -1,4 +1,4 @@
-"""Unit tests for the PnL-attribution engine (issue 2.2.5)."""
+"""Unit tests for the PnL-attribution engine."""
 
 from __future__ import annotations
 

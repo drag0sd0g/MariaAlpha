@@ -55,7 +55,7 @@ public class RfqController {
     this.config = config;
   }
 
-  /** Compute an inventory- and vol-aware RFQ quote (issues 2.4.1 / 2.4.2). */
+  /** Compute an inventory- and vol-aware RFQ quote. */
   @PostMapping("/quote")
   public ResponseEntity<RfqQuoteResponse> quote(@RequestBody RfqQuoteRequest request) {
     if (request == null) {

@@ -16,7 +16,7 @@ interface AlertStore {
 const MAX_ALERTS = 50;
 
 /**
- * App-wide store for risk alerts streamed over `/ws/alerts` (issue 2.5.5). Alerts arrive from the
+ * App-wide store for risk alerts streamed over `/ws/alerts`. Alerts arrive from the
  * `analytics.risk-alerts` Kafka topic via the API gateway WebSocket proxy. The store keeps a
  * bounded ring of the most recent alerts so the banner can render the active ones and the
  * Analytics page can render history.

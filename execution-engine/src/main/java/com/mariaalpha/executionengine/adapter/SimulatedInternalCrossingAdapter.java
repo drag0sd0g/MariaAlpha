@@ -21,15 +21,15 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
- * VenueAdapter facade for the simulated internal crossing venue (issue 2.1.10). Delegates the
- * matching itself to {@link InternalCrossingEngine} and translates {@link MidpointCross} events
- * into {@link ExecutionReport}s on the {@code OrderExecutionService} callback.
+ * VenueAdapter facade for the simulated internal crossing venue. Delegates the matching itself to
+ * {@link InternalCrossingEngine} and translates {@link MidpointCross} events into {@link
+ * ExecutionReport}s on the {@code OrderExecutionService} callback.
  *
- * <p>The adapter retains the two probability knobs ({@code crossProbabilityOnSubmit} and {@code
- * matchProbabilityPerTick}) from the original 2.1.2 stub, reinterpreted as <i>simulated-liquidity
- * rates</i>: when no real counterparty is resting on the opposite side, the adapter rolls a die and
- * may ask the engine to synthesize one. This keeps the simulator producing crosses even when only
- * one strategy is feeding the venue, while the real matching path remains primary.
+ * <p>The adapter retains two probability knobs ({@code crossProbabilityOnSubmit} and {@code
+ * matchProbabilityPerTick}) as <i>simulated-liquidity rates</i>: when no real counterparty is
+ * resting on the opposite side, the adapter rolls a die and may ask the engine to synthesize one.
+ * This keeps the simulator producing crosses even when only one strategy is feeding the venue,
+ * while the real matching path remains primary.
  */
 @Component
 @Profile("simulated")

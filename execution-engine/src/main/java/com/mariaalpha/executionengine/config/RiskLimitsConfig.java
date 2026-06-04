@@ -6,9 +6,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * Pre-trade risk-check thresholds.
  *
- * <p>The original MVP knobs are {@code maxOrderNotional}, {@code maxPositionPerSymbol}, {@code
- * maxPortfolioExposure}, {@code maxOpenOrders}, and {@code maxDailyLoss}. Phase 2 (issues 2.2.1,
- * 2.2.2, 2.2.3) extends the config with:
+ * <p>The core knobs are {@code maxOrderNotional}, {@code maxPositionPerSymbol}, {@code
+ * maxPortfolioExposure}, {@code maxOpenOrders}, and {@code maxDailyLoss}. The sector / beta / ADV
+ * risk checks add:
  *
  * <ul>
  *   <li>{@code sectorExposureLimits} — per-sector $-cap; the {@code defaultSectorExposureLimit}

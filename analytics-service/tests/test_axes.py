@@ -1,4 +1,4 @@
-"""Unit tests for the axe matcher (issue 2.2.6)."""
+"""Unit tests for the axe matcher."""
 
 from __future__ import annotations
 

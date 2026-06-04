@@ -6,7 +6,7 @@ import com.mariaalpha.executionengine.model.RiskCheckResult;
 import org.springframework.stereotype.Component;
 
 /**
- * Issue 2.2.3 — pre-trade ADV-relative sizing check.
+ * Pre-trade ADV-relative sizing check.
  *
  * <p>Rejects orders whose share quantity exceeds {@code maxAdvParticipation × ADV(symbol)}.
  * Quantitatively, this caps the order's expected market impact: a parent that consumes more than a

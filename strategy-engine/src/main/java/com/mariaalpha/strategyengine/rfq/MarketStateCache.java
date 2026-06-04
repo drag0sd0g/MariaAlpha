@@ -15,8 +15,8 @@ import org.springframework.stereotype.Component;
  * the strategy engine already consumes.
  *
  * <p>The cache is intentionally service-local. Reads on the RFQ hot path are sub-microsecond and
- * the data is reconstructable from the next tick — perfect for an in-process map. A future Redis
- * roll-out (issue 2.7.4) would replace this with the shared order-book cache.
+ * the data is reconstructable from the next tick — perfect for an in-process map. A future
+ * Redis-backed roll-out would replace this with the shared order-book cache.
  */
 @Component
 public class MarketStateCache {

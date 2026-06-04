@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 /**
- * E2E coverage for issue 2.3.1 — the Random Forest regime classifier in ml-signal-service.
+ * E2E coverage for the Random Forest regime classifier in ml-signal-service.
  *
  * <p>Brings up the bare minimum compose profile needed to exercise the GetRegime gRPC: just the
  * ml-signal-service container (no Kafka dependency for the call itself — we only need the gRPC

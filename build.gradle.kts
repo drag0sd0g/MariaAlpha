@@ -92,7 +92,7 @@ subprojects {
             }
         }
 
-        // Mutation testing (issue 2.7.3). Runs out-of-band via the `mutation.yml`
+        // Mutation testing. Runs out-of-band via the `mutation.yml`
         // workflow (scheduled + manual), never on the per-PR critical path.
         // Advisory by design: no mutationThreshold is set, so a low score never
         // fails the build — the HTML/XML reports are the deliverable.

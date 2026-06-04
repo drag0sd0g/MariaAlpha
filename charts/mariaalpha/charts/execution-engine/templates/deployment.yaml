@@ -53,7 +53,7 @@ spec:
                   name: alpaca-credentials
                   key: ALPACA_API_SECRET_KEY
                   optional: true
-            # Phase-2 (issue 2.7.4) Redis position cache wiring
+            # Redis position cache wiring
             - { name: SPRING_DATA_REDIS_HOST, value: "redis-master.mariaalpha-data.svc.cluster.local" }
             - { name: SPRING_DATA_REDIS_PORT, value: "6379" }
             {{- with .Values.extraEnv }}

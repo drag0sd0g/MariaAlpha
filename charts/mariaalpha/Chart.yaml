@@ -58,7 +58,7 @@ dependencies:
     version: "30.x.x"
     repository: https://charts.bitnami.com/bitnami
     condition: kafka.enabled
-  # Phase-2 (issue 2.7.4) — Redis distributed position cache.
+  # Redis distributed position cache.
   - name: redis
     version: "20.x.x"
     repository: https://charts.bitnami.com/bitnami

@@ -35,7 +35,7 @@ public class AlpacaExchangeAdapter implements ExchangeAdapter {
 
   private static final Logger LOG = LoggerFactory.getLogger(AlpacaExchangeAdapter.class);
 
-  // Same backoff curve and cap as the market-data Alpaca adapter (see issue 1.2.7).
+  // Same backoff curve and cap as the market-data Alpaca adapter.
   static final long[] BACKOFF_MS = {1_000L, 2_000L, 4_000L, 8_000L, 16_000L};
   static final int MAX_RECONNECTS = BACKOFF_MS.length;
 

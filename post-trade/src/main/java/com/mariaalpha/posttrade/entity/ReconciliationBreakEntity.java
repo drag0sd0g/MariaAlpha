@@ -12,9 +12,9 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Row from the {@code reconciliation_breaks} table populated by the EOD reconciliation engine
- * (issue 2.6.1). One row per discrepancy detected between internal fills and the external venue's
- * day-of-trade activity report. Exposed for the UI Reconciliation page (issue 2.5.4) via {@link
+ * Row from the {@code reconciliation_breaks} table populated by the EOD reconciliation engine. One
+ * row per discrepancy detected between internal fills and the external venue's day-of-trade
+ * activity report. Exposed for the UI Reconciliation page via {@link
  * com.mariaalpha.posttrade.controller.ReconController}.
  *
  * <p>{@code internalQty}/{@code externalQty}/{@code internalPrice}/{@code externalPrice} are

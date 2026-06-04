@@ -1,4 +1,4 @@
-"""Client interest / axe matching model — issue 2.2.6.
+"""Client interest / axe matching model.
 
 Sell-side desks maintain *axes* — standing client expressions of interest in a symbol and side
 ("client X wants to buy up to 50,000 NVDA over the next hour"). The matcher tracks active

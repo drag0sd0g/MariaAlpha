@@ -91,9 +91,9 @@ export default function Rfq() {
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-semibold">RFQ Pricing</h1>
       <p className="text-sm text-slate-600">
-        Two-way quote built from current book + inventory skew (2.4.1) + volatility / size-as-ADV
-        widening (2.4.2). Quote is valid for the trader to accept either side at the published
-        price.
+        Two-way quote built from the current book, skewed for desk inventory and widened for
+        volatility and order size relative to ADV. The quote is valid for the trader to accept
+        either side at the published price.
       </p>
 
       <div className="flex flex-wrap gap-3 items-end">

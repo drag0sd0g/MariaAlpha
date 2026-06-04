@@ -177,8 +177,8 @@ export default function Analytics() {
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Analytics</h1>
       <p className="text-sm text-slate-600">
-        Transaction-cost analysis (TCA, Phase 1.7.1), PnL attribution (analytics 2.2.5), flow
-        toxicity (2.2.4), axe matching (2.2.6) and live risk alerts streamed off Kafka (2.5.5).
+        Transaction-cost analysis, PnL attribution, flow toxicity, axe matching, and live risk
+        alerts streamed off Kafka.
       </p>
 
       <div className="flex items-center gap-2 border-b border-slate-200">

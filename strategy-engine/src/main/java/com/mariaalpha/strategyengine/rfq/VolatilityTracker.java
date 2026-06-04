@@ -3,7 +3,7 @@ package com.mariaalpha.strategyengine.rfq;
 import org.springframework.stereotype.Component;
 
 /**
- * Issue 2.4.2 — realised volatility estimator used by the RFQ pricing engine to widen the spread.
+ * Realised volatility estimator used by the RFQ pricing engine to widen the spread.
  *
  * <p>Reads the rolling mid-price history from {@link MarketStateCache}, converts it into log
  * returns, and computes the sample standard deviation expressed in basis points (1 bp = 0.01%). The

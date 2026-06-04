@@ -11,7 +11,7 @@ import java.math.RoundingMode;
 import org.springframework.stereotype.Component;
 
 /**
- * Issue 2.2.2 — pre-trade beta-weighted exposure check.
+ * Pre-trade beta-weighted exposure check.
  *
  * <p>For each open position, beta-weighted exposure is {@code position_notional × beta}. The
  * portfolio's beta-weighted exposure is the signed sum across all positions; its absolute value

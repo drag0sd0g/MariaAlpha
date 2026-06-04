@@ -1,1 +1,1 @@
-"""Kafka consumers that feed Phase-2 analytics components."""
+"""Kafka consumers that feed the analytics components."""

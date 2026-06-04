@@ -4,9 +4,9 @@ import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Per-symbol reference data for RFQ pricing (issue 2.4.2): ADV used in the size/ADV spread widening
- * term. Sectors and betas are tracked alongside for forward-compatibility with later RFQ pricing
- * extensions (e.g. issuer-level beta tiering), but the MVP pricing engine only reads {@code adv}.
+ * Per-symbol reference data for RFQ pricing: ADV used in the size/ADV spread widening term. Sectors
+ * and betas are tracked alongside for forward-compatibility with later RFQ pricing extensions (e.g.
+ * issuer-level beta tiering), but the pricing engine today only reads {@code adv}.
  *
  * <p>Mirrors the execution-engine's {@code SymbolReferenceConfig} layout intentionally — both
  * services own their own reference data per the §5.4 ownership rule. {@code defaults} provides a

@@ -34,7 +34,7 @@ execution-engine:
     orders-lifecycle-topic: orders.lifecycle
     routing-decisions-topic: routing.decisions
     risk-alerts-topic: analytics.risk-alerts
-  # Phase-2 (issue 2.7.4) Redis position cache. Reader-side: warms PositionTracker on startup
+  # Redis position cache. Reader-side: warms PositionTracker on startup
   # from Redis and applies pub/sub updates from order-manager. Disable to fall back to the
   # in-memory tracker only (no cross-service position visibility).
   redis:
@@ -47,7 +47,7 @@ execution-engine:
     max-portfolio-exposure: 2000000
     max-open-orders: 50
     max-daily-loss: 25000
-    # Phase 2 (issues 2.2.1 / 2.2.2 / 2.2.3): sector / beta / ADV pre-trade checks
+    # Sector / beta / ADV-participation pre-trade checks
     sector-exposure-limits:
       TECH: 1500000
       AUTOMOTIVE: 750000

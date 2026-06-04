@@ -46,7 +46,7 @@ order-manager:
     positions-updates-topic: positions.updates
   portfolio:
     initial-cash: 1000000.00
-  # Phase-2 (issue 2.7.4) distributed position cache. Disable with order-manager.redis.enabled=false
+  # Distributed position cache. Disable with order-manager.redis.enabled=false
   # to run without a Redis instance — Kafka remains authoritative for downstream consumers.
   redis:
     enabled: true

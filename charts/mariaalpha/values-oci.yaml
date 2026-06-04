@@ -1,9 +1,8 @@
 ## Reserved placeholder for the Oracle Cloud (OCI) overlay.
 ##
-## Filled in by issue 2.7.2 / 2.8.x once GHCR image publishing, OCI Block
-## Volumes, and the public-DNS Ingress hostname are decided. Until then this
-## file exists only to lock the shape and prove the umbrella chart loads
-## additional overlays.
+## To be filled in once GHCR image publishing, OCI Block Volumes, and the
+## public-DNS Ingress hostname are decided. Until then this file exists only
+## to lock the shape and prove the umbrella chart loads additional overlays.
 
 global:
   # images:

@@ -18,7 +18,7 @@ const severityClass = (s: string): string => {
 
 /**
  * Floating alert stack rendered above all pages. Subscribed to the app-wide alert store
- * populated by the `/ws/alerts` WebSocket consumer in `App.tsx` (issue 2.5.5).
+ * populated by the `/ws/alerts` WebSocket consumer in `App.tsx`.
  */
 export default function AlertsBanner() {
   const activeAlerts = useAlertStore(

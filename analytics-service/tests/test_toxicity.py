@@ -1,4 +1,4 @@
-"""Unit tests for the flow-toxicity detector (issue 2.2.4)."""
+"""Unit tests for the flow-toxicity detector."""
 
 from __future__ import annotations
 

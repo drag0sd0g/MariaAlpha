@@ -213,8 +213,8 @@ public class SimulatedExchangeAdapter implements ExchangeAdapter {
       emitCancelReport(exchangeId, "ioc-residual-cancel");
       return;
     }
-    // MVP simulator: infinite top-of-book — assume the limit fills fully against the
-    // current bid/ask snapshot. Depth-aware partials are deferred to issue 2.1.10.
+    // Simulator: infinite top-of-book — assume the limit fills fully against the current
+    // bid/ask snapshot. Depth-aware partial fills are a future enhancement.
     scheduleFill(exchangeId, order, marketState, config.fillLatencyMs());
     // No residual to cancel in this approximation; depth-aware variant will emit
     // a delayed "ioc-residual-cancel" for any unfilled portion.

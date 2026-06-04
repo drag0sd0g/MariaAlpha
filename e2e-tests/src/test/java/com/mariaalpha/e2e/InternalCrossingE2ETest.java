@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 /**
- * E2E coverage for issue 2.1.10 — the internal crossing engine. Brings up the full docker-compose
+ * E2E coverage for the internal crossing engine. Brings up the full docker-compose
  * stack and:
  *
  * <ul>

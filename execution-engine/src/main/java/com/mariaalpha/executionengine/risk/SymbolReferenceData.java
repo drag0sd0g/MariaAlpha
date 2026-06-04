@@ -14,9 +14,9 @@ import org.springframework.stereotype.Component;
  *
  * <p>Loads {@code execution-engine.risk.reference-data.symbols[]} at startup into an in-memory map
  * and falls back to {@code execution-engine.risk.reference-data.defaults} for any symbol not
- * explicitly configured. The fallback keeps the Phase-2 risk checks safe — an unmapped symbol lands
- * in the {@code UNKNOWN} sector with the conservative default beta and a zero ADV (so the
- * ADV-participation check rejects every order on that symbol until reference data is added).
+ * explicitly configured. The fallback keeps the sector/beta/ADV risk checks safe — an unmapped
+ * symbol lands in the {@code UNKNOWN} sector with the conservative default beta and a zero ADV (so
+ * the ADV-participation check rejects every order on that symbol until reference data is added).
  */
 @Component
 public class SymbolReferenceData {

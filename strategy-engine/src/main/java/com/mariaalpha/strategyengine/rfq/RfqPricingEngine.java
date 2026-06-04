@@ -11,8 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Two-way RFQ quote generator combining issues 2.4.1 (inventory skew) and 2.4.2 (volatility +
- * size/ADV widening).
+ * Two-way RFQ quote generator combining inventory skew and volatility + size/ADV widening.
  *
  * <p>Pricing pipeline per quote request:
  *
@@ -91,7 +90,7 @@ public class RfqPricingEngine {
     var snapshot = snapshotOpt.get();
     BigDecimal marketMid = snapshot.mid();
 
-    // --- Inventory skew (2.4.1) -----------------------------------------------
+    // --- Inventory skew -------------------------------------------------------
     var position = positionLookup.fetch(symbol);
     double netQty = position.netQuantity().doubleValue();
     double inventoryNotional = netQty * marketMid.doubleValue();
@@ -102,11 +101,11 @@ public class RfqPricingEngine {
         clamp(rawSkewBps, -config.inventoryMaxSkewBps(), config.inventoryMaxSkewBps());
     BigDecimal adjustedMid = marketMid.multiply(BigDecimal.valueOf(1.0 - cappedSkewBps / 10_000.0));
 
-    // --- Volatility widening (2.4.2) ------------------------------------------
+    // --- Volatility widening --------------------------------------------------
     double realizedVolBps = volatilityTracker.realizedVolBps(symbol);
     double volWideningBps = config.volScalar() * realizedVolBps;
 
-    // --- ADV widening (2.4.2) -------------------------------------------------
+    // --- ADV widening ---------------------------------------------------------
     long adv = refData.advOf(symbol);
     double advFraction = adv <= 0 ? 0.0 : (double) quantity / (double) adv;
     double advWideningBps = config.advScalar() * advFraction * 10_000.0;

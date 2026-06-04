@@ -4,8 +4,8 @@ import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Phase-2 (issue 2.7.4) distributed position cache configuration. {@code enabled=false} disables
- * publishing entirely so unit tests and minimal local stacks can run without a Redis instance.
+ * Distributed position cache configuration. {@code enabled=false} disables publishing entirely so
+ * unit tests and minimal local stacks can run without a Redis instance.
  */
 @ConfigurationProperties(prefix = "order-manager.redis")
 public record RedisConfig(

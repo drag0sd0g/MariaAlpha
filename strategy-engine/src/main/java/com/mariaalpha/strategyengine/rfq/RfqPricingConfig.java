@@ -3,23 +3,22 @@ package com.mariaalpha.strategyengine.rfq;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Knobs for the RFQ pricing engine (issues 2.4.1 + 2.4.2).
+ * Knobs for the RFQ pricing engine.
  *
  * <ul>
  *   <li>{@link #baseSpreadBps()} — symmetric spread applied around the (inventory-skewed) mid;
  *       splits 50/50 into bid and ask half-spreads.
- *   <li>{@link #inventoryLambda()} — issue 2.4.1. Half-skew applied to the mid per unit of
- *       inventory notional, expressed as a fraction. e.g. 0.0001 with $1M of long inventory and a
- *       $1M neutral-notional shifts the mid down by 0.0001 × ($1M / $1M) = 1 bp. Positive shift
- *       down when long; up when short.
+ *   <li>{@link #inventoryLambda()} — half-skew applied to the mid per unit of inventory notional,
+ *       expressed as a fraction. e.g. 0.0001 with $1M of long inventory and a $1M neutral-notional
+ *       shifts the mid down by 0.0001 × ($1M / $1M) = 1 bp. Positive shift down when long; up when
+ *       short.
  *   <li>{@link #inventoryNeutralNotional()} — denominator for the inventory skew; the desk's "soft
  *       limit" in USD.
  *   <li>{@link #inventoryMaxSkewBps()} — cap on the inventory mid-shift so a runaway position can't
  *       push the quote arbitrarily far from market mid.
- *   <li>{@link #volScalar()} — issue 2.4.2. Multiplier on realised volatility (bps per look-back
- *       window) added to the half-spread on each side.
- *   <li>{@link #advScalar()} — issue 2.4.2. Multiplier on size/ADV (expressed in bps) added to the
- *       half-spread.
+ *   <li>{@link #volScalar()} — multiplier on realised volatility (bps per look-back window) added
+ *       to the half-spread on each side.
+ *   <li>{@link #advScalar()} — multiplier on size/ADV (expressed in bps) added to the half-spread.
  *   <li>{@link #quoteValidityMs()} — TTL on emitted quotes; UI uses this as the count-down.
  *   <li>{@link #orderManagerBaseUrl()} — base URL used by the position lookup.
  *   <li>{@link #positionLookupTimeoutMs()} — caps the HTTP wait for an order-manager position read.
