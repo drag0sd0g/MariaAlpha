@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -31,6 +32,12 @@ import org.testcontainers.containers.wait.strategy.Wait;
  * tests — they require an accumulated position book to fire, which is harder to set up
  * deterministically in a docker-compose stack.
  */
+// Runs LAST among the e2e suite (ClassOrderer.OrderAnnotation, see junit-platform.properties).
+// `ClassOrderer.OrderAnnotation` treats unannotated classes as having order Integer.MAX_VALUE/2,
+// so this annotation must exceed that — MAX_VALUE guarantees Phase2 runs after every
+// shared-stack class. The setUp tears down the SharedComposeStack to swap in its own
+// ADV-tightened stack; every shared-stack test must complete before that destruction is safe.
+@Order(Integer.MAX_VALUE)
 @Tag("e2e")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class Phase2RiskChecksE2ETest {

@@ -6,7 +6,6 @@ import static org.awaitility.Awaitility.await;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import java.io.File;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -17,65 +16,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.testcontainers.containers.ComposeContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
 
 @Tag("e2e")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SimulatedHappyPathE2ETest {
 
-    private static final String API_KEY = "e2e-test-key";
     private static final ObjectMapper MAPPER = new ObjectMapper().registerModule(new JavaTimeModule());
 
-    private ComposeContainer composeContainer;
+    private final String apiKey = SharedComposeStack.get().apiKey();
+    private final String baseUrl = SharedComposeStack.get().gatewayBaseUrl();
     private HttpClient httpClient;
-    private String baseUrl;
-
-    @AfterAll
-    void stopStack(){
-        if(composeContainer != null){
-            composeContainer.stop();
-        }
-    }
 
     @BeforeAll
-    void startStack() throws Exception {
-        var dockerComposeFile = new File("../docker-compose.yml");
-        // Force-down any stale stack left by a previous crashed/killed run before starting fresh.
-        new ProcessBuilder("docker", "compose", "-f", dockerComposeFile.getCanonicalPath(), "down", "-v", "--remove-orphans")
-                .directory(dockerComposeFile.getCanonicalFile().getParentFile())
-                .redirectErrorStream(true)
-                .start()
-                .waitFor();
-        composeContainer = new ComposeContainer(dockerComposeFile)
-                .withLocalCompose(true)
-                .withEnv("MARIAALPHA_API_KEY", API_KEY)
-                .withEnv("POSTGRES_USER","mariaalpha")
-                .withEnv("POSTGRES_PASSWORD","mariaalpha")
-                .withEnv("POSTGRES_DB","mariaalpha")
-                // Alpaca creds aren't used by simulated profile but compose interpolates them.
-                .withEnv("ALPACA_API_KEY_ID","unused")
-                .withEnv("ALPACA_API_SECRET_KEY","unused")
-                .withBuild(true)
-                .withRemoveVolumes(true)
-                // withExposedService routes through a socat ambassador that can't cross
-                // Docker user-defined networks (compose v2). Use log-message wait instead:
-                // Docker log API streams directly from the container regardless of network.
-                .waitingFor("api-gateway",
-                        Wait.forLogMessage(".*Started Application in.*", 1)
-                                .withStartupTimeout(Duration.ofMinutes(4)))
-                .withLogConsumer("api-gateway", f -> System.out.print("[api-gw] " + f.getUtf8String()))
-                .withLogConsumer("strategy-engine", f -> System.out.print("[strategy] " + f.getUtf8String()))
-                .withLogConsumer("execution-engine", f -> System.out.print("[exec] " + f.getUtf8String()))
-                .withLogConsumer("order-manager", f -> System.out.print("[om] " + f.getUtf8String()));
-        composeContainer.start();
-        // LocalDockerCompose binds compose ports directly on the host (8080:8080 in docker-compose.yml).
-        baseUrl = "http://localhost:8080";
+    void startStack() {
+        // The shared compose stack is JVM-global; whichever e2e class fires first pays the
+        // ~2-minute startup cost, the rest no-op. Teardown is JVM-shutdown hooked.
+        SharedComposeStack.get().start();
         httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     }
 
@@ -142,10 +102,7 @@ class SimulatedHappyPathE2ETest {
     void simulatedTwapTickReachesMsftPositionWithFill() throws Exception {
         bindTwapToMsftWith50Shares();
 
-        var position = await().atMost(30, TimeUnit.SECONDS)
-                .pollInterval(Duration.ofMillis(500))
-                .ignoreExceptions()
-                .until(() -> getPosition("MSFT"), pos -> pos != null && netQuantity(pos).signum() != 0);
+        var position = awaitPositionAtLeast("MSFT", new BigDecimal("50"), 30);
 
         assertThat(netQuantity(position)).as("MSFT net quantity should be 50 after TWAP slice fires")
                 .isEqualByComparingTo(new BigDecimal("50"));
@@ -166,10 +123,7 @@ class SimulatedHappyPathE2ETest {
     void simulatedShortfallTickReachesAmznPositionWithFill() throws Exception {
         bindImplementationShortfallToAmznWith40Shares();
 
-        var position = await().atMost(30, TimeUnit.SECONDS)
-                .pollInterval(Duration.ofMillis(500))
-                .ignoreExceptions()
-                .until(() -> getPosition("AMZN"), pos -> pos != null && netQuantity(pos).signum() != 0);
+        var position = awaitPositionAtLeast("AMZN", new BigDecimal("40"), 30);
 
         assertThat(netQuantity(position)).as("AMZN net quantity should be 40 after the IS slice fires")
                 .isEqualByComparingTo(new BigDecimal("40"));
@@ -190,10 +144,7 @@ class SimulatedHappyPathE2ETest {
     void simulatedCloseTickReachesNvdaPositionWithMocFill() throws Exception {
         bindCloseToNvdaWith45SharesMocOnly();
 
-        var position = await().atMost(30, TimeUnit.SECONDS)
-                .pollInterval(Duration.ofMillis(500))
-                .ignoreExceptions()
-                .until(() -> getPosition("NVDA"), pos -> pos != null && netQuantity(pos).signum() != 0);
+        var position = awaitPositionAtLeast("NVDA", new BigDecimal("45"), 30);
 
         // The simulated CSV NVDA ticks fall inside the configured pre-close window's MOC zone
         // (15:55-15:59 ET vs. mocCutoff 15:55), so CLOSE fires the full 45-share parent in one
@@ -218,14 +169,12 @@ class SimulatedHappyPathE2ETest {
     void simulatedPovTickReachesTslaPositionWithFill() throws Exception {
         bindPovToTslaWith60Shares();
 
-        var position = await().atMost(30, TimeUnit.SECONDS)
-                .pollInterval(Duration.ofMillis(500))
-                .ignoreExceptions()
-                .until(() -> getPosition("TSLA"), pos -> pos != null && netQuantity(pos).signum() != 0);
+        // POV emits multiple LIMIT clips proportional to traded volume on the tape — a 60-share
+        // parent at 20% participation against 300/250/500/350-share TRADE prints completes in
+        // one or two clips depending on tick ordering. Wait for the full parent before asserting
+        // so a mid-completion poll doesn't see e.g. 50/60.
+        var position = awaitPositionAtLeast("TSLA", new BigDecimal("60"), 30);
 
-        // POV emits LIMIT clips proportional to traded volume on the tape. The first TSLA TRADE
-        // tick (size 300) at 10% participation suggests 30 shares; subsequent clips drive the
-        // emitted total to the 60-share parent target. The final aggregated net position is 60.
         assertThat(netQuantity(position)).as("TSLA net quantity should reach the 60-share POV parent")
                 .isEqualByComparingTo(new BigDecimal("60"));
 
@@ -314,7 +263,7 @@ class SimulatedHappyPathE2ETest {
         var requestBody = "{\"symbol\":\"AAPL\",\"quantity\":100}";
         HttpResponse<String> response = httpClient.send(HttpRequest.newBuilder()
                         .uri(URI.create(baseUrl + "/api/rfq/quote"))
-                        .header("X-API-Key", API_KEY)
+                        .header("X-API-Key", apiKey)
                         .header("Content-Type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                         .timeout(Duration.ofSeconds(5))
@@ -329,7 +278,7 @@ class SimulatedHappyPathE2ETest {
     private JsonNode httpPostAndCheck(String requestPath, String requestBody) throws Exception {
         HttpResponse<String> response = httpClient.send(HttpRequest.newBuilder()
                         .uri(URI.create(baseUrl + requestPath))
-                        .header("X-API-Key", API_KEY)
+                        .header("X-API-Key", apiKey)
                         .header("Content-Type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                         .timeout(Duration.ofSeconds(5))
@@ -503,11 +452,26 @@ class SimulatedHappyPathE2ETest {
         return new BigDecimal(position.get("netQuantity").asText());
     }
 
+    /**
+     * Poll the position endpoint until the symbol's net quantity reaches {@code minTarget} (or
+     * beyond). Replaces the older pattern of waiting on {@code netQuantity != 0} then asserting an
+     * exact target — multi-clip strategies (POV) and slippage-delayed single-clip fills (TWAP,
+     * IS, CLOSE) can both partially fill before the full target lands, racing the assertion.
+     */
+    private JsonNode awaitPositionAtLeast(String symbol, BigDecimal minTarget, int atMostSeconds) {
+        return await().atMost(atMostSeconds, TimeUnit.SECONDS)
+                .pollInterval(Duration.ofMillis(500))
+                .ignoreExceptions()
+                .until(
+                        () -> getPosition(symbol),
+                        pos -> pos != null && netQuantity(pos).compareTo(minTarget) >= 0);
+    }
+
     private JsonNode getPosition(String symbol) throws Exception {
         var requestPath = "/api/positions/" + symbol;
         HttpResponse<String> response = httpClient.send(HttpRequest.newBuilder()
                         .uri(URI.create(baseUrl + requestPath))
-                        .header("X-API-Key", API_KEY)
+                        .header("X-API-Key", apiKey)
                         .GET()
                         .timeout(Duration.ofSeconds(3))
                         .build(),
@@ -524,7 +488,7 @@ class SimulatedHappyPathE2ETest {
     private JsonNode httpGetAndCheck(String requestPath) throws Exception {
         HttpResponse<String> response = httpClient.send(HttpRequest.newBuilder()
                         .uri(URI.create(baseUrl + requestPath))
-                        .header("X-API-Key", API_KEY)
+                        .header("X-API-Key", apiKey)
                         .GET()
                         .timeout(Duration.ofSeconds(5))
                         .build(),
@@ -538,7 +502,7 @@ class SimulatedHappyPathE2ETest {
     private void httpPutAndCheck(String requestPath, String requestBody) throws Exception{
         HttpResponse<String> response = httpClient.send(HttpRequest.newBuilder()
                         .uri(URI.create(baseUrl + requestPath))
-                        .header("X-API-Key", API_KEY)
+                        .header("X-API-Key", apiKey)
                         .header("Content-Type", "application/json")
                         .PUT(HttpRequest.BodyPublishers.ofString(requestBody))
                         .timeout(Duration.ofSeconds(5))
