@@ -6,7 +6,6 @@ This folder is organised by purpose, not chronology. Start at the [Technical Des
 docs/
 ├── README.md                           ← you are here
 ├── technical-design-document.md        ← top-level architecture, FRs/NFRs, roadmap
-├── phase-1-completion.md               ← record of the MVP scope
 ├── cloud-deployment-plan.md            ← long-form plan for the cloud migration
 │
 ├── services/                           ← one deep-dive per microservice
@@ -22,8 +21,7 @@ docs/
 | Doc | When to read |
 |---|---|
 | [Technical Design Document](technical-design-document.md) | Whole-system view: functional + non-functional requirements, architecture, data model, Kafka topics, scalability, resilience, observability, deployment, roadmap. |
-| [Phase 1 completion record](phase-1-completion.md) | What "MVP" means in this project — what shipped, how it was tested, where the gaps are. |
-| [Cloud deployment plan](cloud-deployment-plan.md) | Long-form plan for moving the OrbStack-Kubernetes deployment to Oracle Cloud (Phase 2.8). |
+| [Cloud deployment plan](cloud-deployment-plan.md) | Long-form plan for moving the OrbStack-Kubernetes deployment to Oracle Cloud. |
 
 ---
 
@@ -52,15 +50,15 @@ Each microservice has a dedicated explainer covering its architecture, data flow
 
 Each *execution* strategy implements `TradingStrategy` and registers with the Strategy Engine's `StrategyRegistry`. The RFQ engine is on this page too — it's a *pricing* algorithm rather than a `TradingStrategy`, but it shares the same engine and emits the same `OrderSignal`.
 
-| Strategy | Explainer | Issue | Style |
-|---|---|---|---|
-| VWAP | [`strategies/vwap.md`](strategies/vwap.md) | 1.3.2 | Schedule: slice along a historical volume profile. |
-| TWAP | [`strategies/twap.md`](strategies/twap.md) | 2.1.5 | Schedule: equal slices across equal time intervals. |
-| Momentum | [`strategies/momentum.md`](strategies/momentum.md) | 2.1.6 | Alpha: EMA crossover + RSI + volume confirmation. |
-| Implementation Shortfall | [`strategies/implementation-shortfall.md`](strategies/implementation-shortfall.md) | 2.1.7 | Schedule: front-loaded along an Almgren–Chriss trajectory. |
-| POV | [`strategies/pov.md`](strategies/pov.md) | 2.1.8 | Reactive: participate as a fraction of traded volume. |
-| Close | [`strategies/close.md`](strategies/close.md) | 2.1.9 | Schedule: working-into-the-close + MOC clip. |
-| **RFQ pricing** | [`strategies/rfq-pricing.md`](strategies/rfq-pricing.md) | 2.4.1 + 2.4.2 | Pricing: inventory-skewed, vol- and ADV-relative two-way quote. |
+| Strategy | Explainer | Style |
+|---|---|---|
+| VWAP | [`strategies/vwap.md`](strategies/vwap.md) | Schedule: slice along a historical volume profile. |
+| TWAP | [`strategies/twap.md`](strategies/twap.md) | Schedule: equal slices across equal time intervals. |
+| Momentum | [`strategies/momentum.md`](strategies/momentum.md) | Alpha: EMA crossover + RSI + volume confirmation. |
+| Implementation Shortfall | [`strategies/implementation-shortfall.md`](strategies/implementation-shortfall.md) | Schedule: front-loaded along an Almgren–Chriss trajectory. |
+| POV | [`strategies/pov.md`](strategies/pov.md) | Reactive: participate as a fraction of traded volume. |
+| Close | [`strategies/close.md`](strategies/close.md) | Schedule: working-into-the-close + MOC clip. |
+| **RFQ pricing** | [`strategies/rfq-pricing.md`](strategies/rfq-pricing.md) | Pricing: inventory-skewed, vol- and ADV-relative two-way quote. |
 
 ---
 
@@ -93,6 +91,6 @@ Operational procedures, ordered by how often you'd actually run them:
 - **Per-strategy explainers** live under `strategies/`.
 - **Cross-cutting guides** live under `guides/`.
 - **Runbooks** are imperative ("do this, then this") and live under `runbooks/`.
-- **Reference docs** (the TDD, phase summaries, long-form plans) stay at the docs/ root because they are *about* the whole system rather than any one part.
+- **Reference docs** (the TDD, long-form plans) stay at the docs/ root because they are *about* the whole system rather than any one part.
 
 When adding a new service or strategy, mirror an existing explainer's structure: Overview → Architecture diagram → Components/Data flow → Configuration → REST/Kafka surface → Metrics → Testing → Deploy → References. The `services/order-manager.md` and `strategies/vwap.md` are good templates.

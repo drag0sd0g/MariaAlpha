@@ -693,15 +693,13 @@ Called by the strategy engine's `MlSignalClient` before acting on each order sig
 
 The response includes the full feature map (`map<string, double> features = 6`) so that downstream consumers can log or audit which features drove the prediction. This field is backward-compatible — the Java strategy engine ignores it (it only reads `direction` and `confidence`).
 
-### GetRegime (Unary RPC) — Phase 2
+### GetRegime (Unary RPC)
 
 ```protobuf
 rpc GetRegime(RegimeRequest) returns (RegimeResponse);
 ```
 
-Returns the current market regime classification. In Phase 1, this always returns `UNKNOWN` with confidence 0. Phase 2 (issue 2.3.1) will implement a Random Forest regime classifier that categorizes the market as TRENDING_UP, TRENDING_DOWN, MEAN_REVERTING, HIGH_VOLATILITY, or LOW_VOLATILITY.
-
-**Why include it now?** The gRPC contract (proto definition) should be stable from Phase 1. Adding RPCs later would require regenerating all language stubs and potentially breaking existing clients. By including the RPC now with a stub implementation, the proto is future-proof.
+Returns the current market regime classification — TRENDING_UP, TRENDING_DOWN, MEAN_REVERTING, HIGH_VOLATILITY, LOW_VOLATILITY, or UNKNOWN — computed by the Random Forest regime classifier from per-bar microstructure features. Falls back to UNKNOWN + confidence 0 when bar history is insufficient.
 
 ### StreamSignals (Server-Streaming RPC)
 
@@ -803,7 +801,7 @@ The `SignalModel._lock` is held during `predict_proba()` (~0.5ms) and during mod
 
 ### Current Architecture Limits
 
-The single-process design handles the Phase 1 workload comfortably:
+The single-process design handles the current workload comfortably:
 
 | Dimension | Current Capacity | Bottleneck |
 |-----------|-----------------|------------|
@@ -812,9 +810,9 @@ The single-process design handles the Phase 1 workload comfortably:
 | **gRPC throughput** | ~2,000 requests/sec | GIL + lock contention on feature reads |
 | **StreamSignals clients** | ~50 concurrent streams | Queue notification overhead |
 
-For Phase 1 (5–10 actively traded symbols), this is more than sufficient.
+For the 5–10 actively traded symbols in the default configuration, this is more than sufficient.
 
-### How to Scale Horizontally (Phase 2+)
+### How to Scale Horizontally
 
 If MariaAlpha expands to hundreds of symbols or requires lower latency:
 

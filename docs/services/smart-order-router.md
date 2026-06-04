@@ -1,6 +1,5 @@
 # Smart Order Router (SOR) — Explainer
 
-> **Status**: Implemented in Phase 2.1 (issues #53 / 2.1.1 and #54 / 2.1.2).
 > **Component**: `execution-engine`.
 > **Audience**: traders, ops, platform engineers, on-call.
 
@@ -110,7 +109,7 @@ Trade-offs:
   broker must demonstrate the internal print is at least as good as the lit market.
 
 In MariaAlpha, `SimulatedInternalCrossingAdapter` delegates to a real `InternalCrossingEngine`
-(issue 2.1.10) that maintains a per-symbol FIFO book and matches offsetting BUY/SELL interest at
+that maintains a per-symbol FIFO book and matches offsetting BUY/SELL interest at
 the NBBO midpoint. When the book has no opposite-side interest, the adapter can optionally inject
 a simulated counterparty (controlled by the `cross-probability-on-submit` /
 `match-probability-per-tick` knobs) so the venue stays useful in single-strategy demos. Real
@@ -277,7 +276,7 @@ A hidden book with a periodic match loop. Behaviour:
 
 ### 4.4 `SimulatedInternalCrossingAdapter`
 
-A thin façade over `InternalCrossingEngine` (issue 2.1.10) — see
+A thin façade over `InternalCrossingEngine` — see
 [`internal-crossing-engine.md`](internal-crossing-engine.md) for the full
 write-up. The engine maintains a per-symbol FIFO book and matches offsetting BUY/SELL interest
 at the NBBO midpoint, capturing the spread without market impact. Resting interest is swept on a
@@ -454,17 +453,16 @@ Automated coverage of the same paths:
 
 ---
 
-## 8. What's deferred to future phases
+## 8. What's not in scope today
 
-| Concern | Issue | Why deferred |
+These are deliberate gaps — either deferred to the roadmap or out of scope for the core product. See TDD §11 for trackable items.
+
+| Concern | Roadmap item | Why not in scope today |
 |---|---|---|
-| Real client-axe matching for internal crossing | 2.4.1 / 2.6 | Needs RFQ + axe-list infrastructure (Phase 2 endgame). |
-| Real dark-pool integrations (LiquidNet, ITG POSIT, etc.) | Phase 4 | Vendor onboarding, FIX certifications. |
-| Cross-venue parent-order slicing | 2.1.5 – 2.1.9 | That's an algo concern (TWAP/POV/IS), not a router concern. |
-| ML-based adaptive scoring | 4.8.1 | Needs feature pipeline + offline training (Phase 4). |
-| Persistent venue queues across restart | 3.x | Recovery from crash mid-fill is a Phase-3 concern (orders.lifecycle replay + reconciliation). |
-| ADV-relative leakage adjustment | 2.2.3 | Coupled to the ADV risk check; same data dependency. |
-| Failover on adapter rejection | 3.1.x | Re-routing the same order risks double-submission; needs idempotency keys at the venue. |
+| Real dark-pool integrations (LiquidNet, ITG POSIT, etc.) | — | Vendor onboarding + FIX certifications would dwarf the engine work. |
+| ML-based adaptive scoring | 4.8.1 | Needs a feature pipeline and offline training rig. |
+| Persistent venue queues across restart | — | Recovery from crash mid-fill is reconstructed today by `orders.lifecycle` replay + EOD reconciliation; persistent queues would add operational weight without changing observable behaviour. |
+| Failover on adapter rejection | 3.1.x (IBKR adapter) | Re-routing the same order across venues risks double-submission; safe failover needs idempotency keys at the venue. |
 
 ---
 

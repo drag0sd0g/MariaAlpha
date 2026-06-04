@@ -159,7 +159,7 @@ Like VWAP and TWAP, Momentum is driven entirely by the **tick stream**, never th
 | Component | Role in Momentum |
 |-----------|------------------|
 | **Market Data Gateway** | Provides the trade/quote ticks that drive the EMAs, RSI, volume, and stop mark |
-| **ML Signal Service** | Can suppress a Momentum entry when a high-confidence ML signal contradicts the side; the Phase 2 regime classifier (issue 2.3.1) is the intended source for routing Momentum to *trending* regimes (FR-17) |
+| **ML Signal Service** | Can suppress a Momentum entry when a high-confidence ML signal contradicts the side; the Random Forest regime classifier is the intended source for routing Momentum to *trending* regimes (FR-17) |
 | **Execution Engine** | Receives `OrderSignal`s, applies risk checks + SOR, submits to the exchange |
 | **TCA (Post-Trade)** | Measures achieved fill price against benchmarks for each completed order |
 
@@ -171,7 +171,7 @@ These are deliberate scope cuts for the MVP, in the same spirit as the VWAP/TWAP
 2. **Assumed fills** — the strategy tracks its position from the signals it emits; it does not yet reconcile against actual fills, so a rejected or partially-filled entry can leave its internal `position` out of step with reality.
 3. **Fixed clip size** — every entry trades exactly `tradeQuantity`; there is no volatility- or conviction-scaled sizing and no pyramiding into a strengthening trend.
 4. **EMA seeding** — both EMAs seed from the first observed price and converge over `warmupTrades`; very early crossovers on a cold start are therefore less reliable, which is what the warmup guard exists to manage.
-5. **No re-plan on regime change** — regime-aware algorithm selection (Momentum for TRENDING, VWAP/TWAP for MEAN_REVERTING/LOW_VOLATILITY) is specified in FR-17 but depends on the regime classifier (issue 2.3.1) and is out of scope here.
+5. **No re-plan on regime change** — regime-aware algorithm selection is wired in `RegimeBasedStrategySelector` (FR-17) at the routing layer; the strategy itself does not re-plan when the regime flips. Disabled by default; opt in via `strategy-engine.regime.enabled=true`.
 
 ## 5. Testing
 

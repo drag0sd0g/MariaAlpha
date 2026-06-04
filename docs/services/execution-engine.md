@@ -8,7 +8,7 @@ The service has two HTTP interfaces:
 
 | Interface | Port | Protocol | Purpose |
 |-----------|------|----------|---------|
-| REST API | 8084 | HTTP/1.1 + JSON | `/api/execution/status`, `/api/execution/resume`, `/api/execution/orders/*` (manual entry + iceberg progress), `/api/execution/internal-crossing/{stats,book,recent}` (issue 2.1.10), `/api/routing/*` (SOR preview, venue health) |
+| REST API | 8084 | HTTP/1.1 + JSON | `/api/execution/status`, `/api/execution/resume`, `/api/execution/orders/*` (manual entry + iceberg progress), `/api/execution/internal-crossing/{stats,book,recent}`, `/api/routing/*` (SOR preview, venue health) |
 | Actuator | 8085 | HTTP/1.1 + JSON | `/actuator/health`, `/actuator/prometheus` — ops and observability |
 
 ---
@@ -110,7 +110,7 @@ The `Order` class is intentionally mutable — it accumulates fills, tracks fill
 
 ### Stage 2: Order Type Validation
 
-The `OrderTypeHandlerRegistry` looks up the handler for the order's type. As of issue 2.1.4 seven order types are supported: **MARKET, LIMIT, STOP, IOC, FOK, GTC, ICEBERG**. If no handler is registered (e.g., a Phase-3 type like PEGGED arrives from a future strategy version), the order is rejected with `"Unsupported order type"`.
+The `OrderTypeHandlerRegistry` looks up the handler for the order's type. Seven order types are supported: **MARKET, LIMIT, STOP, IOC, FOK, GTC, ICEBERG**. If no handler is registered (e.g., a future PEGGED type), the order is rejected with `"Unsupported order type"`.
 
 Each handler performs type-specific validation:
 
@@ -151,7 +151,7 @@ Each handler performs type-specific validation:
 
 Wire-format translation lives in `AlpacaOrderTypeMapper`, which collapses IOC/FOK/GTC into Alpaca's `type=limit` with the appropriate `time_in_force` and explicitly rejects ICEBERG (the slicer is responsible for issuing the child LIMITs).
 
-The handler pattern remains extensible: adding a new order type (e.g. PEGGED — Phase 3) only requires implementing the `OrderTypeHandler` interface and annotating with `@Component`. Spring auto-discovers it and the registry picks it up. No existing code changes.
+The handler pattern remains extensible: adding a new order type (e.g. PEGGED, on the roadmap) only requires implementing the `OrderTypeHandler` interface and annotating with `@Component`. Spring auto-discovers it and the registry picks it up. No existing code changes.
 
 #### ICEBERG dispatch (special case)
 
@@ -180,7 +180,7 @@ Computes `lastTradePrice × quantity` and rejects if it exceeds the configured l
 
 Looks up the current position notional for the symbol (tracked by `PositionTracker`) and adds the order's notional. If the projected total exceeds the per-symbol limit (default: $500,000), the order is rejected. This prevents concentration risk — even if each individual order is small, accumulated exposure to a single symbol can be dangerous.
 
-`PositionTracker` is hydrated from the **Redis position cache** (issue 2.7.4): on startup `RedisPositionCacheClient` scans every `mariaalpha:position:*` key and seeds the tracker; thereafter every `mariaalpha.positions.updates` pub/sub message from the order-manager refreshes the in-memory row in real time. A direct `fetch(symbol)` fallback covers the warm-up window. If Redis is unreachable the tracker degrades to an empty/last-known state and the check still runs — risk decisions never block on cache I/O. Disable with `execution-engine.redis.enabled=false`.
+`PositionTracker` is hydrated from the **Redis position cache**: on startup `RedisPositionCacheClient` scans every `mariaalpha:position:*` key and seeds the tracker; thereafter every `mariaalpha.positions.updates` pub/sub message from the order-manager refreshes the in-memory row in real time. A direct `fetch(symbol)` fallback covers the warm-up window. If Redis is unreachable the tracker degrades to an empty/last-known state and the check still runs — risk decisions never block on cache I/O. Disable with `execution-engine.redis.enabled=false`.
 
 #### Check 3: MaxPortfolioExposure (`@Order(3)`)
 
@@ -194,15 +194,15 @@ Counts the number of orders currently in SUBMITTED or PARTIALLY_FILLED status. I
 
 Checks the `DailyLossMonitor.isTradingHalted()` flag. This is technically redundant with Stage 0, but it's included in the chain for completeness — if a loss breach occurs *between* Stage 0 and Stage 3 (due to concurrent fill processing), this check catches it. Since it's the cheapest check (a single boolean read), placing it last doesn't add meaningful latency.
 
-#### Check 6: SectorExposure (`@Order(6)`) — issue 2.2.1
+#### Check 6: SectorExposure (`@Order(6)`)
 
 Aggregates the absolute notional of every open position by sector (sector classification provided by `SymbolReferenceData`) and projects the incoming order onto its sector. Rejects when the projection would push the sector past its configured ceiling. Per-sector ceilings live under `execution-engine.risk.sector-exposure-limits.<SECTOR>`; the `default-sector-exposure-limit` covers sectors not explicitly listed. SELLs that reduce existing long exposure always pass — the check only fires when the projection grows beyond the current sector exposure.
 
-#### Check 7: BetaExposure (`@Order(7)`) — issue 2.2.2
+#### Check 7: BetaExposure (`@Order(7)`)
 
 Caps |Σ position_notional × beta| in dollars. Catches the case where MaxPortfolioExposure passes (gross $ is fine) but the underlying mix has drifted into a high-beta concentration — e.g. a portfolio dominated by NVDA (β ≈ 1.65) and TSLA (β ≈ 1.8) is much riskier than the same gross spread across MSFT (β ≈ 0.95) and broad-market positions. Self-disables when `max-absolute-beta-weighted-exposure ≤ 0`.
 
-#### Check 8: AdvParticipation (`@Order(8)`) — issue 2.2.3
+#### Check 8: AdvParticipation (`@Order(8)`)
 
 Rejects parents whose share count exceeds `max-adv-participation × ADV(symbol)`. Runs against the **parent** quantity, not the first slice — the intent is to refuse parents that are too large to source liquidly regardless of how they'd be chopped by VWAP/TWAP/POV/etc. Refuses any order on a symbol with missing reference data (the conservative default ADV of 0) to fail safe before reference rows are added.
 
@@ -438,7 +438,7 @@ Each Alpaca REST API call has a 5-second timeout. On timeout, the call is treate
 
 ### Inbound Topics
 
-**`strategy.signals`** — consumed by `SignalConsumer`. Each message is a JSON-serialised `OrderSignal` with fields: `symbol`, `side`, `quantity`, `orderType`, `limitPrice` (nullable), `stopPrice` (nullable), `strategyName`, `timestamp`, plus the Phase 2 additions `displayQuantity` (nullable Integer; ICEBERG parents only), `tif` (nullable `TimeInForce`; populated for manual IOC/FOK/GTC submissions), and `parentOrderId` (nullable String; set on iceberg children). The consumer deserialises using Jackson and delegates to `OrderExecutionService.executeSignal()`. Strategies that emit only the 8 MVP fields still deserialise correctly — the three new fields are optional.
+**`strategy.signals`** — consumed by `SignalConsumer`. Each message is a JSON-serialised `OrderSignal` with fields: `symbol`, `side`, `quantity`, `orderType`, `limitPrice` (nullable), `stopPrice` (nullable), `strategyName`, `timestamp`, plus `displayQuantity` (nullable Integer; ICEBERG parents only), `tif` (nullable `TimeInForce`; populated for manual IOC/FOK/GTC submissions), and `parentOrderId` (nullable String; set on iceberg children). The consumer deserialises using Jackson and delegates to `OrderExecutionService.executeSignal()`. Strategies that emit only the eight core fields still deserialise correctly — the three Iceberg / TIF fields are optional.
 
 **`market-data.ticks`** — consumed by `MarketDataConsumer` in a separate consumer group (`execution-engine-market-data`). Each tick is parsed into a `MarketState` (symbol, bidPrice, askPrice, lastTradePrice, timestamp) and stored in the `MarketStateTracker`. This provides the risk checks and order type handlers with current market prices.
 
@@ -446,7 +446,7 @@ Each Alpaca REST API call has a 5-second timeout. On timeout, the call is treate
 
 **`orders.lifecycle`** — published by `OrderEventPublisher` on every state transition. Each message is an `OrderEvent` containing the orderId (used as the Kafka key for ordering), the new status, a full `OrderSnapshot` (now including `displayQuantity`, `tif`, and `parentOrderId`), the fill (if this transition was caused by a fill), the rejection reason (if rejected), and a timestamp. Downstream consumers (Order Manager, Analytics, Reconciliation) use this topic to maintain their own views of order state.
 
-**`routing.decisions`** — published by `RoutingDecisionPublisher` whenever an order is routed. Contains the orderId, selected venue, the full per-venue score breakdown, and the routing reason. Since issue 2.1.1 this shows the venue chosen by `ScoredSmartOrderRouter` (typically one of `SIMULATED`, `DARK_POOL_A`, `INTERNAL_CROSS` — whichever wins on the composite latency / fees / information-leakage / liquidity score). The legacy `DirectRouter` remains as a one-venue fallback when explicitly selected; that mode emits venue="PRIMARY".
+**`routing.decisions`** — published by `RoutingDecisionPublisher` whenever an order is routed. Contains the orderId, selected venue, the full per-venue score breakdown, and the routing reason. The venue is chosen by `ScoredSmartOrderRouter` (typically one of `SIMULATED`, `DARK_POOL_A`, `INTERNAL_CROSS` — whichever wins on the composite latency / fees / information-leakage / liquidity score). A `DirectRouter` remains as a one-venue fallback when explicitly selected; that mode emits venue="PRIMARY".
 
 **`analytics.risk-alerts`** — published by `RiskAlertPublisher` when the daily loss limit is breached. Contains the symbol, alert type (`DAILY_LOSS_LIMIT_BREACH`), severity (`CRITICAL`), a human-readable message, and a timestamp.
 
@@ -470,18 +470,18 @@ The following metrics are exported at `/actuator/prometheus`:
 |--------|------|------|-------------|
 | `mariaalpha.execution.order.latency.ms` | Timer | — | End-to-end latency from signal arrival to order submission, with p50/p95/p99 percentiles |
 | `mariaalpha.execution.risk.check.duration.ms` | Timer | — | Risk check chain evaluation duration |
-| `mariaalpha.execution.sor.scoring.duration.ms` | Timer | — | Smart Order Router scoring loop duration (Phase 2.1.1) |
+| `mariaalpha.execution.sor.scoring.duration.ms` | Timer | — | Smart Order Router scoring loop duration |
 | `mariaalpha.execution.risk.rejections.total` | Counter | `reason` | Count of rejected orders by rejection reason (TradingHalted, ValidationFailed, MaxOrderNotional, IcebergFirstSliceRejected, etc.) |
 | `mariaalpha.execution.orders.submitted.total` | Counter | `side` (also `type` via overload) | Count of successfully submitted orders |
 | `mariaalpha.execution.fills.total` | Counter | `symbol` | Count of fills received by symbol |
-| `mariaalpha.execution.venue.submit.total` | Counter | `venue`, `venue_type` | Per-venue submission count (Phase 2.1.1 SOR) |
+| `mariaalpha.execution.venue.submit.total` | Counter | `venue`, `venue_type` | Per-venue submission count (SOR) |
 | `mariaalpha.execution.venue.fills.total` | Counter | `venue`, `venue_type` | Per-venue fill count |
 | `mariaalpha.execution.sor.routing.total` | Counter | `venue`, `venue_type` | Per-venue routing-decision count |
 | `mariaalpha.execution.sor.candidate.score` | DistributionSummary | `venue`, `venue_type` | Histogram of per-venue scores observed during routing |
-| `mariaalpha.execution.ioc.residual.cancelled.total` | Counter | `symbol`, `side` | Count of IOC orders that cancelled with zero fills (Phase 2.1.3) |
-| `mariaalpha.execution.fok.killed.total` | Counter | `symbol`, `side` | Count of FOK orders that killed for insufficient liquidity (Phase 2.1.3) |
-| `mariaalpha.execution.iceberg.slices.total` | Counter | `parent_symbol`, `side` | Count of iceberg child slices submitted (Phase 2.1.4) |
-| `mariaalpha.execution.iceberg.parent.duration.ms` | Timer | `parent_symbol` | Wall-clock duration from parent SUBMITTED to FILLED (Phase 2.1.4) |
+| `mariaalpha.execution.ioc.residual.cancelled.total` | Counter | `symbol`, `side` | Count of IOC orders that cancelled with zero fills |
+| `mariaalpha.execution.fok.killed.total` | Counter | `symbol`, `side` | Count of FOK orders that killed for insufficient liquidity |
+| `mariaalpha.execution.iceberg.slices.total` | Counter | `parent_symbol`, `side` | Count of iceberg child slices submitted |
+| `mariaalpha.execution.iceberg.parent.duration.ms` | Timer | `parent_symbol` | Wall-clock duration from parent SUBMITTED to FILLED |
 
 ---
 
@@ -498,10 +498,10 @@ All settings live under the `execution-engine.*` namespace and are overridable v
 | `max-portfolio-exposure` | `2000000` | Maximum total gross portfolio exposure ($) |
 | `max-open-orders` | `50` | Maximum number of concurrent open orders |
 | `max-daily-loss` | `25000` | Daily loss threshold that triggers trading halt ($) |
-| `sector-exposure-limits.<SECTOR>` | per-sector | Per-sector $ ceiling (issue 2.2.1). Defaults: `TECH=1500000`, `AUTOMOTIVE=750000`, `UNKNOWN=250000` |
-| `default-sector-exposure-limit` | `1000000` | Fallback sector ceiling for sectors not listed above (issue 2.2.1). Set ≤0 to disable the sector check |
-| `max-absolute-beta-weighted-exposure` | `2500000` | Cap on \|Σ position × beta\| in dollars (issue 2.2.2). Set ≤0 to disable the beta check |
-| `max-adv-participation` | `0.10` | Max fraction of a symbol's ADV per parent order (issue 2.2.3). Set ≤0 to disable the ADV check |
+| `sector-exposure-limits.<SECTOR>` | per-sector | Per-sector $ ceiling. Defaults: `TECH=1500000`, `AUTOMOTIVE=750000`, `UNKNOWN=250000` |
+| `default-sector-exposure-limit` | `1000000` | Fallback sector ceiling for sectors not listed above. Set ≤0 to disable the sector check |
+| `max-absolute-beta-weighted-exposure` | `2500000` | Cap on \|Σ position × beta\| in dollars. Set ≤0 to disable the beta check |
+| `max-adv-participation` | `0.10` | Max fraction of a symbol's ADV per parent order. Set ≤0 to disable the ADV check |
 | `reference-data.symbols[]` | MVP universe | Per-symbol reference rows (`symbol`, `sector`, `beta`, `adv`). Production deployments would refresh this from a vendor feed |
 | `reference-data.defaults` | sector=UNKNOWN, β=1.0, ADV=0 | Fall-through values for unmapped symbols. ADV=0 makes the ADV check reject — intentionally fail-safe |
 
@@ -543,7 +543,7 @@ All settings live under the `execution-engine.*` namespace and are overridable v
 
 The execution engine needs `OrderSignal`, `Side`, and `OrderType` — models that also exist in the strategy engine. Rather than creating a shared-models library, these are replicated locally under `com.mariaalpha.executionengine.model`. This avoids coupling two independently deployable services. The field names match exactly, so Kafka JSON deserialisation works without mapping. A shared-models module will be introduced when a third consumer needs the same types.
 
-The execution engine's `OrderType` enum is the richest copy in the system: it carries the four Phase-2 additions (IOC, FOK, GTC, ICEBERG) on top of the MVP MARKET/LIMIT/STOP. The order-manager `OrderType` mirrors it. The strategy-engine `OrderType` deliberately stays at MARKET/LIMIT — strategies only emit those two; richer types arrive through the manual REST API. Post-trade goes one further and also enumerates `STOP_LIMIT` and `PEGGED` so its TCA pipeline doesn't need a schema bump for Phase 3.
+The execution engine's `OrderType` enum is the richest copy in the system: MARKET, LIMIT, STOP, IOC, FOK, GTC, ICEBERG. The order-manager `OrderType` mirrors it. The strategy-engine `OrderType` deliberately stays at MARKET/LIMIT — strategies only emit those two; richer types arrive through the manual REST API. Post-trade additionally enumerates `STOP_LIMIT` and `PEGGED` so its TCA pipeline can accept those types without a schema bump when they're added.
 
 The execution engine's `OrderSignal` adds `stopPrice` (not present in the strategy engine's copy), plus the Phase-2 fields `displayQuantity`, `tif`, and `parentOrderId`. `OrderSignal` retains a backwards-compatible 8-arg constructor so existing strategy-engine + test call sites compile unchanged. Jackson ignores unknown properties by default, so strategy engine signals deserialise correctly — the missing fields are simply `null`.
 
@@ -559,7 +559,7 @@ Order status transitions use `AtomicReference.compareAndSet()` rather than `sync
 
 The `DirectRouter` is a legacy pass-through that routes every order to the single configured exchange adapter. Issue 2.1.1 introduced the production router, `ScoredSmartOrderRouter`, behind the same `SmartOrderRouter` interface. The pre-existing scaffolding meant upgrading to multi-venue routing required no changes to the orchestration service.
 
-### Iceberg Subsystem (issue 2.1.4)
+### Iceberg Subsystem
 
 The iceberg flow is deliberately *not* implemented as another `OrderTypeHandler`. The handler interface returns a single `ExecutionInstruction` per call; iceberg needs to issue many child orders over time, react to fills, and own its own state. That's a coordinator-shaped responsibility, not a stateless validator, so it lives in a sibling `iceberg/` package:
 

@@ -247,7 +247,7 @@ All calculations use `MathContext(20, HALF_UP)` throughout. Output values are ro
 
 ---
 
-## 9. Future Enhancements (Phase 2)
+## 9. Possible Future Enhancements
 
 1. **Opportunity Cost:** P&L impact for partially filled orders — the value of shares that did not execute, measured against the close price.
 2. **Time Cost:** Interest charge on capital tied up for the duration of execution.

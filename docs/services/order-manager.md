@@ -76,8 +76,8 @@ Four PostgreSQL tables, created by Liquibase changesets `001`–`006`:
 | `002-create-fills.yaml` | `fills` table |
 | `003-create-positions.yaml` | `positions` table |
 | `004-create-portfolio-snapshots.yaml` | `portfolio_snapshots` table |
-| `005-orders-display-quantity-check.yaml` | CHECK constraint `ck_orders_display_quantity` (Phase 2.1.4 — activates iceberg support) |
-| `006-orders-parent-order-id.yaml` | `parent_order_id UUID` column + `idx_orders_parent_order_id` index (Phase 2.1.4 — links iceberg children to their parent) |
+| `005-orders-display-quantity-check.yaml` | CHECK constraint `ck_orders_display_quantity` — activates iceberg support |
+| `006-orders-parent-order-id.yaml` | `parent_order_id UUID` column + `idx_orders_parent_order_id` index — links iceberg children to their parent |
 
 ### `orders` — one row per order (not per fill)
 
@@ -133,12 +133,12 @@ avg_entry_price      DECIMAL(18,8) NOT NULL DEFAULT 0   -- weighted avg
 realized_pnl         DECIMAL(18,8) NOT NULL DEFAULT 0
 unrealized_pnl       DECIMAL(18,8) NOT NULL DEFAULT 0
 last_mark_price      DECIMAL(18,8)
-sector               VARCHAR(32)                         -- phase 2+
-beta                 DECIMAL(8,4)                        -- phase 2+
+sector               VARCHAR(32)                         -- reserved for future portfolio analytics
+beta                 DECIMAL(8,4)                        -- reserved for future portfolio analytics
 updated_at           TIMESTAMPTZ NOT NULL
 ```
 
-### `portfolio_snapshots` — reserved for phase 2 (scheduled snapshot writer)
+### `portfolio_snapshots` — reserved for a future scheduled snapshot writer
 
 ```sql
 snapshot_id          UUID PRIMARY KEY
@@ -151,7 +151,7 @@ open_positions       INTEGER
 snapshot_at          TIMESTAMPTZ NOT NULL
 ```
 
-The entity exists and is wired to JPA, but nothing writes to it in phase 1 — portfolio summaries are computed on demand from `positions` + `fills` aggregations.
+The entity exists and is wired to JPA, but nothing writes to it today — portfolio summaries are computed on demand from `positions` + `fills` aggregations.
 
 ---
 
@@ -201,7 +201,7 @@ Payload schema (`OrderLifecycleEvent`):
 
 Fills are **optional**: status-only transitions (`NEW → SUBMITTED`, `SUBMITTED → CANCELLED`, `SUBMITTED → REJECTED`) arrive with `fill: null`. Every partial or full fill carries a populated `fill`.
 
-Phase 2.1.3 / 2.1.4 added three optional fields to the `order` payload:
+Three optional fields on the `order` payload support advanced order types:
 
 - `displayQuantity` (Integer, nullable) — populated on ICEBERG parents only
 - `tif` (`"DAY" | "IOC" | "FOK" | "GTC"`, nullable) — populated from the order's `TimeInForce` enum
@@ -235,7 +235,7 @@ Fired **once per successfully persisted fill**, keyed by symbol (guaranteeing pe
 
 Status-only lifecycle events (no fill) do **not** produce a position update — the position hasn't changed.
 
-### Redis position cache (issue 2.7.4)
+### Redis position cache
 
 Alongside the Kafka publish, every persisted fill also writes the same `PositionSnapshot` JSON to Redis at key `mariaalpha:position:<symbol>` with a 24 h TTL and emits a pub/sub event on channel `mariaalpha.positions.updates`. The cache backs the execution-engine's pre-trade risk checks (sub-millisecond cross-service position lookup) without changing PostgreSQL's authoritative role. The publisher (`RedisPositionCachePublisher`) swallows Redis exceptions at WARN level — a Redis outage degrades the cross-service view but never blocks fill processing. Disable with `order-manager.redis.enabled=false`.
 
@@ -249,7 +249,7 @@ One `@KafkaListener` on `orders.lifecycle`. For every message it:
 
 1. Parses the JSON via Jackson (`JavaTimeModule` registered for `Instant` fields).
 2. Dispatches to `handle(OrderLifecycleEvent)` inside a single `@Transactional` boundary.
-3. On exceptions, logs partition+offset+message and swallows — **at-least-once** delivery relies on offsets only advancing after successful processing, and a single bad message should not poison the consumer. (Dead-letter queue routing is planned for phase 2.)
+3. On exceptions, logs partition+offset+message and swallows — **at-least-once** delivery relies on offsets only advancing after successful processing, and a single bad message should not poison the consumer. (Dead-letter queue routing is a possible future enhancement.)
 
 Inside `handle()`:
 
@@ -348,7 +348,7 @@ One public entry point: `summary()`. Returns a `PortfolioSummaryResponse` with:
 - `openPositions` = count of positions with non-zero quantity.
 - `asOf` = `Instant.now()`.
 
-The initial cash is configurable via `order-manager.portfolio.initial-cash` (default `$1,000,000`). Phase 1 does not maintain a running cash column — every summary request re-aggregates over the entire fill history. This is fine at phase-1 volumes (tens of thousands of fills) but is the obvious optimisation target when fill counts grow: either a rolling cash column on `positions`, or a materialized view, or write-time maintenance.
+The initial cash is configurable via `order-manager.portfolio.initial-cash` (default `$1,000,000`). The service does not maintain a running cash column today — every summary request re-aggregates over the entire fill history. This is fine at current volumes (tens of thousands of fills) but is the obvious optimisation target when fill counts grow: either a rolling cash column on `positions`, or a materialized view, or write-time maintenance.
 
 ---
 
@@ -383,7 +383,7 @@ The check in `OrderPersistenceService.upsertOrder()` is intentionally lenient fo
 
 ## REST API
 
-All five endpoints live under `/api/*`. They are read-only; the Order Manager offers no mutating routes in phase 1.
+All five endpoints live under `/api/*`. They are read-only; the Order Manager offers no mutating routes.
 
 ### `GET /api/orders`
 
@@ -402,7 +402,7 @@ Returns a single `OrderResponse` with a `fills[]` array (chronological ascending
 
 ### `GET /api/positions`
 
-Returns every row in `positions` — including flat positions where `net_quantity = 0`. Flat positions are useful for historical-strategy debugging and don't hurt response size. Clients that only care about open positions can filter client-side, or we can add a `?open=true` query in phase 2.
+Returns every row in `positions` — including flat positions where `net_quantity = 0`. Flat positions are useful for historical-strategy debugging and don't hurt response size. Clients that only care about open positions can filter client-side, or a `?open=true` query parameter can be added if needed.
 
 ### `GET /api/positions/{symbol}`
 
@@ -643,21 +643,21 @@ docker compose up -d order-manager
 
 Health-check: `curl http://localhost:8087/actuator/health/readiness` must return `{"status":"UP"}` before routing traffic.
 
-### Kubernetes (planned, phase 2)
+### Kubernetes
 
-Per TDD §10.2: HPA 1–2 replicas, 250m request / 500m limit CPU, 256Mi request / 512Mi limit memory. The consumer group `order-manager` provides horizontal scale — adding a replica automatically picks up one of the `orders.lifecycle` partitions once we repartition the topic (phase 2, currently single-partition in dev).
+Per TDD §10.2: HPA 1–2 replicas, 250m request / 500m limit CPU, 256Mi request / 512Mi limit memory. The consumer group `order-manager` provides horizontal scale — adding a replica automatically picks up one of the `orders.lifecycle` partitions once the topic is repartitioned (currently single-partition in dev).
 
 A non-obvious operational consideration: **positions cannot be sharded**. Two replicas of the Order Manager both see every fill (Kafka delivers to exactly one consumer per group partition, but a two-partition topic with two replicas means each handles half the symbols). That's fine — position updates are keyed by symbol and each symbol only ever lives on one partition. What *cannot* work is running two replicas on the same partition — they'd fight over the pessimistic lock and duplicate work.
 
 ---
 
-## What's Out of Scope (Phase 2+)
+## Out of Scope (Roadmap items)
 
 - **Scheduled portfolio snapshot writer** — the `portfolio_snapshots` table exists but no job populates it. Planned as an hourly `@Scheduled` that writes a row.
 - **Daily P&L attribution** — the current `realizedPnl` is lifetime. Per-day breakdown needs either a `fills` scan with date bucketing or a dedicated `daily_pnl` table.
 - **Sector and beta population on `positions`** — schema columns exist; no source wired up. Candidates: an external reference-data service, or a static CSV bootstrap.
 - **Write-side API** — creating, amending, cancelling orders from an operator UI. The Execution Engine owns that surface; the Order Manager would forward requests.
-- **Auth on REST endpoints** — currently open. Phase 2 adds JWT / mTLS at the API Gateway layer.
+- **Auth on REST endpoints** — currently open. Roadmap items 4.2.1 / 4.2.2 add JWT / OAuth2 at the API Gateway layer.
 - **Broker reconciliation** — end-of-day compare between Order Manager positions and the broker's position report, with alerting on drift.
 - **Running cash column** — eliminate the full fills scan on every summary request by maintaining `positions.cash_balance` incrementally (or a `portfolio_state` singleton row).
 - **DLQ routing** — malformed Kafka messages are logged and skipped today. A dead-letter topic allows post-incident forensics.
