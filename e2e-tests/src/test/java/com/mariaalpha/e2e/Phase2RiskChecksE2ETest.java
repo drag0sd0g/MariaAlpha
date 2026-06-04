@@ -59,6 +59,10 @@ class Phase2RiskChecksE2ETest {
 
   @BeforeAll
   void startStack() throws Exception {
+    // Release the SharedComposeStack first so its ComposeContainer handle doesn't fight ours over
+    // the same compose project name ("mariaalpha"). Without this, our `compose up -d --build`
+    // exits with code 1 and Testcontainers reports an opaque ContainerLaunchException.
+    SharedComposeStack.get().stopIfRunning();
     var dockerComposeFile = new File("../docker-compose.yml");
     new ProcessBuilder(
             "docker",
