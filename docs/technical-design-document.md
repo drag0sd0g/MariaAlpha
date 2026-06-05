@@ -398,7 +398,7 @@ sequenceDiagram
 | NFR-4 | Position and P&L recalculation SHALL complete within 10ms per fill event. |
 | NFR-5 | UI dashboard updates SHALL reflect position changes within 1 second (end-to-end from fill to screen). |
 
-> **Note:** NFR-1 through NFR-5 are design targets for the intended deployment profile (developer workstation, ≥16 GB RAM, SSD). No benchmark measurements have been taken yet. Numbers may be revised once real data is collected.
+> **Note:** NFR-1 through NFR-5 are design targets for the intended deployment profile (developer workstation, ≥16 GB RAM, SSD). Benchmark measurements are not in this table yet; the work to produce them across local, OrbStack-Kubernetes, and OCI Ampere A1 cloud surfaces is tracked by [#5.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/178). Once that issue lands, this footnote will be replaced with the actual p50 / p95 / p99 numbers and any required revisions to the targets above.
 
 ### 4.2 Capacity
 
@@ -1324,15 +1324,97 @@ The table below is the **Phase-2 sizing target**, not what the local chart curre
 
 The capabilities described in §3 (functional requirements) through §10 (deployment) are all
 **implemented** and form the core of MariaAlpha today. This section records the work that has not
-yet been picked up — features that would extend the platform into derivatives, additional markets,
-or production-hardening directions. Each row is scoped to a single GitHub issue so the backlog stays
-trackable; none of them is required to run the system.
+yet been picked up. Each row is scoped to a single GitHub issue so the backlog stays trackable;
+none of them is required to *run* the system, but the Phase 5 block below is required to *trust*
+it — that is, to gain enough evidence (cloud-deployed multi-week paper-trading run, measured NFRs,
+operational hardening) to make any subsequent real-money decision honestly.
 
-### Multi-Market & Derivatives Capabilities
+**Priority ordering as of 2026-06-05:**
+
+1. **Phase 5 — Validation & Productionisation.** Promoted ahead of everything else. This is the
+   evidence-gathering and hardening phase: backtester, cloud deploy, engineering benchmarks,
+   multi-week paper-trading run, alerting, SLOs, chaos drills. None of it adds features; all of it
+   is what separates "engineering-complete prototype" from "system you would trust with capital."
+2. **Phase 3 — Multi-Market & Derivatives Capabilities.** Feature expansion. Picked up after
+   Phase 5 evidence is in hand and after a deliberate decision on whether to invest in extending
+   the asset-class surface.
+3. **Phase 4 — Advanced Platform Features.** Mostly operational/analytical depth (RBAC, model
+   retraining, portfolio optimization, ML-driven SOR, multi-region HA). Mostly post-validation.
+4. **Other Considerations (unscheduled).** Architectural alternatives kept for the record.
+
+The numeric prefixes (3.x.y, 4.x.y, 5.x.y) are **stable issue identifiers**, not a temporal
+ordering. The order in which the phases are presented below reflects the work order.
+
+### Phase 5: Validation & Productionisation (in flight — do this first)
+
+The single largest gap between *"the system runs"* and *"the system is trustworthy"* is **evidence**:
+that the strategies make money on historical data, that the NFRs hold under load on the realistic
+deployment target, that the operational story (alerting, kill-switch, recon, secrets) survives
+contact with reality, and that the system can run unattended for weeks. This phase is structured to
+close that gap before any further feature work.
+
+The execution sequence within Phase 5 has three parallel-friendly workstreams: **strategy
+validation** (backtester first, ML signal A/B audit second, then long-run paper-trading evidence),
+**cloud deployment** (Cloud-1..Cloud-8 from `docs/cloud-deployment-plan.md`, which is what enables
+24×5 paper trading without a local laptop), and **operational hardening** (the things you find out
+you needed only after running unattended).
+
+#### 5.1 Strategy validation
+
+| # | Issue Title | Component |
+| --- | --- | --- |
+| [5.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/104) | Implement backtesting engine (historical replay) | Strategy Engine |
+| [5.1.2](https://github.com/drag0sd0g/MariaAlpha/issues/109) | Implement A/B (shadow-mode) audit for the ML signal gate | ML Signal Service |
+| [5.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/178) | Engineering benchmark suite + Grafana 'Benchmark' dashboard | Observability |
+| [5.1.4](https://github.com/drag0sd0g/MariaAlpha/issues/174) | Extended paper-trading evidence-gathering run (8+ weeks) | Strategy Engine |
+
+5.1.1 was previously identifier 4.1.1 and 5.1.2 was 4.4.2; both have been re-milestoned ahead of
+the multi-market work. The order within 5.1 is sequential: the backtester (5.1.1) produces baseline
+per-strategy expectations on historical data; the A/B audit (5.1.2) layers on top to decide whether
+the ML signal gate adds or destroys alpha; the engineering benchmark (5.1.3) replaces the
+*"unmeasured design targets"* footnote in §4.1 with real numbers across local, OrbStack, and cloud
+deployment surfaces; the evidence run (5.1.4) is the calendar-time experiment that brings
+everything together and produces a published equity curve.
+
+#### 5.2 Cloud deployment
+
+| # | Issue Title | Component |
+| --- | --- | --- |
+| [5.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/179) | Cloud-1: Provision OCI/OKE cluster and VCN | Infrastructure |
+| [5.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/173) | Cloud-2: Ingress + DNS + TLS (NGINX + cert-manager + nip.io) | Infrastructure |
+| [5.2.3](https://github.com/drag0sd0g/MariaAlpha/issues/177) | Cloud-3: Sealed-secrets controller + initial secret set | Infrastructure |
+| [5.2.4](https://github.com/drag0sd0g/MariaAlpha/issues/180) | Cloud-4: Persistent storage and Postgres backups | Infrastructure |
+| [5.2.5](https://github.com/drag0sd0g/MariaAlpha/issues/181) | Cloud-5: deploy.yml GitHub Actions workflow (OKE rollout) | CI/CD |
+| [5.2.6](https://github.com/drag0sd0g/MariaAlpha/issues/182) | Cloud-6: Cloud security hardening | Infrastructure |
+| [5.2.7](https://github.com/drag0sd0g/MariaAlpha/issues/183) | Cloud-7: Cloud smoke runbook + observability check | Documentation |
+| [5.2.8](https://github.com/drag0sd0g/MariaAlpha/issues/184) | Cloud-8: Helm chart cloud overrides (values-cloud.yaml) | Infrastructure |
+
+These eight issues operationalise `docs/cloud-deployment-plan.md`. The target is Oracle Cloud
+Always-Free (Ampere A1, 4 OCPU / 24 GB, OKE Basic, eu-frankfurt-1) — see the cloud plan §3 for why
+this is the only no-time-limit-free option in 2026.
+
+#### 5.3 Operational hardening
+
+| # | Issue Title | Component |
+| --- | --- | --- |
+| [5.3.1](https://github.com/drag0sd0g/MariaAlpha/issues/185) | Alertmanager + Slack webhook + initial alert rules | Observability |
+| [5.3.2](https://github.com/drag0sd0g/MariaAlpha/issues/186) | Define SLOs + error budgets for the trading pipeline | Observability |
+| [5.3.3](https://github.com/drag0sd0g/MariaAlpha/issues/187) | Daily-loss-limit kill-switch chaos drill | Execution Engine |
+| [5.3.4](https://github.com/drag0sd0g/MariaAlpha/issues/188) | DLQ inspection + remediation runbook | Execution Engine |
+| [5.3.5](https://github.com/drag0sd0g/MariaAlpha/issues/189) | Continuous EXTERNAL-mode EOD reconciliation | Post-Trade |
+
+These five close the gaps between the resilience design in §7 and the operational reality that, as
+of writing, has not been stress-tested. The daily-loss kill-switch (§7.6) is implemented but has
+never fired in anger; the DLQ (§7.4) retains messages but has no documented remediation path;
+EOD reconciliation against Alpaca's `/v2/account/activities` (§5.2.6) is exercised only by the
+manual smoke runbook today.
+
+### Phase 3: Multi-Market & Derivatives Capabilities (post-validation)
 
 Broker integration with Interactive Brokers, options pricing, Japanese-market microstructure rules,
 and program/basket trading. These extend MariaAlpha beyond a single broker (Alpaca, US equities)
-into multi-asset, multi-region territory.
+into multi-asset, multi-region territory. **Deliberately deferred behind Phase 5** — there is no
+benefit to extending the asset-class surface before the existing one is validated.
 
 | # | Issue Title | Component |
 | --- | --- | --- |
@@ -1355,21 +1437,27 @@ into multi-asset, multi-region territory.
 | [3.5.2](https://github.com/drag0sd0g/MariaAlpha/issues/102) | Implement correlated position limits | Execution Engine |
 | [3.5.3](https://github.com/drag0sd0g/MariaAlpha/issues/103) | Implement currency exposure tracking | Order Manager |
 
-### Advanced Platform Features
+### Phase 4: Advanced Platform Features (post-validation)
 
-Backtesting, OAuth/RBAC, ML model lifecycle, IaC, portfolio optimization, ML-driven SOR, and other
+OAuth/RBAC, ML model lifecycle, multi-region HA, portfolio optimization, ML-driven SOR, and other
 items that improve the operational and analytical surface of the product without changing what
 markets it trades.
 
+> 4.1.1 (Backtester) and 4.4.2 (ML A/B audit) were originally scheduled here; they have been
+> promoted into **Phase 5** as #5.1.1 and #5.1.2 respectively, since both are validation
+> prerequisites for any real-money path rather than feature expansions.
+>
+> 4.5.1 (Cloud IaC) was originally scoped as multi-cloud Terraform; it has been **re-scoped** to
+> multi-region / HA expansion of the OKE deployment because the initial single-region OKE bring-up
+> is now handled by Phase 5 issues #5.2.1–#5.2.8.
+
 | # | Issue Title | Component |
 | --- | --- | --- |
-| [4.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/104) | Implement backtesting engine (historical replay) | Strategy Engine |
 | [4.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/105) | Implement JWT/OAuth2 authentication | API Gateway |
 | [4.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/106) | Implement role-based access control | API Gateway |
 | [4.3.1](https://github.com/drag0sd0g/MariaAlpha/issues/107) | Implement warrant trading via IBKR | Execution Engine |
 | [4.4.1](https://github.com/drag0sd0g/MariaAlpha/issues/108) | Implement model retraining pipeline | ML Signal Service |
-| [4.4.2](https://github.com/drag0sd0g/MariaAlpha/issues/109) | Implement A/B testing (shadow mode) for signal models | ML Signal Service |
-| [4.5.1](https://github.com/drag0sd0g/MariaAlpha/issues/110) | Implement Terraform/IaC for cloud deployment | Deployment |
+| [4.5.1](https://github.com/drag0sd0g/MariaAlpha/issues/110) | Multi-region HA expansion of the OKE deployment | Deployment |
 | [4.6.1](https://github.com/drag0sd0g/MariaAlpha/issues/111) | Implement portfolio optimization (mean-variance) | Analytics Service |
 | [4.7.1](https://github.com/drag0sd0g/MariaAlpha/issues/112) | Implement client tiering for RFQ pricing | Strategy Engine |
 | [4.8.1](https://github.com/drag0sd0g/MariaAlpha/issues/113) | Implement ML-based adaptive SOR | Execution Engine |
@@ -1385,12 +1473,12 @@ The current architecture relies on Spring `@KafkaListener` (one thread per parti
 
 A Disruptor-based refactor becomes worthwhile once features appear that are bound by **in-process throughput** rather than network I/O:
 
-- **Backtesting engine** (roadmap issue 4.1.1) — millions of historical ticks replayed through the full pipeline in a single process; no Kafka, no DB hot path.
+- **Backtesting engine** (roadmap issue 5.1.1) — millions of historical ticks replayed through the full pipeline in a single process; no Kafka, no DB hot path. The initial Phase 5 backtester is scoped as a *correctness* deliverable, not a throughput one; a Disruptor pass on the backtester comes later if replay speed becomes the bottleneck.
 - **Internal crossing engine** — an in-process matching engine is the canonical single-writer Disruptor use case; the existing engine is the natural pilot site.
 - **Program / basket trading engine** (3.4.1) and **FIX gateway** (3.4.3) — high in-process fan-out per parent order.
 - **Tokyo full-depth market data** (3.3.x) — if it materially exceeds NFR-3's 10k ticks/s budget per gateway instance.
 
-The natural insertion point is **after the multi-market / derivatives work lands** (the §11 *Multi-Market & Derivatives Capabilities* items) and **before backtesting** (the §11 *Advanced Platform Features* items) — that's when in-process throughput becomes the binding constraint, and backtesting then builds on a Disruptor-backed core rather than being re-platformed later.
+The natural insertion point is **after the multi-market / derivatives work lands** (the Phase 3 items) and **once the Phase 5 backtester has produced its first results** — that's when in-process throughput becomes the binding constraint and the backtester gains the most from a Disruptor re-platform. Doing it before Phase 5 finishes would be premature: the backtester's first job is to produce evidence on strategies that may or may not survive that evidence, and re-platforming a component that gets deleted is wasted effort.
 
 Three ambition levels worth keeping in mind:
 
