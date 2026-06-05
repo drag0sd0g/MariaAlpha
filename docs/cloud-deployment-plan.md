@@ -1,6 +1,6 @@
 # Cloud Deployment Plan
 
-**Status:** Proposal — not yet executed. Awaiting user approval before creating issues, editing the TDD, or starting any deployment work.
+**Status:** Approved 2026-06-05. The eight Cloud-* issues in §13 have been created in GitHub under the new **Phase 5: Validation & Productionisation** milestone (TDD §11). This document remains the long-form design reference; per-issue acceptance criteria live in the issues themselves.
 
 **Constraint:** The full deployment MUST be free in perpetuity. Trial credits, time-limited free tiers, and paid fallbacks are explicitly out of scope.
 
@@ -687,18 +687,26 @@ Add a row to the table:
 ## 13. Cloud milestone breakdown
 
 Eight new GitHub issues span the cloud-deploy work, plus targeted expansions to the existing
-multi-arch image publish workflow.
+multi-arch image publish workflow. All eight have been created as part of the new
+**Phase 5: Validation & Productionisation** milestone in TDD §11.
 
-| # | Title | Description |
-| --- | --- | --- |
-| Cloud-1 | Provision Oracle OKE cluster and VCN | Terraform module creates VCN, 1 Ampere A1 worker node (4 OCPU / 24 GB), free flexible LB, 2 reserved IPs, security lists per §6.2. Documented retry strategy for Ampere capacity (hitrov script). |
-| Cloud-2 | Set up ingress, DNS, and TLS | NGINX Ingress Controller via Helm; cert-manager + Let's Encrypt ClusterIssuer; nip.io domain mapping. Smoke: `curl https://<IP>.nip.io` returns UI with valid cert. |
-| Cloud-3 | Sealed-secrets for cloud secrets management | Install controller; document `kubeseal` workflow; convert all `.env` keys to SealedSecret resources committed to the Helm chart. |
-| Cloud-4 | Persistent storage and backups | PVCs for PostgreSQL (20 GB), Kafka (20 GB), Prometheus (10 GB), Loki (10 GB), Tempo (5 GB), Grafana (1 GB) bind to `oci-bv` storage class. CronJob for daily pg_dump with 7-day rotation. |
-| Cloud-5 | `deploy.yml` workflow | GitHub Actions workflow auths to OKE via OCI key, runs `helm upgrade --atomic`. Post-deploy smoke test green-gates the workflow. |
-| Cloud-6 | Cloud security hardening | Block actuator endpoints at ingress, enable NetworkPolicies for stateful namespace, rotate Grafana admin password, enable Cloud Guard. |
-| Cloud-7 | Cloud smoke test runbook + observability check | Adapted from `docs/runbooks/alpaca-smoke-test.md` — runs against `https://api.<IP>.nip.io`. Verify Grafana dashboards load with cloud data. |
-| Cloud-8 | Helm chart adjustments for cloud | `values-cloud.yaml` override file for cloud vs local; resource limits match §5 above; namespace separation (app/data/o11y/infra). |
+| # | Issue | Title | Description |
+| --- | --- | --- | --- |
+| Cloud-1 | [#179 / 5.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/179) | Provision Oracle OKE cluster and VCN | Terraform module creates VCN, 1 Ampere A1 worker node (4 OCPU / 24 GB), free flexible LB, 2 reserved IPs, security lists per §6.2. Documented retry strategy for Ampere capacity (hitrov script). |
+| Cloud-2 | [#173 / 5.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/173) | Set up ingress, DNS, and TLS | NGINX Ingress Controller via Helm; cert-manager + Let's Encrypt ClusterIssuer; nip.io domain mapping. Smoke: `curl https://<IP>.nip.io` returns UI with valid cert. |
+| Cloud-3 | [#177 / 5.2.3](https://github.com/drag0sd0g/MariaAlpha/issues/177) | Sealed-secrets for cloud secrets management | Install controller; document `kubeseal` workflow; convert all `.env` keys to SealedSecret resources committed to the Helm chart. |
+| Cloud-4 | [#180 / 5.2.4](https://github.com/drag0sd0g/MariaAlpha/issues/180) | Persistent storage and backups | PVCs for PostgreSQL (**50 GB**, bumped from 20 GB to accommodate Phase 5 evidence run), Kafka (20 GB), Prometheus (10 GB), Loki (10 GB), Tempo (5 GB), Grafana (1 GB) bind to `oci-bv` storage class. CronJob for daily pg_dump with 7-day rotation. |
+| Cloud-5 | [#181 / 5.2.5](https://github.com/drag0sd0g/MariaAlpha/issues/181) | `deploy.yml` workflow | GitHub Actions workflow auths to OKE via OCI key, runs `helm upgrade --atomic`. Post-deploy smoke test green-gates the workflow. |
+| Cloud-6 | [#182 / 5.2.6](https://github.com/drag0sd0g/MariaAlpha/issues/182) | Cloud security hardening | Block actuator endpoints at ingress, enable NetworkPolicies for stateful namespace, rotate Grafana admin password, enable Cloud Guard. |
+| Cloud-7 | [#183 / 5.2.7](https://github.com/drag0sd0g/MariaAlpha/issues/183) | Cloud smoke test runbook + observability check | Adapted from `docs/runbooks/alpaca-smoke-test.md` — runs against `https://api.<IP>.nip.io`. Verify Grafana dashboards load with cloud data. |
+| Cloud-8 | [#184 / 5.2.8](https://github.com/drag0sd0g/MariaAlpha/issues/184) | Helm chart adjustments for cloud | `values-cloud.yaml` override file for cloud vs local; resource limits match §5 above; namespace separation (app/data/o11y/infra). |
+
+A small but consequential **deviation from §8** of this plan: Alertmanager is **no longer
+deferred to a follow-up**. It is tracked alongside the Cloud-* work as Phase 5 issue
+[#185 / 5.3.1](https://github.com/drag0sd0g/MariaAlpha/issues/185), because the same cluster is the
+target environment for the multi-week evidence-gathering run in
+[#174 / 5.1.4](https://github.com/drag0sd0g/MariaAlpha/issues/174) and going eight weeks without
+alerting is not acceptable for the validation phase.
 
 Estimated effort: 1.5–2 weeks of focused work for a single engineer, broken down:
 - Cloud-1 (cluster provisioning): 2–3 days (variable based on Ampere capacity wait)
@@ -712,11 +720,9 @@ Estimated effort: 1.5–2 weeks of focused work for a single engineer, broken do
 
 ### 13.1 Related roadmap rework
 
-Roadmap item [4.5.1] (Cloud IaC, Terraform) was originally scoped as "GCP/AWS multi-cloud." That
-scope is obsolete now that OKE is the chosen target — the item should be re-scoped as
-"multi-region HA expansion of the OKE deployment."
+Roadmap item [4.5.1](https://github.com/drag0sd0g/MariaAlpha/issues/110) (Cloud IaC, Terraform) was originally scoped as "GCP/AWS multi-cloud." That scope became obsolete once OKE became the chosen target; the item has been **re-scoped to "multi-region HA expansion of the OKE deployment"** (TDD §11 Phase 4, post-validation). The initial single-region OKE bring-up is handled by the Phase 5 Cloud-* issues in the table above, not by 4.5.1.
 
-Once auto-deploy is wired up, every roadmap item from TDD §11 ships to cloud on merge.
+Once auto-deploy is wired up, every subsequent roadmap item from TDD §11 ships to cloud on merge.
 
 ---
 
