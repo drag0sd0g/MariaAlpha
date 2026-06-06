@@ -6,6 +6,7 @@ import AlertsBanner from "@/components/AlertsBanner";
 import Dashboard from "@/pages/Dashboard";
 import OrderEntry from "@/pages/OrderEntry";
 import Rfq from "@/pages/Rfq";
+import Options from "@/pages/Options";
 import Strategies from "@/pages/Strategies";
 import Analytics from "@/pages/Analytics";
 import Reconciliation from "@/pages/Reconciliation";
@@ -47,6 +48,7 @@ export default function App() {
           <Route path="orders" element={<OrderEntry />} />
           <Route path="market-data" element={<ComingSoon page="Market Data" />} />
           <Route path="rfq" element={<Rfq />} />
+          <Route path="options" element={<Options />} />
           <Route path="strategies" element={<Strategies />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="reconciliation" element={<Reconciliation />} />

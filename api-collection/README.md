@@ -53,6 +53,7 @@ Run a request with the Send button or with `Cmd-Enter`.
 | `08 - TCA` | Post-Trade | summary, by order |
 | `09 - Recon` | Post-Trade | breaks, summary, runs, by order, manual run |
 | `10 - Analytics` | Analytics Service | toxicity, PnL attribution, axes (publish/list/cancel/match) |
+| `11 - Options` | Strategy Engine | Black-Scholes price+Greeks, Greeks-only, implied volatility |
 | `direct-services/` | various | direct (non-gateway) calls for debugging |
 
 The market-data-gateway intentionally has no REST surface — its public API is

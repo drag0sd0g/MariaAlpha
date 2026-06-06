@@ -1,0 +1,36 @@
+meta {
+  name: Greeks Only
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/options/greeks
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "symbol": "MSFT",
+    "spot": 415.0,
+    "strike": 420.0,
+    "timeToExpiryYears": 0.25,
+    "volatility": 0.27,
+    "riskFreeRate": 0.045,
+    "dividendYield": 0.007,
+    "type": "PUT"
+  }
+}
+
+docs {
+  Returns just the Greeks (Δ, Γ, vega, θ, ρ) without the premium. Useful when
+  the caller already has a premium from `Price Option` and wants to refresh
+  Greeks against a tweaked input without paying for the redundant pricing
+  step.
+}

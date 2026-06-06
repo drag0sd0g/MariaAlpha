@@ -1,0 +1,44 @@
+meta {
+  name: Price Option
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/options/price
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "symbol": "AAPL",
+    "spot": 42.0,
+    "strike": 40.0,
+    "timeToExpiryYears": 0.5,
+    "volatility": 0.20,
+    "riskFreeRate": 0.10,
+    "dividendYield": 0.0,
+    "type": "CALL"
+  }
+}
+
+docs {
+  Black-Scholes-Merton fair value + all five first-order Greeks (Δ, Γ, vega,
+  θ, ρ) for a European option with a continuous dividend yield (roadmap
+  3.2.1 / 3.2.2). The example body matches Hull Ch.15 worked example, so the
+  response should return `price ≈ 4.76`, `delta ≈ 0.78`. Vega and rho are
+  reported per 1-percentage-point move; theta is per-day using the
+  `strategy-engine.options.theta-day-count` convention (365 by default).
+}
+
+script:post-response {
+  if (res.status === 200 && res.body && typeof res.body.price === "number") {
+    bru.setVar("lastOptionPrice", res.body.price);
+  }
+}

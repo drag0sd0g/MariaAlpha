@@ -1,0 +1,39 @@
+meta {
+  name: Implied Volatility
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/options/implied-volatility
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "symbol": "AAPL",
+    "spot": 100.0,
+    "strike": 100.0,
+    "timeToExpiryYears": 0.5,
+    "riskFreeRate": 0.04,
+    "dividendYield": 0.0,
+    "type": "CALL",
+    "marketPrice": {{lastOptionPrice}}
+  }
+}
+
+docs {
+  Newton-Raphson solve (with bisection fallback) for the σ that reproduces a
+  given observed market premium. Default body re-uses `lastOptionPrice` from
+  the `Price Option` request — running the two back-to-back round-trips
+  through the model and the σ should come back equal to the input vol.
+
+  Response carries `method` (NEWTON / BISECTION), `iterations`, and the final
+  `residual` so you can spot poor convergence directly.
+}
