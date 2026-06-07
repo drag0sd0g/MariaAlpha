@@ -29,9 +29,9 @@ class OptionPricingServiceTest {
     var contract = new OptionContract(100, 100, 0.5, 0.25, 0.03, 0.0, OptionType.CALL);
     service.price(contract);
     service.price(contract);
-    double count =
-        registry.find("mariaalpha_options_pricings_total").tag("type", "CALL").counter().count();
-    assertThat(count).isEqualTo(2.0);
+    var counter = registry.find("mariaalpha_options_pricings_total").tag("type", "CALL").counter();
+    assertThat(counter).isNotNull();
+    assertThat(counter.count()).isEqualTo(2.0);
     var timer = registry.find("mariaalpha_options_pricing_duration").tag("type", "CALL").timer();
     assertThat(timer).isNotNull();
     assertThat(timer.count()).isEqualTo(2);

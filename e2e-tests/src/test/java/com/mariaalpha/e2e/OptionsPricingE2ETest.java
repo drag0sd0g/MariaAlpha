@@ -46,17 +46,17 @@ class OptionsPricingE2ETest {
     var resp = postJson("/api/options/price", body);
     assertThat(resp.get("symbol").asText()).isEqualTo("AAPL");
     assertThat(resp.get("type").asText()).isEqualTo("CALL");
-    assertThat(resp.get("price").asDouble()).isCloseTo(4.76, org.assertj.core.api.Offset.offset(0.01));
+    assertThat(resp.get("price").asDouble()).isCloseTo(4.76, org.assertj.core.data.Offset.offset(0.01));
     assertThat(resp.get("greeks").get("delta").asDouble())
-        .isCloseTo(0.7791, org.assertj.core.api.Offset.offset(0.001));
+        .isCloseTo(0.7791, org.assertj.core.data.Offset.offset(0.001));
     assertThat(resp.get("greeks").get("gamma").asDouble())
-        .isCloseTo(0.0498, org.assertj.core.api.Offset.offset(0.001));
+        .isCloseTo(0.0498, org.assertj.core.data.Offset.offset(0.001));
     assertThat(resp.get("greeks").get("vega").asDouble())
-        .isCloseTo(0.0879, org.assertj.core.api.Offset.offset(0.001));
+        .isCloseTo(0.0879, org.assertj.core.data.Offset.offset(0.001));
     assertThat(resp.get("greeks").get("theta").asDouble())
-        .isCloseTo(-0.01247, org.assertj.core.api.Offset.offset(0.001));
+        .isCloseTo(-0.01247, org.assertj.core.data.Offset.offset(0.001));
     assertThat(resp.get("greeks").get("rho").asDouble())
-        .isCloseTo(0.1398, org.assertj.core.api.Offset.offset(0.001));
+        .isCloseTo(0.1398, org.assertj.core.data.Offset.offset(0.001));
   }
 
   @Test
@@ -71,7 +71,7 @@ class OptionsPricingE2ETest {
     double callPx = postJson("/api/options/price", callBody).get("price").asDouble();
     double putPx = postJson("/api/options/price", putBody).get("price").asDouble();
     double parityRhs = 100.0 - 95.0 * Math.exp(-0.04 * 1.0);
-    assertThat(callPx - putPx).isCloseTo(parityRhs, org.assertj.core.api.Offset.offset(1e-4));
+    assertThat(callPx - putPx).isCloseTo(parityRhs, org.assertj.core.data.Offset.offset(1e-4));
   }
 
   @Test
@@ -89,7 +89,7 @@ class OptionsPricingE2ETest {
             + "}";
     var iv = postJson("/api/options/implied-volatility", ivBody);
     assertThat(iv.get("impliedVolatility").asDouble())
-        .isCloseTo(0.35, org.assertj.core.api.Offset.offset(1e-4));
+        .isCloseTo(0.35, org.assertj.core.data.Offset.offset(1e-4));
     assertThat(iv.get("method").asText()).isIn("NEWTON", "BISECTION");
     assertThat(iv.get("iterations").asInt()).isGreaterThan(0);
   }
