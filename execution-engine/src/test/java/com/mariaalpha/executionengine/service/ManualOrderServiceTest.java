@@ -30,7 +30,7 @@ class ManualOrderServiceTest {
     executionService = mock(OrderExecutionService.class);
     lifecycleManager = mock(OrderLifecycleManager.class);
     icebergCoordinator = mock(IcebergCoordinator.class);
-    service = new ManualOrderService(executionService, lifecycleManager, icebergCoordinator);
+    service = new ManualOrderService(executionService, lifecycleManager, icebergCoordinator, null);
 
     // submitOrder returns the order passed in (simulates pipeline registration)
     when(executionService.submitOrder(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));

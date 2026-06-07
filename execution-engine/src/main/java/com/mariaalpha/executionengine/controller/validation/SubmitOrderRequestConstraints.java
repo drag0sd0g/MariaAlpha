@@ -12,6 +12,7 @@ public class SubmitOrderRequestConstraints
     implements ConstraintValidator<ValidSubmitOrderRequest, SubmitOrderRequest> {
 
   private static final Set<OrderType> ICEBERG_ONLY = EnumSet.of(OrderType.ICEBERG);
+  private static final Set<OrderType> PEGGED_ONLY = EnumSet.of(OrderType.PEGGED);
   private static final Set<OrderType> FORBIDS_CUSTOM_TIF =
       EnumSet.of(OrderType.MARKET, OrderType.STOP);
 
@@ -32,6 +33,18 @@ public class SubmitOrderRequestConstraints
     }
     if (isIceberg && request.displayQuantity() >= request.quantity()) {
       return violation(ctx, "displayQuantity must be strictly less than quantity");
+    }
+
+    // pegType is required iff PEGGED, forbidden otherwise. pegOffsetBps follows the same rule.
+    boolean isPegged = PEGGED_ONLY.contains(request.orderType());
+    if (isPegged && request.pegType() == null) {
+      return violation(ctx, "pegType is required for PEGGED orders");
+    }
+    if (!isPegged && request.pegType() != null) {
+      return violation(ctx, "pegType is only valid for PEGGED orders");
+    }
+    if (!isPegged && request.pegOffsetBps() != null) {
+      return violation(ctx, "pegOffsetBps is only valid for PEGGED orders");
     }
 
     // TIF rules.

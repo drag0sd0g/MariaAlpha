@@ -90,7 +90,8 @@ class OrderExecutionServiceTest {
             marketStateTracker,
             dailyLossMonitor,
             metrics,
-            icebergCoordinator);
+            icebergCoordinator,
+            null);
     service.registerCallbacks();
   }
 

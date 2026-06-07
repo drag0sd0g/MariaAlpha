@@ -1,0 +1,24 @@
+meta {
+  name: Pegged Progress
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/execution/orders/{{lastPeggedOrderId}}/pegged-progress
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Returns the current state of a PEGGED parent: total/filled/remaining
+  quantity, count of re-peg cycles, the last NBBO reference price + last
+  submitted child price, and the currently-active child orderId (or null when
+  the parent is between re-pegs / has just completed).
+
+  404 once the parent reaches a terminal state and the registry has dropped it.
+}

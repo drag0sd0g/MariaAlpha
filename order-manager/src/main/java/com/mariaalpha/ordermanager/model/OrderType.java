@@ -7,5 +7,6 @@ public enum OrderType {
   IOC,
   FOK,
   GTC,
-  ICEBERG
+  ICEBERG,
+  PEGGED
 }

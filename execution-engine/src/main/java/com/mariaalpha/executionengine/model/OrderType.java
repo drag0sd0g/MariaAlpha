@@ -7,7 +7,8 @@ public enum OrderType {
   IOC("ioc"),
   FOK("fok"),
   GTC("gtc"),
-  ICEBERG("iceberg");
+  ICEBERG("iceberg"),
+  PEGGED("pegged");
 
   private final String name;
 

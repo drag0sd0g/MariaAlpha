@@ -2,6 +2,7 @@ package com.mariaalpha.executionengine.model;
 
 import static java.math.RoundingMode.HALF_UP;
 
+import com.mariaalpha.executionengine.pegged.PegType;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -25,6 +26,8 @@ public class Order {
   private final Integer displayQuantity;
   private final TimeInForce tif;
   private final String parentOrderId;
+  private final PegType pegType;
+  private final Integer pegOffsetBps;
   private volatile String exchangeOrderId;
   private volatile int filledQuantity;
   private volatile BigDecimal avgFillPrice;
@@ -47,6 +50,8 @@ public class Order {
     this.displayQuantity = signal.displayQuantity();
     this.tif = signal.tif();
     this.parentOrderId = signal.parentOrderId();
+    this.pegType = signal.pegType();
+    this.pegOffsetBps = signal.pegOffsetBps();
   }
 
   public String getOrderId() {
@@ -135,6 +140,14 @@ public class Order {
 
   public String getParentOrderId() {
     return parentOrderId;
+  }
+
+  public PegType getPegType() {
+    return pegType;
+  }
+
+  public Integer getPegOffsetBps() {
+    return pegOffsetBps;
   }
 
   public OrderSnapshot toSnapshot() {

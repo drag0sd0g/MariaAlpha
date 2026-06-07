@@ -8,6 +8,7 @@ import com.mariaalpha.executionengine.model.Order;
 import com.mariaalpha.executionengine.model.OrderSignal;
 import com.mariaalpha.executionengine.model.OrderStatus;
 import com.mariaalpha.executionengine.model.OrderType;
+import com.mariaalpha.executionengine.pegged.PeggedCoordinator;
 import java.time.Instant;
 import java.util.Set;
 import org.springframework.stereotype.Service;
@@ -21,14 +22,17 @@ public class ManualOrderService {
   private final OrderExecutionService executionService;
   private final OrderLifecycleManager lifecycleManager;
   private final IcebergCoordinator icebergCoordinator;
+  private final PeggedCoordinator peggedCoordinator;
 
   public ManualOrderService(
       OrderExecutionService executionService,
       OrderLifecycleManager lifecycleManager,
-      IcebergCoordinator icebergCoordinator) {
+      IcebergCoordinator icebergCoordinator,
+      PeggedCoordinator peggedCoordinator) {
     this.executionService = executionService;
     this.lifecycleManager = lifecycleManager;
     this.icebergCoordinator = icebergCoordinator;
+    this.peggedCoordinator = peggedCoordinator;
   }
 
   public SubmitOrderResponse submit(SubmitOrderRequest request) {
@@ -51,7 +55,9 @@ public class ManualOrderService {
             Instant.now(),
             request.displayQuantity(),
             request.tif(),
-            null);
+            null,
+            request.pegType(),
+            request.pegOffsetBps());
 
     var order = executionService.submitOrder(new Order(signal));
     return new SubmitOrderResponse(order.getOrderId(), order.getStatus(), signal.timestamp());
@@ -68,6 +74,10 @@ public class ManualOrderService {
     try {
       if (order.getOrderType() == OrderType.ICEBERG && icebergCoordinator != null) {
         icebergCoordinator.onParentCancelRequested(order);
+        return true;
+      }
+      if (order.getOrderType() == OrderType.PEGGED && peggedCoordinator != null) {
+        peggedCoordinator.onParentCancelRequested(order);
         return true;
       }
       lifecycleManager.transition(orderId, OrderStatus.CANCELLED, null, "Manual cancel");

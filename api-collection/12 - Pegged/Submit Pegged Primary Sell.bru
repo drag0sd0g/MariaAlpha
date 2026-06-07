@@ -1,0 +1,42 @@
+meta {
+  name: Submit Pegged Primary Sell
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/execution/orders
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "symbol": "MSFT",
+    "side": "SELL",
+    "orderType": "PEGGED",
+    "quantity": 50,
+    "pegType": "PRIMARY",
+    "pegOffsetBps": 5,
+    "limitPrice": 410.0,
+    "tif": "DAY"
+  }
+}
+
+docs {
+  PEGGED PRIMARY SELL — rests at the ask (PRIMARY = join-side), 5 bps below
+  the ask (positive offset moves toward fill = lower for a SELL). `limitPrice`
+  is the optional price cap: the SELL will never re-peg below 410.00 even if
+  the ask collapses further.
+}
+
+script:post-response {
+  if (res.status === 202 && res.body && res.body.orderId) {
+    bru.setVar("lastPeggedOrderId", res.body.orderId);
+  }
+}
