@@ -548,6 +548,8 @@ public interface TradingStrategy {
 
 **Signal integration:** if the ML signal confidence > 0.7 and agrees with the strategy direction, proceed. If > 0.7 and contradicts, suppress. If ≤ 0.7, proceed with strategy signal alone. Configurable via `config/strategy.yml`.
 
+**Options pricing module (roadmap 3.2.1 / 3.2.2 — delivered):** Black-Scholes-Merton fair value plus the five first-order Greeks (Δ, Γ, vega, θ, ρ) for a European option on a single underlying with a continuous dividend yield. Exposed under `/api/options/{price,greeks,implied-volatility}`; the implied-volatility endpoint inverts a market premium back to σ via Newton-Raphson with a bisection fallback. The module is stateless, lives alongside the equity strategies in `strategy-engine`, and does **not** implement `TradingStrategy` (it answers "what is this contract worth right now?", not "how do I work a parent over time?"). Full design is in [`strategies/options-pricing.md`](strategies/options-pricing.md).
+
 #### 5.2.3 ML Signal Service
 
 | Property | Value |
@@ -1218,6 +1220,10 @@ These are instrumented explicitly in application code:
 | `mariaalpha_position_cache_pubsub_updates_total` | Counter | — | Pub/sub messages applied to in-memory PositionTracker |
 | `mariaalpha_position_cache_read_failures_total` | Counter | — | Redis read errors swallowed by the cache client |
 | `mariaalpha_position_cache_read_latency` | Histogram | — | Latency of Redis position-cache reads |
+| `mariaalpha_options_pricings_total` | Counter | `type` | Black-Scholes pricings executed |
+| `mariaalpha_options_pricing_duration` | Timer | `type` | Black-Scholes pricing latency |
+| `mariaalpha_options_implied_vol_solves_total` | Counter | `type`, `method` | Implied-vol solves by method (NEWTON / BISECTION) |
+| `mariaalpha_options_implied_vol_iterations` | Distribution | `type`, `method` | Iterations to converge in the implied-vol solver |
 
 ### 8.3 Grafana Dashboards
 
@@ -1421,8 +1427,8 @@ benefit to extending the asset-class surface before the existing one is validate
 | [3.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/87) | Implement IBKR `MarketDataAdapter` (TWS API) | Market Data GW |
 | [3.1.2](https://github.com/drag0sd0g/MariaAlpha/issues/88) | Implement IBKR `ExchangeAdapter` (TWS API) | Execution Engine |
 | [3.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/89) | Implement multi-market trading hours support | Strategy Engine |
-| [3.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/90) | Implement options pricing model (Black-Scholes) | Strategy Engine |
-| [3.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/91) | Implement Greeks computation (delta, gamma, vega, theta) | Strategy Engine |
+| [3.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/90) | Implement options pricing model (Black-Scholes) — **delivered**, see [`strategies/options-pricing.md`](strategies/options-pricing.md) | Strategy Engine |
+| [3.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/91) | Implement Greeks computation (delta, gamma, vega, theta) — **delivered**, see [`strategies/options-pricing.md`](strategies/options-pricing.md) | Strategy Engine |
 | [3.2.3](https://github.com/drag0sd0g/MariaAlpha/issues/92) | Implement Pegged order type handler | Execution Engine |
 | [3.3.1](https://github.com/drag0sd0g/MariaAlpha/issues/93) | Implement TSE tick size table and validation | Execution Engine |
 | [3.3.2](https://github.com/drag0sd0g/MariaAlpha/issues/94) | Implement auction session handling (Itayose, closing) | Market Data GW |

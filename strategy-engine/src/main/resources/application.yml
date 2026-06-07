@@ -46,6 +46,14 @@ strategy-engine:
     # Optional per-regime override of the built-in defaults (TRENDING_UP/DOWN → MOMENTUM,
     # MEAN_REVERTING/LOW_VOLATILITY → VWAP). Keys are MarketRegime enum names.
     map: {}
+  # Roadmap 3.2.1 / 3.2.2 — Black-Scholes-Merton pricer + analytic Greeks.
+  options:
+    # Theta is reported per-day. 365 = calendar (Bloomberg OVME default); 252 = trading.
+    theta-day-count: 365
+    implied-vol-max-iterations: 100
+    implied-vol-tolerance: 0.000001
+    implied-vol-lower-bound: 0.0001
+    implied-vol-upper-bound: 5.0
   # Issues 2.4.1 / 2.4.2 — inventory-aware + vol/ADV-relative RFQ pricing.
   rfq:
     base-spread-bps: 4.0

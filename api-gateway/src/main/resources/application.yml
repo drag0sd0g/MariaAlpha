@@ -22,7 +22,7 @@ spring:
             - id: strategies
               uri: ${STRATEGY_ENGINE_URL:http://localhost:8082}
               predicates:
-                - Path=/api/strategies/**,/api/rfq/**
+                - Path=/api/strategies/**,/api/rfq/**,/api/options/**
 
             - id: orders
               uri: ${ORDER_MANAGER_URL:http://localhost:8086}

@@ -11,6 +11,7 @@ const navItems: NavItem[] = [
   { to: "/orders", label: "Orders" },
   { to: "/market-data", label: "Market Data" },
   { to: "/rfq", label: "RFQ" },
+  { to: "/options", label: "Options" },
   { to: "/strategies", label: "Strategies" },
   { to: "/analytics", label: "Analytics" },
   { to: "/reconciliation", label: "Reconciliation" },
