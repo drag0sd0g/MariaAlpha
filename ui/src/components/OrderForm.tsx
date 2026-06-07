@@ -1,12 +1,22 @@
 import { useState } from "react";
-import type { OrderType, Side, SubmitOrderRequest, TimeInForce } from "@/types/api";
+import type { OrderType, PegType, Side, SubmitOrderRequest, TimeInForce } from "@/types/api";
 import { api } from "@/lib/api";
 
 interface Props {
   onSubmitted: () => void;
 }
 
-const ORDER_TYPES: OrderType[] = ["MARKET", "LIMIT", "STOP", "IOC", "FOK", "GTC", "ICEBERG"];
+const ORDER_TYPES: OrderType[] = [
+  "MARKET",
+  "LIMIT",
+  "STOP",
+  "IOC",
+  "FOK",
+  "GTC",
+  "ICEBERG",
+  "PEGGED",
+];
+const PEG_TYPES: PegType[] = ["MIDPOINT", "PRIMARY", "MARKET"];
 
 export default function OrderForm({ onSubmitted }: Props) {
   const [symbol, setSymbol] = useState("");
@@ -16,6 +26,8 @@ export default function OrderForm({ onSubmitted }: Props) {
   const [limitPrice, setLimitPrice] = useState("");
   const [stopPrice, setStopPrice] = useState("");
   const [displayQuantity, setDisplayQuantity] = useState("");
+  const [pegType, setPegType] = useState<PegType>("MIDPOINT");
+  const [pegOffsetBps, setPegOffsetBps] = useState("0");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,6 +39,7 @@ export default function OrderForm({ onSubmitted }: Props) {
     orderType === "ICEBERG";
   const needsStop = orderType === "STOP";
   const needsDisplay = orderType === "ICEBERG";
+  const needsPeg = orderType === "PEGGED";
   const intrinsicTif: TimeInForce | undefined =
     orderType === "IOC"
       ? "IOC"
@@ -49,6 +62,10 @@ export default function OrderForm({ onSubmitted }: Props) {
       if (!dq || dq <= 0) return "ICEBERG orders need a display quantity > 0";
       if (dq >= q) return "displayQuantity must be strictly less than quantity";
     }
+    const offsetBps = needsPeg && pegOffsetBps !== "" ? Number(pegOffsetBps) : undefined;
+    if (needsPeg && offsetBps !== undefined && !Number.isFinite(offsetBps)) {
+      return "pegOffsetBps must be a number";
+    }
     return {
       symbol: symbol.toUpperCase().trim(),
       side,
@@ -58,6 +75,7 @@ export default function OrderForm({ onSubmitted }: Props) {
       ...(sp !== undefined ? { stopPrice: sp } : {}),
       ...(dq !== undefined ? { displayQuantity: dq } : {}),
       ...(intrinsicTif !== undefined ? { tif: intrinsicTif } : {}),
+      ...(needsPeg ? { pegType, pegOffsetBps: offsetBps ?? 0 } : {}),
     };
   };
 
@@ -180,6 +198,48 @@ export default function OrderForm({ onSubmitted }: Props) {
               className="w-full border rounded px-2 py-1 num"
             />
           </Field>
+        )}
+        {needsPeg && (
+          <>
+            <Field label="Peg Type">
+              <select
+                aria-label="Peg Type"
+                value={pegType}
+                onChange={(e) => {
+                  setPegType(e.target.value as PegType);
+                }}
+                className="w-full border rounded px-2 py-1"
+              >
+                {PEG_TYPES.map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Peg Offset (bps)">
+              <input
+                aria-label="Peg Offset (bps)"
+                type="number"
+                value={pegOffsetBps}
+                onChange={(e) => {
+                  setPegOffsetBps(e.target.value);
+                }}
+                className="w-full border rounded px-2 py-1 num"
+              />
+            </Field>
+            <Field label="Price Cap (optional)">
+              <input
+                aria-label="Price Cap (optional)"
+                type="number"
+                step="0.01"
+                value={limitPrice}
+                onChange={(e) => {
+                  setLimitPrice(e.target.value);
+                }}
+                placeholder="Max for BUY / Min for SELL"
+                className="w-full border rounded px-2 py-1 num"
+              />
+            </Field>
+          </>
         )}
       </div>
       {intrinsicTif && (

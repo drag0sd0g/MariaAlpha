@@ -12,6 +12,7 @@ import com.mariaalpha.executionengine.model.Order;
 import com.mariaalpha.executionengine.model.OrderSignal;
 import com.mariaalpha.executionengine.model.OrderStatus;
 import com.mariaalpha.executionengine.model.OrderType;
+import com.mariaalpha.executionengine.pegged.PeggedCoordinator;
 import com.mariaalpha.executionengine.risk.DailyLossMonitor;
 import com.mariaalpha.executionengine.risk.RiskCheckChain;
 import com.mariaalpha.executionengine.router.SmartOrderRouter;
@@ -35,6 +36,7 @@ public class OrderExecutionService {
   private final DailyLossMonitor dailyLossMonitor;
   private final ExecutionMetrics metrics;
   private final IcebergCoordinator icebergCoordinator;
+  private final PeggedCoordinator peggedCoordinator;
 
   public OrderExecutionService(
       OrderTypeHandlerRegistry handlerRegistry,
@@ -45,7 +47,8 @@ public class OrderExecutionService {
       MarketStateTracker marketStateTracker,
       DailyLossMonitor dailyLossMonitor,
       ExecutionMetrics metrics,
-      IcebergCoordinator icebergCoordinator) {
+      IcebergCoordinator icebergCoordinator,
+      PeggedCoordinator peggedCoordinator) {
     this.handlerRegistry = handlerRegistry;
     this.riskCheckChain = riskCheckChain;
     this.router = router;
@@ -55,6 +58,7 @@ public class OrderExecutionService {
     this.dailyLossMonitor = dailyLossMonitor;
     this.metrics = metrics;
     this.icebergCoordinator = icebergCoordinator;
+    this.peggedCoordinator = peggedCoordinator;
   }
 
   @PostConstruct
@@ -129,6 +133,31 @@ public class OrderExecutionService {
               e.getMessage());
         }
         metrics.recordRejection("IcebergFirstSliceRejected");
+      }
+      metrics.recordOrderLatency(System.currentTimeMillis() - startTime);
+      return;
+    }
+
+    if (order.getOrderType() == OrderType.PEGGED) {
+      if (peggedCoordinator == null) {
+        lifecycleManager.transition(
+            order.getOrderId(),
+            OrderStatus.REJECTED,
+            null,
+            "PEGGED not supported (coordinator unavailable)");
+        metrics.recordRejection("PeggedUnavailable");
+        return;
+      }
+      boolean firstChildAccepted = peggedCoordinator.onParentSubmit(order);
+      if (!firstChildAccepted) {
+        try {
+          lifecycleManager.transition(
+              order.getOrderId(), OrderStatus.REJECTED, null, "Initial pegged child rejected");
+        } catch (IllegalStateTransitionException e) {
+          LOG.debug(
+              "Pegged parent {} already in terminal state: {}", order.getOrderId(), e.getMessage());
+        }
+        metrics.recordRejection("PeggedFirstChildRejected");
       }
       metrics.recordOrderLatency(System.currentTimeMillis() - startTime);
       return;
@@ -219,6 +248,9 @@ public class OrderExecutionService {
 
     if (icebergCoordinator != null) {
       icebergCoordinator.onChildFillIfApplicable(order, report);
+    }
+    if (peggedCoordinator != null) {
+      peggedCoordinator.onChildFillIfApplicable(order, report);
     }
   }
 }

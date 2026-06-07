@@ -26,6 +26,10 @@ public class AlpacaOrderTypeMapper {
           throw new IllegalArgumentException(
               "ICEBERG orders must not be submitted directly to Alpaca — they are sliced by"
                   + " IcebergCoordinator into LIMIT children");
+      case PEGGED ->
+          throw new IllegalArgumentException(
+              "PEGGED orders must not be submitted directly to Alpaca — they are fronted by"
+                  + " PeggedCoordinator with re-pegging LIMIT children");
     };
   }
 

@@ -147,6 +147,13 @@ execution-engine:
     fill-latency-ms: 1
     max-pending: 1000
     seed: -1
+  # Roadmap 3.2.3 — PEGGED order-type module.
+  pegged:
+    # Minimum bps move in the reference price (vs the previously-submitted child price) that
+    # triggers a cancel-and-resubmit of the LIMIT child. 0 = re-peg on every tick (chatty).
+    repeg-threshold-bps: 5
+    # Hard cap on |pegOffsetBps| — protects against typo-induced runaway pricing.
+    max-offset-bps: 100
 
 springdoc:
   api-docs:

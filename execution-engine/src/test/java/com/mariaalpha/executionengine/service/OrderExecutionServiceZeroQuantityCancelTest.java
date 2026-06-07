@@ -58,7 +58,8 @@ class OrderExecutionServiceZeroQuantityCancelTest {
             mock(MarketStateTracker.class),
             dailyLossMonitor,
             metrics,
-            mock(IcebergCoordinator.class));
+            mock(IcebergCoordinator.class),
+            null);
 
     order =
         new Order(

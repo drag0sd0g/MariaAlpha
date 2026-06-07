@@ -395,6 +395,22 @@
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
     <Match>
+        <Class name="com.mariaalpha.executionengine.pegged.PeggedCoordinator"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.pegged.PeggedMetrics"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.handler.PeggedOrderHandler"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.controller.PeggedController"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
         <Class name="com.mariaalpha.executionengine.controller.IcebergController"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>

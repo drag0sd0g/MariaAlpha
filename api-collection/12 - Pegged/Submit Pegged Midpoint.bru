@@ -1,0 +1,43 @@
+meta {
+  name: Submit Pegged Midpoint
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/execution/orders
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "symbol": "AAPL",
+    "side": "BUY",
+    "orderType": "PEGGED",
+    "quantity": 100,
+    "pegType": "MIDPOINT",
+    "pegOffsetBps": 0,
+    "tif": "DAY"
+  }
+}
+
+docs {
+  Submits a PEGGED MIDPOINT BUY (roadmap 3.2.3). The coordinator computes the
+  midpoint of the current NBBO snapshot, submits a LIMIT child at that price,
+  and re-pegs on NBBO movement past `execution-engine.pegged.repeg-threshold-bps`.
+
+  Returns 202 with the parent orderId. Save the orderId — the next request
+  reads progress via `/api/execution/orders/{id}/pegged-progress`.
+}
+
+script:post-response {
+  if (res.status === 202 && res.body && res.body.orderId) {
+    bru.setVar("lastPeggedOrderId", res.body.orderId);
+  }
+}

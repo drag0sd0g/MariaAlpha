@@ -743,6 +743,13 @@ classDiagram
         +onChildFillIfApplicable(Order, ExecutionReport)
         +onParentCancelRequested(Order)
     }
+    class PeggedCoordinator {
+        <<@Component>>
+        +onParentSubmit(Order) boolean
+        +onChildFillIfApplicable(Order, ExecutionReport)
+        +onParentCancelRequested(Order)
+        +onMarketStateUpdate(MarketState)
+    }
     OrderTypeHandler <|.. MarketOrderHandler
     OrderTypeHandler <|.. LimitOrderHandler
     OrderTypeHandler <|.. StopOrderHandler
@@ -750,16 +757,20 @@ classDiagram
     OrderTypeHandler <|.. FokOrderHandler
     OrderTypeHandler <|.. GtcOrderHandler
     OrderTypeHandler <|.. IcebergOrderHandler
+    OrderTypeHandler <|.. PeggedOrderHandler
     OrderTypeHandler ..> ExecutionInstruction
     ExecutionInstruction o-- TimeInForce
     IcebergCoordinator ..> OrderTypeHandler : delegates to LimitOrderHandler for children
+    PeggedCoordinator ..> OrderTypeHandler : delegates to LimitOrderHandler for re-pegged children
 ```
 
-All seven handlers are implemented: MARKET, LIMIT, STOP, IOC, FOK, GTC, and Iceberg. Pegged is on the roadmap.
+All eight handlers are implemented: MARKET, LIMIT, STOP, IOC, FOK, GTC, Iceberg, and Pegged.
 
-The `AlpacaOrderTypeMapper` collapses IOC/FOK/GTC into Alpaca's `type=limit` with the appropriate `time_in_force` wire value; ICEBERG never reaches the Alpaca adapter directly because the `IcebergCoordinator` slices it into LIMIT children that flow through the regular path.
+The `AlpacaOrderTypeMapper` collapses IOC/FOK/GTC into Alpaca's `type=limit` with the appropriate `time_in_force` wire value; ICEBERG and PEGGED never reach the Alpaca adapter directly because the `IcebergCoordinator` slices an iceberg into LIMIT children and the `PeggedCoordinator` fronts a peg with a single re-pegging LIMIT child — in both cases the children flow through the regular path.
 
 The `IcebergCoordinator` is intentionally *not* an `OrderTypeHandler`. The handler interface returns a single `ExecutionInstruction` per call; iceberg parents need to issue many child orders over time, react to fills, and own their own state. The coordinator's `onParentSubmit` is invoked from `OrderExecutionService.processOrder` after validation + risk checks (before the normal venue dispatch); `onChildFillIfApplicable` is invoked from `onExecutionReport` after the regular fill processing. The coordinator's collaborators are `ParentChildOrderRegistry` (in-memory linkage + per-parent `IcebergProgress`), `IcebergSliceFactory` (constructs child LIMIT `Order` instances with `parentOrderId` set and `strategyName="ICEBERG-CHILD"`), and `IcebergMetrics`. A REST endpoint `GET /api/execution/orders/{parentId}/iceberg-progress` exposes live slice progress for the UI.
+
+The `PeggedCoordinator` follows the same pattern but for a different runtime shape: a pegged parent always has at most one active LIMIT child, and the coordinator cancels-and-resubmits that child when the NBBO moves past `execution-engine.pegged.repeg-threshold-bps` (default 5 bps). It subscribes to `MarketStateTracker` at startup so each NBBO tick triggers a single recomputation per tracked parent. Three peg types ship — `MIDPOINT` (centre of the NBBO), `PRIMARY` (join-side: BUY→bid, SELL→ask), and `MARKET` (take-side: BUY→ask, SELL→bid) — combined with a signed `pegOffsetBps` (positive = toward fill) and an optional `priceCap` reusing the existing `limitPrice` field. The coordinator's collaborators are `PeggedRegistry` (parent ↔ active-child linkage + `PeggedProgress`), `PeggedPriceCalculator` (pure math), `PeggedChildFactory` (creates the LIMIT child), and `PeggedMetrics`. A REST endpoint `GET /api/execution/orders/{parentId}/pegged-progress` exposes total/filled/repegs/lastReference/lastSubmitted for the UI. Full design in [`strategies/pegged-orders.md`](strategies/pegged-orders.md).
 
 #### 5.3.3 Composable Risk Check Chain
 
@@ -1224,6 +1235,10 @@ These are instrumented explicitly in application code:
 | `mariaalpha_options_pricing_duration` | Timer | `type` | Black-Scholes pricing latency |
 | `mariaalpha_options_implied_vol_solves_total` | Counter | `type`, `method` | Implied-vol solves by method (NEWTON / BISECTION) |
 | `mariaalpha_options_implied_vol_iterations` | Distribution | `type`, `method` | Iterations to converge in the implied-vol solver |
+| `mariaalpha_execution_pegged_parents_submitted_total` | Counter | `symbol`, `pegType` | PEGGED parents accepted |
+| `mariaalpha_execution_pegged_parents_filled_total` | Counter | `symbol`, `pegType` | PEGGED parents fully filled |
+| `mariaalpha_execution_pegged_children_submitted_total` | Counter | `symbol`, `pegType` | LIMIT children submitted on behalf of a PEGGED parent (includes re-pegs) |
+| `mariaalpha_execution_pegged_repegs_total` | Counter | `symbol`, `pegType` | Cancel-and-resubmit cycles triggered by NBBO movement |
 
 ### 8.3 Grafana Dashboards
 
@@ -1429,7 +1444,7 @@ benefit to extending the asset-class surface before the existing one is validate
 | [3.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/89) | Implement multi-market trading hours support | Strategy Engine |
 | [3.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/90) | Implement options pricing model (Black-Scholes) — **delivered**, see [`strategies/options-pricing.md`](strategies/options-pricing.md) | Strategy Engine |
 | [3.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/91) | Implement Greeks computation (delta, gamma, vega, theta) — **delivered**, see [`strategies/options-pricing.md`](strategies/options-pricing.md) | Strategy Engine |
-| [3.2.3](https://github.com/drag0sd0g/MariaAlpha/issues/92) | Implement Pegged order type handler | Execution Engine |
+| [3.2.3](https://github.com/drag0sd0g/MariaAlpha/issues/92) | Implement Pegged order type handler — **delivered**, see [`strategies/pegged-orders.md`](strategies/pegged-orders.md) | Execution Engine |
 | [3.3.1](https://github.com/drag0sd0g/MariaAlpha/issues/93) | Implement TSE tick size table and validation | Execution Engine |
 | [3.3.2](https://github.com/drag0sd0g/MariaAlpha/issues/94) | Implement auction session handling (Itayose, closing) | Market Data GW |
 | [3.3.3](https://github.com/drag0sd0g/MariaAlpha/issues/95) | Implement daily price limit enforcement | Execution Engine |

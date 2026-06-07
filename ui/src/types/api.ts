@@ -1,7 +1,8 @@
 // REST response types — match Java DTOs in order-manager and post-trade.
 
 export type Side = "BUY" | "SELL";
-export type OrderType = "MARKET" | "LIMIT" | "STOP" | "IOC" | "FOK" | "GTC" | "ICEBERG";
+export type OrderType = "MARKET" | "LIMIT" | "STOP" | "IOC" | "FOK" | "GTC" | "ICEBERG" | "PEGGED";
+export type PegType = "MIDPOINT" | "PRIMARY" | "MARKET";
 export type TimeInForce = "DAY" | "IOC" | "FOK" | "GTC";
 export type OrderStatus =
   | "NEW"
@@ -82,6 +83,20 @@ export interface SubmitOrderRequest {
   displayQuantity?: number; // ICEBERG only
   tif?: TimeInForce;
   clientOrderId?: string;
+  pegType?: PegType; // PEGGED only
+  pegOffsetBps?: number; // PEGGED only
+}
+
+export interface PeggedProgress {
+  parentOrderId: string;
+  totalQuantity: number;
+  filledQuantity: number;
+  remainingQuantity: number;
+  repegsTotal: number;
+  lastReferencePrice?: number;
+  lastSubmittedPrice?: number;
+  activeChildOrderId?: string;
+  parentComplete: boolean;
 }
 
 export interface IcebergProgress {
