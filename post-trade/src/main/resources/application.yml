@@ -44,6 +44,16 @@ post-trade:
     market-data-topic: market-data.ticks
     analytics-tca-topic: analytics.tca
     risk-alerts-topic: analytics.risk-alerts
+  # Roadmap 3.4.2 — trade allocation across sub-accounts.
+  allocation:
+    default-method: PRO_RATA
+    sub-accounts:
+      - name: HOUSE
+        weight: 50.0
+      - name: HEDGE_FUND_A
+        weight: 30.0
+      - name: HEDGE_FUND_B
+        weight: 20.0
   tca:
     market-data-cache-ttl-seconds: 21600
     market-data-cache-max-ticks-per-symbol: 20000

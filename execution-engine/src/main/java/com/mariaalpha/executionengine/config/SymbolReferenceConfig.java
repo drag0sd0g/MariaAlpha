@@ -4,8 +4,9 @@ import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Per-symbol reference data used by the sector / beta / ADV-participation risk checks: sector
- * classification, beta vs. a benchmark, and Average Daily Volume in shares.
+ * Per-symbol reference data used by the sector / beta / ADV-participation / intraday-VaR risk
+ * checks: sector classification, beta vs. a benchmark, Average Daily Volume in shares, and
+ * annualised volatility of log-returns (decimal — 0.25 means 25%/yr).
  *
  * <p>The simulator carries a tiny fixed universe (AAPL, MSFT, GOOGL, AMZN, TSLA, NVDA), so the data
  * is statically configured under {@code execution-engine.risk.reference-data.*} rather than being
@@ -18,5 +19,16 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "execution-engine.risk.reference-data")
 public record SymbolReferenceConfig(List<SymbolRef> symbols, SymbolRef defaults) {
 
-  public record SymbolRef(String symbol, String sector, double beta, long adv) {}
+  public record SymbolRef(
+      String symbol, String sector, double beta, long adv, double annualizedVolatility) {
+
+    /**
+     * Legacy 4-arg constructor for call sites that predate the volatility field (roadmap 3.5.1).
+     * Defaults {@code annualizedVolatility} to 0 — which the VaR check reads as "unknown" and
+     * contributes zero risk for the symbol so the check stays safe-by-default.
+     */
+    public SymbolRef(String symbol, String sector, double beta, long adv) {
+      this(symbol, sector, beta, adv, 0.0);
+    }
+  }
 }

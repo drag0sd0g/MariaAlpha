@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
 public class SymbolReferenceData {
 
   private static final Logger LOG = LoggerFactory.getLogger(SymbolReferenceData.class);
-  private static final SymbolRef HARD_DEFAULTS = new SymbolRef("*", "UNKNOWN", 1.0, 0L);
+  private static final SymbolRef HARD_DEFAULTS = new SymbolRef("*", "UNKNOWN", 1.0, 0L, 0.0);
 
   private final SymbolReferenceConfig config;
   private final Map<String, SymbolRef> bySymbol = new HashMap<>();
@@ -69,6 +69,15 @@ public class SymbolReferenceData {
   /** Average Daily Volume (shares) for {@code symbol}, or {@code defaults.adv()} if unknown. */
   public long advOf(String symbol) {
     return bySymbol.getOrDefault(symbol, defaults).adv();
+  }
+
+  /**
+   * Annualised volatility of log-returns (decimal — 0.25 == 25%/yr) for {@code symbol}, or {@code
+   * defaults.annualizedVolatility()} if unknown. {@code 0.0} means "vol unknown" — the VaR check
+   * treats that as a zero risk contribution so missing reference data never inflates the projection.
+   */
+  public double annualizedVolatilityOf(String symbol) {
+    return bySymbol.getOrDefault(symbol, defaults).annualizedVolatility();
   }
 
   /** True iff explicit reference data was loaded for this symbol. */

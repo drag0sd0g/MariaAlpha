@@ -1,0 +1,82 @@
+databaseChangeLog:
+  - changeSet:
+      id: post-trade-007-create-allocations
+      author: mariaalpha
+      changes:
+        - createTable:
+            tableName: allocations
+            columns:
+              - column:
+                  name: allocation_id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_allocations
+              - column:
+                  name: order_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: sub_account
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: symbol
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: side
+                  type: varchar(4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: allocated_quantity
+                  type: decimal(18,8)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: allocated_avg_price
+                  type: decimal(18,8)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: allocation_method
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: parent_filled_quantity
+                  type: decimal(18,8)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: parent_avg_price
+                  type: decimal(18,8)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: allocated_at
+                  type: timestamptz
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: idx_allocations_order_id
+            tableName: allocations
+            columns:
+              - column:
+                  name: order_id
+        - createIndex:
+            indexName: idx_allocations_sub_account
+            tableName: allocations
+            columns:
+              - column:
+                  name: sub_account
+        - addUniqueConstraint:
+            tableName: allocations
+            columnNames: order_id, sub_account
+            constraintName: uk_allocations_order_subaccount

@@ -17,3 +17,6 @@ databaseChangeLog:
   - include:
       file: changesets/006-create-reconciliation-runs.yaml
       relativeToChangelogFile: true
+  - include:
+      file: changesets/007-create-allocations.yaml
+      relativeToChangelogFile: true
