@@ -3,6 +3,7 @@ package com.mariaalpha.executionengine.config;
 import java.util.List;
 import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
 /**
  * Pre-trade risk-check thresholds.
@@ -45,6 +46,16 @@ public record RiskLimitsConfig(
     double varConfidenceLevel,
     double varTradingDaysPerYear,
     List<CorrelatedCluster> correlatedClusters) {
+
+  /**
+   * Spring Boot's {@code @ConfigurationProperties} binder needs to pick one constructor when a
+   * record has multiple. Without this annotation, binding falls back to Java-bean mode, which
+   * requires a no-arg constructor that records can't have — the bean factory then fails with {@code
+   * NoSuchMethodException: <init>()} and the whole context fails to start. Pinning the canonical
+   * constructor here is the documented Boot-3 fix.
+   */
+  @ConstructorBinding
+  public RiskLimitsConfig {}
 
   /**
    * Legacy constructor for call sites that predate the VaR (3.5.1) and correlated-positions (3.5.2)
