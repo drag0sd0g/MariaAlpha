@@ -26,8 +26,8 @@ public record SymbolReferenceConfig(List<SymbolRef> symbols, SymbolRef defaults)
     /**
      * Pin Spring Boot's {@code @ConfigurationProperties} binder to this 5-arg canonical
      * constructor. Without this annotation the binder can't pick a constructor when the record has
-     * multiple, falls back to Java-bean mode, and fails with {@code NoSuchMethodException: <init>()}
-     * — which crashes the execution-engine context at startup. Boot-3 documented fix.
+     * multiple, falls back to Java-bean mode, and fails with {@code NoSuchMethodException:
+     * <init>()} — which crashes the execution-engine context at startup. Boot-3 documented fix.
      */
     @ConstructorBinding
     public SymbolRef {}
