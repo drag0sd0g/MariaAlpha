@@ -72,7 +72,12 @@ public class AllocationService {
     }
 
     // Idempotent re-allocation: clear any prior rows for this parent before persisting.
+    // Force-flush the delete before the saveAll. Without this, Hibernate may batch the insert
+    // ahead of the delete in the action queue and trip the UNIQUE(order_id, sub_account) constraint
+    // when re-allocating the same parent — even though both ops are in the same @Transactional
+    // block. Manifested as a 500 on the e2e idempotency test.
     repository.deleteByOrderId(request.orderId());
+    repository.flush();
 
     var entities = results.stream().map(r -> toEntity(request, r)).toList();
     var saved = repository.saveAll(entities);
