@@ -67,9 +67,7 @@ class AllocationCalculatorTest {
     var results =
         calculator.allocate(accounts, AllocationMethod.PRO_RATA, new BigDecimal("1000"), AVG_PRICE);
     assertThat(results).hasSize(2);
-    assertThat(results)
-        .extracting(AllocationResult::subAccount)
-        .doesNotContain("INACTIVE");
+    assertThat(results).extracting(AllocationResult::subAccount).doesNotContain("INACTIVE");
     assertSumEquals(results, "1000");
   }
 

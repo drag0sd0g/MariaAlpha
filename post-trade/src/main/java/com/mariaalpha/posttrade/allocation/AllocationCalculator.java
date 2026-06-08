@@ -144,10 +144,7 @@ public class AllocationCalculator {
 
   /** Total weight across non-zero-weight sub-accounts. Test helper. */
   static double totalWeight(List<SubAccount> subAccounts) {
-    return subAccounts.stream()
-        .filter(s -> s.weight() > 0)
-        .mapToDouble(SubAccount::weight)
-        .sum();
+    return subAccounts.stream().filter(s -> s.weight() > 0).mapToDouble(SubAccount::weight).sum();
   }
 
   /** Comparator that sorts sub-accounts heaviest-first (test helper). */

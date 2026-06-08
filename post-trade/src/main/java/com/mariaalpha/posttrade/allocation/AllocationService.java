@@ -59,18 +59,14 @@ public class AllocationService {
     if (request.side() == null) {
       throw new IllegalArgumentException("side is required");
     }
-    if (request.parentFilledQuantity() == null
-        || request.parentFilledQuantity().signum() <= 0) {
+    if (request.parentFilledQuantity() == null || request.parentFilledQuantity().signum() <= 0) {
       throw new IllegalArgumentException("parentFilledQuantity must be > 0");
     }
 
     var method = request.method() != null ? request.method() : registry.defaultMethod();
     var results =
         calculator.allocate(
-            registry.accounts(),
-            method,
-            request.parentFilledQuantity(),
-            request.parentAvgPrice());
+            registry.accounts(), method, request.parentFilledQuantity(), request.parentAvgPrice());
     if (results.isEmpty()) {
       return List.of();
     }

@@ -643,6 +643,8 @@ public interface ExchangeAdapter {
 
 **TCA Metrics Per Order:** slippage (bps), implementation shortfall (bps), VWAP benchmark (bps), spread cost (bps). See sequence diagram in §2.6.3 for reconciliation flow.
 
+**Trade allocation engine (roadmap 3.4.2 — delivered):** Splits filled parent orders across a configured roster of sub-accounts via two industry-standard algorithms. `PRO_RATA` divides by sub-account weight (rounding remainder to the heaviest); `FIFO` fills in declaration order until the parent quantity is exhausted. Re-running for the same `orderId` is idempotent — prior rows are deleted before the new ones are written, so re-fills + method changes are safe. Roster is configured under `post-trade.allocation.sub-accounts` (validated at startup for unique names and positive weights). Persisted to the `allocations` table with `UNIQUE (order_id, sub_account)`; exposed under `/api/allocations/{sub-accounts,run,order/{id},sub-account/{name}}`. Full design in [`strategies/trade-allocation.md`](strategies/trade-allocation.md).
+
 **EOD reconciliation engine:** A Spring `@Scheduled` cron (default `0 0 22 * * MON-FRI` in `America/New_York`) fires `EodReconciliationService.runForDate(...)` for the configured target date. The engine pulls internal fills from `order-manager` via `GET /api/orders/fills/by-date?date=...` and external activities from the venue via `GET /v2/account/activities?activity_types=FILL&date=...`. A pure `ReconciliationComparator` aggregates fills per order (keyed by exchange order id with a `client_order_id` fallback) and emits breaks of four types: `MISSING_FILL` (external-only), `EXTRA_FILL` (internal-only), `QUANTITY_MISMATCH` (|qty diff| > tolerance), and `PRICE_MISMATCH` (|relative diff| > priceToleranceBps). Severity scales with absolute notional (`HIGH` ≥ $10k, `CRITICAL` ≥ $100k) or, for price breaks, with the bps-diff magnitude relative to the configured tolerance. Each break is persisted to `reconciliation_breaks`, counted on `mariaalpha_recon_breaks_total{break_type,severity}`, and published as a `RECON_BREAK` event on `analytics.risk-alerts` — the same topic the api-gateway forwards over `/ws/alerts`. The run itself upserts one row in `reconciliation_runs` keyed by `recon_date` (§7.3 idempotency: re-running for the same date wipes prior breaks first). Manual triggers go through `POST /api/recon/run?date=YYYY-MM-DD`. Two modes are supported via `post-trade.recon.mode`: `EXTERNAL` (Alpaca HTTP) and `MIRROR` (echoes internal fills back as external for the simulated docker-compose stack — keeps the engine end-to-end exercisable without venue credentials).
 
 #### 5.2.7 Analytics Service
@@ -784,8 +786,10 @@ graph LR
     R5 -->|pass| R6[SectorExposure]
     R6 -->|pass| R7[BetaExposure]
     R7 -->|pass| R8[AdvParticipation]
-    R8 -->|pass| SOR[SOR / Submit]
-    R1 & R2 & R3 & R4 & R5 & R6 & R7 & R8 -->|fail| REJ[REJECTED]
+    R8 -->|pass| R9[IntradayVar]
+    R9 -->|pass| R10[CorrelatedPositions]
+    R10 -->|pass| SOR[SOR / Submit]
+    R1 & R2 & R3 & R4 & R5 & R6 & R7 & R8 & R9 & R10 -->|fail| REJ[REJECTED]
 ```
 
 Phase-2 additions (all landed):
@@ -794,9 +798,12 @@ Phase-2 additions (all landed):
 - **`BetaExposureCheck`** — caps |Σ position_notional × beta| in dollars. Catches the case where MaxPortfolioExposure passes (gross $ is fine) but the underlying mix has drifted into a high-beta concentration that would amplify a market drawdown. Self-disables when `max-absolute-beta-weighted-exposure ≤ 0`.
 - **`AdvParticipationCheck`** — rejects parents whose share count exceeds `max-adv-participation × ADV(symbol)`. Runs against the **parent** quantity, not the first slice, so oversized parents are caught regardless of how they'd be chopped. Refuses any order on a symbol with missing reference data (the conservative default ADV of 0).
 
-`SymbolReferenceData` owns sector / beta / ADV lookup. Reference rows live under `execution-engine.risk.reference-data.symbols[]` in `application.yml` for the MVP simulator universe; production deployments would back this with a periodic vendor refresh (Bloomberg FLDS, Refinitiv RDP, etc.). Unmapped symbols fall through to `defaults` (sector=UNKNOWN, β=1.0, ADV=0).
+Phase-3 additions (3.5.1 + 3.5.2, both landed):
 
-Roadmap checks: Intraday VaR (issue 3.5.1), Correlated Positions (issue 3.5.2).
+- **`IntradayVarCheck`** — pre-trade parametric Gaussian VaR. Per-position daily VaR = `|position_notional| × σ_ann / √trading-days × z(confidence)`; the portfolio aggregate is sum-of-absolutes (conservative — no diversification credit). Rejects orders whose projection would exceed `max-intraday-var`. Self-disables when the limit is 0; treats missing symbol-vol reference data as zero contribution rather than a fail-closed, so the check is a safety net rather than a data-completeness gate. Full design in [`strategies/intraday-var.md`](strategies/intraday-var.md).
+- **`CorrelatedPositionsCheck`** — pre-trade concentration check across operator-defined symbol clusters. Each `CorrelatedCluster` in `execution-engine.risk.correlated-clusters[]` is a named symbol list with a gross-$ cap; every order that touches a clustered symbol is checked against every cluster it belongs to. A symbol can appear in multiple clusters (independent evaluation). Captures the "same narrative, different sector" risk (e.g. the AI trade across NVDA + MSFT + GOOGL) that the sector and beta checks miss. Full design in [`strategies/correlated-positions.md`](strategies/correlated-positions.md).
+
+`SymbolReferenceData` owns sector / beta / ADV / annualised-vol lookup. Reference rows live under `execution-engine.risk.reference-data.symbols[]` in `application.yml` for the MVP simulator universe; production deployments would back this with a periodic vendor refresh (Bloomberg FLDS, Refinitiv RDP, etc.). Unmapped symbols fall through to `defaults` (sector=UNKNOWN, β=1.0, ADV=0, σ_ann=0).
 
 #### 5.3.4 Exchange Adapter SPI
 
@@ -1239,6 +1246,9 @@ These are instrumented explicitly in application code:
 | `mariaalpha_execution_pegged_parents_filled_total` | Counter | `symbol`, `pegType` | PEGGED parents fully filled |
 | `mariaalpha_execution_pegged_children_submitted_total` | Counter | `symbol`, `pegType` | LIMIT children submitted on behalf of a PEGGED parent (includes re-pegs) |
 | `mariaalpha_execution_pegged_repegs_total` | Counter | `symbol`, `pegType` | Cancel-and-resubmit cycles triggered by NBBO movement |
+| `mariaalpha_post_trade_allocation_runs_total` | Counter | `symbol`, `method` | Allocation runs (one per parent) |
+| `mariaalpha_post_trade_allocation_allocations_total` | Counter | `symbol`, `method` | Per-sub-account rows emitted across all runs |
+| `mariaalpha_post_trade_allocation_shares_allocated` | Distribution | `symbol`, `method` | Shares allocated per run |
 
 ### 8.3 Grafana Dashboards
 
@@ -1450,12 +1460,12 @@ benefit to extending the asset-class surface before the existing one is validate
 | [3.3.3](https://github.com/drag0sd0g/MariaAlpha/issues/95) | Implement daily price limit enforcement | Execution Engine |
 | [3.3.4](https://github.com/drag0sd0g/MariaAlpha/issues/96) | Implement short-selling uptick rule | Execution Engine |
 | [3.4.1](https://github.com/drag0sd0g/MariaAlpha/issues/97) | Implement program / basket trading engine | Execution Engine |
-| [3.4.2](https://github.com/drag0sd0g/MariaAlpha/issues/98) | Implement trade allocation | Post-Trade |
+| [3.4.2](https://github.com/drag0sd0g/MariaAlpha/issues/98) | Implement trade allocation — **delivered**, see [`strategies/trade-allocation.md`](strategies/trade-allocation.md) | Post-Trade |
 | [3.4.3](https://github.com/drag0sd0g/MariaAlpha/issues/99) | Implement FIX protocol gateway (QuickFIX/J) for inbound algo orders | API Gateway |
 | [3.4.4](https://github.com/drag0sd0g/MariaAlpha/issues/100) | Implement Electronic Trading REST API for programmatic algo execution | API Gateway |
 | [3.4.5](https://github.com/drag0sd0g/MariaAlpha/issues/119) | Implement algo execution tracking and progress reporting via WebSocket | API Gateway |
-| [3.5.1](https://github.com/drag0sd0g/MariaAlpha/issues/101) | Implement intraday VaR risk check | Execution Engine |
-| [3.5.2](https://github.com/drag0sd0g/MariaAlpha/issues/102) | Implement correlated position limits | Execution Engine |
+| [3.5.1](https://github.com/drag0sd0g/MariaAlpha/issues/101) | Implement intraday VaR risk check — **delivered**, see [`strategies/intraday-var.md`](strategies/intraday-var.md) | Execution Engine |
+| [3.5.2](https://github.com/drag0sd0g/MariaAlpha/issues/102) | Implement correlated position limits — **delivered**, see [`strategies/correlated-positions.md`](strategies/correlated-positions.md) | Execution Engine |
 | [3.5.3](https://github.com/drag0sd0g/MariaAlpha/issues/103) | Implement currency exposure tracking | Order Manager |
 
 ### Phase 4: Advanced Platform Features (post-validation)

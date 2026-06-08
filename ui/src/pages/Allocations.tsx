@@ -85,9 +85,9 @@ export default function Allocations() {
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Trade Allocations</h1>
       <p className="text-sm text-slate-600">
-        Splits a filled parent order across the configured sub-accounts. PRO_RATA divides by
-        weights with the remainder going to the heaviest account; FIFO fills in declaration order
-        until the parent quantity is exhausted.
+        Splits a filled parent order across the configured sub-accounts. PRO_RATA divides by weights
+        with the remainder going to the heaviest account; FIFO fills in declaration order until the
+        parent quantity is exhausted.
       </p>
 
       {roster && (
@@ -214,9 +214,7 @@ export default function Allocations() {
 
       {allocations && (
         <div className="rounded border border-slate-200 p-4" data-testid="alloc-results">
-          <div className="text-sm uppercase text-slate-500">
-            Allocations ({allocations.length})
-          </div>
+          <div className="text-sm uppercase text-slate-500">Allocations ({allocations.length})</div>
           <table className="mt-2 w-full text-sm">
             <thead>
               <tr className="text-left text-slate-500">

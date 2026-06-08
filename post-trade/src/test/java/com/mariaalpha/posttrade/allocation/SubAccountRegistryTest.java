@@ -51,8 +51,7 @@ class SubAccountRegistryTest {
   @Test
   void rejectsNonPositiveWeight() {
     var config =
-        new SubAccountConfig(
-            AllocationMethod.PRO_RATA, List.of(new SubAccount("BAD", -1.0)));
+        new SubAccountConfig(AllocationMethod.PRO_RATA, List.of(new SubAccount("BAD", -1.0)));
     var registry = new SubAccountRegistry(config);
     assertThatThrownBy(registry::validate)
         .isInstanceOf(IllegalStateException.class)
@@ -61,8 +60,7 @@ class SubAccountRegistryTest {
 
   @Test
   void rejectsBlankName() {
-    var config =
-        new SubAccountConfig(AllocationMethod.PRO_RATA, List.of(new SubAccount("", 1.0)));
+    var config = new SubAccountConfig(AllocationMethod.PRO_RATA, List.of(new SubAccount("", 1.0)));
     var registry = new SubAccountRegistry(config);
     assertThatThrownBy(registry::validate).isInstanceOf(IllegalStateException.class);
   }

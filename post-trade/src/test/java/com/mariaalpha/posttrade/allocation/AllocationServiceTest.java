@@ -40,8 +40,7 @@ class AllocationServiceTest {
     registry.validate();
     repository = Mockito.mock(AllocationRepository.class);
     metrics = new AllocationMetrics(new SimpleMeterRegistry());
-    service =
-        new AllocationService(registry, new AllocationCalculator(), repository, metrics);
+    service = new AllocationService(registry, new AllocationCalculator(), repository, metrics);
     Mockito.when(repository.saveAll(any())).thenAnswer(inv -> new ArrayList<>(inv.getArgument(0)));
   }
 
@@ -68,8 +67,7 @@ class AllocationServiceTest {
         .allSatisfy(e -> assertThat(e.getOrderId()).isEqualTo(orderId))
         .allSatisfy(e -> assertThat(e.getSymbol()).isEqualTo("AAPL"))
         .allSatisfy(e -> assertThat(e.getSide()).isEqualTo(Side.BUY))
-        .allSatisfy(
-            e -> assertThat(e.getAllocationMethod()).isEqualTo(AllocationMethod.PRO_RATA))
+        .allSatisfy(e -> assertThat(e.getAllocationMethod()).isEqualTo(AllocationMethod.PRO_RATA))
         .allSatisfy(
             e ->
                 assertThat(e.getAllocatedAvgPrice())
@@ -90,8 +88,7 @@ class AllocationServiceTest {
     ArgumentCaptor<List<AllocationEntity>> captor = ArgumentCaptor.forClass(List.class);
     verify(repository).saveAll(captor.capture());
     assertThat(captor.getValue())
-        .allSatisfy(
-            e -> assertThat(e.getAllocationMethod()).isEqualTo(AllocationMethod.FIFO));
+        .allSatisfy(e -> assertThat(e.getAllocationMethod()).isEqualTo(AllocationMethod.FIFO));
   }
 
   @Test
@@ -103,16 +100,14 @@ class AllocationServiceTest {
     ArgumentCaptor<List<AllocationEntity>> captor = ArgumentCaptor.forClass(List.class);
     verify(repository).saveAll(captor.capture());
     assertThat(captor.getValue())
-        .allSatisfy(
-            e -> assertThat(e.getAllocationMethod()).isEqualTo(AllocationMethod.PRO_RATA));
+        .allSatisfy(e -> assertThat(e.getAllocationMethod()).isEqualTo(AllocationMethod.PRO_RATA));
   }
 
   @Test
   void rejectsUnconfiguredRegistry() {
     var empty = new SubAccountRegistry(new SubAccountConfig(null, null));
     empty.validate();
-    var bareService =
-        new AllocationService(empty, new AllocationCalculator(), repository, metrics);
+    var bareService = new AllocationService(empty, new AllocationCalculator(), repository, metrics);
     assertThatThrownBy(
             () ->
                 bareService.allocate(

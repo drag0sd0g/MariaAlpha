@@ -1,0 +1,44 @@
+meta {
+  name: Run Allocation
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/allocations/run
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "orderId": "00000000-0000-0000-0000-000000000001",
+    "symbol": "AAPL",
+    "side": "BUY",
+    "parentFilledQuantity": 1000,
+    "parentAvgPrice": 178.42
+  }
+}
+
+docs {
+  Allocates the parent's 1000-share fill across the configured sub-accounts.
+  Returns 201 + the per-sub-account split — at the default 50/30/20 weights,
+  PRO_RATA gives HOUSE 500 / HEDGE_FUND_A 300 / HEDGE_FUND_B 200. Pass
+  `"method": "FIFO"` to switch to waterfall allocation. Re-running with the
+  same orderId is idempotent: the prior rows are deleted before the new ones
+  are written, so re-fills + method changes are safe.
+
+  400 on invalid input (zero quantity, missing fields). 503 if the
+  sub-account roster is unconfigured.
+}
+
+script:post-response {
+  if (res.status === 201 && res.body && res.body[0] && res.body[0].orderId) {
+    bru.setVar("lastAllocatedOrderId", res.body[0].orderId);
+  }
+}

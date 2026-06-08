@@ -1,0 +1,22 @@
+meta {
+  name: List Sub-Accounts
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/allocations/sub-accounts
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Returns the configured sub-account roster (roadmap 3.4.2). The
+  `defaultMethod` is applied when `POST /api/allocations/run` omits the
+  `method` field; the `subAccounts[]` list is returned in declaration order
+  (important — FIFO depends on it).
+}

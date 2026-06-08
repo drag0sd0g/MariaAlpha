@@ -53,10 +53,7 @@ class AllocationControllerTest {
   void runReturns201AndPersistedAllocations() throws Exception {
     UUID orderId = UUID.randomUUID();
     when(service.allocate(any()))
-        .thenReturn(
-            List.of(
-                entity(orderId, "HOUSE", "500"),
-                entity(orderId, "HF_A", "500")));
+        .thenReturn(List.of(entity(orderId, "HOUSE", "500"), entity(orderId, "HF_A", "500")));
     var request =
         new AllocationRequestDto(
             orderId, "AAPL", Side.BUY, new BigDecimal("1000"), new BigDecimal("178.42"), null);
@@ -77,12 +74,7 @@ class AllocationControllerTest {
         .thenThrow(new IllegalArgumentException("parentFilledQuantity must be > 0"));
     var request =
         new AllocationRequestDto(
-            UUID.randomUUID(),
-            "AAPL",
-            Side.BUY,
-            BigDecimal.ZERO,
-            new BigDecimal("178.42"),
-            null);
+            UUID.randomUUID(), "AAPL", Side.BUY, BigDecimal.ZERO, new BigDecimal("178.42"), null);
     mockMvc
         .perform(
             post("/api/allocations/run")

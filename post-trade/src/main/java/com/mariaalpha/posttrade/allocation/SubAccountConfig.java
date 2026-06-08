@@ -8,8 +8,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *
  * <p>For the MVP, sub-accounts are statically configured under {@code post-trade.allocation}.
  * Production deployments would back this with a desk-management service or vendor data; the
- * abstraction is intentionally shallow so adding a richer source later means swapping the
- * {@link SubAccountRegistry} bean.
+ * abstraction is intentionally shallow so adding a richer source later means swapping the {@link
+ * SubAccountRegistry} bean.
  *
  * <p>The {@code defaultMethod} applies when an allocation request doesn't specify one. Per-account
  * {@code weight} is unitless: pro-rata divides by the sum of weights, FIFO interprets weight as a

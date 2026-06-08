@@ -48,8 +48,8 @@ public record RiskLimitsConfig(
 
   /**
    * Legacy constructor for call sites that predate the VaR (3.5.1) and correlated-positions (3.5.2)
-   * fields. Defaults all four new knobs to a self-disabling value (zero limits, empty cluster
-   * list) — existing tests stay green without touching them.
+   * fields. Defaults all four new knobs to a self-disabling value (zero limits, empty cluster list)
+   * — existing tests stay green without touching them.
    */
   public RiskLimitsConfig(
       long maxOrderNotional,

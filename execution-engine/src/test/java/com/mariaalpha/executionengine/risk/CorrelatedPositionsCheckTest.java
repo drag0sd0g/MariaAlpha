@@ -35,8 +35,7 @@ class CorrelatedPositionsCheckTest {
   void setUp() {
     tracker = mock(MarketStateTracker.class);
     positions = mock(PositionTracker.class);
-    check =
-        new CorrelatedPositionsCheck(configWith(DEFAULT_CLUSTERS), tracker, positions);
+    check = new CorrelatedPositionsCheck(configWith(DEFAULT_CLUSTERS), tracker, positions);
   }
 
   @Test

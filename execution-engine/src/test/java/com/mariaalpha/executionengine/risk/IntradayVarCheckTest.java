@@ -42,10 +42,10 @@ class IntradayVarCheckTest {
 
   /** Sanity-check the inlined z-score table against the standard normal reference values. */
   @Test
-  void zScoreMatchesStandardConfidenceLevels() {
-    assertThat(IntradayVarCheck.zScore(0.95)).isCloseTo(1.6449, within(0.001));
-    assertThat(IntradayVarCheck.zScore(0.99)).isCloseTo(2.3264, within(0.005));
-    assertThat(IntradayVarCheck.zScore(0.90)).isCloseTo(1.2816, within(0.005));
+  void zscoreMatchesStandardConfidenceLevels() {
+    assertThat(IntradayVarCheck.zscore(0.95)).isCloseTo(1.6449, within(0.001));
+    assertThat(IntradayVarCheck.zscore(0.99)).isCloseTo(2.3264, within(0.005));
+    assertThat(IntradayVarCheck.zscore(0.90)).isCloseTo(1.2816, within(0.005));
   }
 
   @Test

@@ -70,8 +70,7 @@ class AllocationRepositoryIT {
     UUID orderId = UUID.randomUUID();
     repository.save(entity(orderId, "HOUSE", "AAPL", "500"));
     org.junit.jupiter.api.Assertions.assertThrows(
-        Exception.class,
-        () -> repository.saveAndFlush(entity(orderId, "HOUSE", "AAPL", "100")));
+        Exception.class, () -> repository.saveAndFlush(entity(orderId, "HOUSE", "AAPL", "100")));
   }
 
   private static AllocationEntity entity(

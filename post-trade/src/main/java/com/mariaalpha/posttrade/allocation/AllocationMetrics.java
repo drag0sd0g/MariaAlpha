@@ -21,7 +21,8 @@ public class AllocationMetrics {
     this.registry = registry;
   }
 
-  public void recordRun(String symbol, AllocationMethod method, int allocationCount, double totalShares) {
+  public void recordRun(
+      String symbol, AllocationMethod method, int allocationCount, double totalShares) {
     Counter.builder(RUNS_TOTAL)
         .description("Total allocation runs")
         .tag("symbol", symbol)

@@ -74,7 +74,8 @@ public class SymbolReferenceData {
   /**
    * Annualised volatility of log-returns (decimal — 0.25 == 25%/yr) for {@code symbol}, or {@code
    * defaults.annualizedVolatility()} if unknown. {@code 0.0} means "vol unknown" — the VaR check
-   * treats that as a zero risk contribution so missing reference data never inflates the projection.
+   * treats that as a zero risk contribution so missing reference data never inflates the
+   * projection.
    */
   public double annualizedVolatilityOf(String symbol) {
     return bySymbol.getOrDefault(symbol, defaults).annualizedVolatility();

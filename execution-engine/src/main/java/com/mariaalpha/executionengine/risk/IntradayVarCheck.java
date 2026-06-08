@@ -74,10 +74,10 @@ public class IntradayVarCheck implements RiskCheck {
           name(), "Market data unavailable for symbol: " + order.getSymbol());
     }
 
-    double zScore = zScore(config.varConfidenceLevel());
+    double zscore = zscore(config.varConfidenceLevel());
     double sqrtT = Math.sqrt(Math.max(config.varTradingDaysPerYear(), 1.0));
 
-    var current = portfolioVar(positionTracker.snapshot(), zScore, sqrtT);
+    var current = portfolioVar(positionTracker.snapshot(), zscore, sqrtT);
     var orderNotional = market.lastTradePrice().multiply(BigDecimal.valueOf(order.getQuantity()));
     var projected =
         projectedVar(
@@ -85,7 +85,7 @@ public class IntradayVarCheck implements RiskCheck {
             order.getSymbol(),
             order.getSide(),
             orderNotional,
-            zScore,
+            zscore,
             sqrtT);
 
     if (projected.compareTo(BigDecimal.valueOf(limit)) > 0 && projected.compareTo(current) > 0) {
@@ -101,10 +101,9 @@ public class IntradayVarCheck implements RiskCheck {
   }
 
   /** Sum-of-absolutes VaR across the existing portfolio (no diversification credit). */
-  private BigDecimal portfolioVar(
-      Map<String, BigDecimal> positions, double zScore, double sqrtT) {
+  private BigDecimal portfolioVar(Map<String, BigDecimal> positions, double zscore, double sqrtT) {
     return positions.entrySet().stream()
-        .map(e -> positionVar(e.getKey(), e.getValue(), zScore, sqrtT))
+        .map(e -> positionVar(e.getKey(), e.getValue(), zscore, sqrtT))
         .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
@@ -114,7 +113,7 @@ public class IntradayVarCheck implements RiskCheck {
       String orderSymbol,
       Side side,
       BigDecimal orderNotional,
-      double zScore,
+      double zscore,
       double sqrtT) {
     var existing = positions.getOrDefault(orderSymbol, BigDecimal.ZERO);
     var delta = side == Side.BUY ? orderNotional : orderNotional.negate();
@@ -125,19 +124,19 @@ public class IntradayVarCheck implements RiskCheck {
       if (entry.getKey().equals(orderSymbol)) {
         continue;
       }
-      projected = projected.add(positionVar(entry.getKey(), entry.getValue(), zScore, sqrtT));
+      projected = projected.add(positionVar(entry.getKey(), entry.getValue(), zscore, sqrtT));
     }
-    projected = projected.add(positionVar(orderSymbol, newPosition, zScore, sqrtT));
+    projected = projected.add(positionVar(orderSymbol, newPosition, zscore, sqrtT));
     return projected;
   }
 
   private BigDecimal positionVar(
-      String symbol, BigDecimal positionNotional, double zScore, double sqrtT) {
+      String symbol, BigDecimal positionNotional, double zscore, double sqrtT) {
     double sigmaAnn = refData.annualizedVolatilityOf(symbol);
     if (sigmaAnn <= 0 || positionNotional.signum() == 0) {
       return BigDecimal.ZERO;
     }
-    double scalar = sigmaAnn / sqrtT * zScore;
+    double scalar = sigmaAnn / sqrtT * zscore;
     return positionNotional.abs().multiply(BigDecimal.valueOf(scalar));
   }
 
@@ -146,7 +145,7 @@ public class IntradayVarCheck implements RiskCheck {
    * 26.2.23 rational approximation — accurate to ~4.5×10⁻⁴, plenty for VaR thresholds. Defaults to
    * the 95% z-score (1.645) when the configured level is out of range.
    */
-  static double zScore(double confidenceLevel) {
+  static double zscore(double confidenceLevel) {
     double p = 1.0 - confidenceLevel;
     if (p <= 0 || p >= 1) {
       return 1.6448536;

@@ -55,6 +55,7 @@ Run a request with the Send button or with `Cmd-Enter`.
 | `10 - Analytics` | Analytics Service | toxicity, PnL attribution, axes (publish/list/cancel/match) |
 | `11 - Options` | Strategy Engine | Black-Scholes price+Greeks, Greeks-only, implied volatility |
 | `12 - Pegged` | Execution Engine | PEGGED submit (midpoint / primary), pegged-progress |
+| `13 - Allocations` | Post-Trade | sub-account roster, run allocation, lookup by order / sub-account |
 | `direct-services/` | various | direct (non-gateway) calls for debugging |
 
 The market-data-gateway intentionally has no REST surface — its public API is
