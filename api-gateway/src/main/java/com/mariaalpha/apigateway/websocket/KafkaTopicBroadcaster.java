@@ -103,6 +103,18 @@ public class KafkaTopicBroadcaster {
     forward("analytics.risk-alerts", record);
   }
 
+  // Roadmap 3.4.5 — algo-execution progress: CREATED / CANCELLED / SIGNAL_EMITTED events
+  // emitted by strategy-engine each time an algo order's lifecycle advances. Subscribers see
+  // them on /ws/algo.
+  @KafkaListener(
+      topics = "${mariaalpha.gateway.websocket.endpoints.algo.topic}",
+      groupId = "api-gateway-${random.uuid}-algo",
+      autoStartup = "true",
+      properties = {"auto.offset.reset=latest"})
+  void onAlgoProgress(ConsumerRecord<String, String> record) {
+    forward("algo.progress", record);
+  }
+
   private void forward(String topic, ConsumerRecord<String, String> record) {
     Sinks.Many<String> sink = sinks.get(topic);
     if (sink == null) {

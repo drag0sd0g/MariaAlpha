@@ -7,6 +7,8 @@ import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.mariaalpha.strategyengine.algo.AlgoOrderRegistry;
+import com.mariaalpha.strategyengine.algo.AlgoProgressPublisher;
 import com.mariaalpha.strategyengine.config.KafkaConfig;
 import com.mariaalpha.strategyengine.model.OrderSignal;
 import com.mariaalpha.strategyengine.model.OrderType;
@@ -23,8 +25,11 @@ class SignalPublisherTest {
   void publishSendsJsonToSignalsTopic() {
     var kafkaTemplate = (KafkaTemplate<String, String>) mock(KafkaTemplate.class);
     var objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
-    var config = new KafkaConfig("market-data.ticks", "strategy.signals");
-    var publisher = new SignalPublisher(kafkaTemplate, objectMapper, config);
+    var config = new KafkaConfig("market-data.ticks", "strategy.signals", "algo.progress");
+    var registry = new AlgoOrderRegistry();
+    var progressPublisher = mock(AlgoProgressPublisher.class);
+    var publisher =
+        new SignalPublisher(kafkaTemplate, objectMapper, config, registry, progressPublisher);
     var signal =
         new OrderSignal(
             "AAPL",

@@ -27,5 +27,7 @@ create_topic "analytics.tca"         1 259200000   # 3 days
 create_topic "analytics.risk-alerts" 1 259200000   # 3 days
 create_topic "routing.decisions"     1 259200000   # 3 days
 create_topic "orders.dlq"            1 2592000000  # 30 days
+# Roadmap 3.4.5 — algo-execution lifecycle + signal events for WebSocket consumers.
+create_topic "algo.progress"         1 259200000   # 3 days
 
 echo "All topics created successfully."

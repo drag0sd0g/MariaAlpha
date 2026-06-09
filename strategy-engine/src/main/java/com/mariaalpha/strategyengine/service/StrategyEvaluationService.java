@@ -8,6 +8,7 @@ import com.mariaalpha.strategyengine.model.MarketTick;
 import com.mariaalpha.strategyengine.publisher.SignalPublisher;
 import com.mariaalpha.strategyengine.routing.RegimeBasedStrategySelector;
 import com.mariaalpha.strategyengine.routing.SymbolStrategyRouter;
+import com.mariaalpha.strategyengine.sessions.TradingHoursService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class StrategyEvaluationService {
   private final MlSignalGate mlGate;
   private final SignalPublisher signalPublisher;
   private final StrategyMetrics metrics;
+  private final TradingHoursService tradingHoursService;
 
   public StrategyEvaluationService(
       SymbolStrategyRouter router,
@@ -30,16 +32,25 @@ public class StrategyEvaluationService {
       MlSignalClient mlClient,
       MlSignalGate mlGate,
       SignalPublisher signalPublisher,
-      StrategyMetrics metrics) {
+      StrategyMetrics metrics,
+      TradingHoursService tradingHoursService) {
     this.router = router;
     this.regimeSelector = regimeSelector;
     this.mlClient = mlClient;
     this.mlGate = mlGate;
     this.signalPublisher = signalPublisher;
     this.metrics = metrics;
+    this.tradingHoursService = tradingHoursService;
   }
 
   public void evaluate(MarketTick tick) {
+    // Roadmap 3.1.3 — drop ticks for markets that are closed at the tick's timestamp so
+    // indicator-driven strategies (Momentum's EMAs / RSI) don't drift on out-of-hours quotes.
+    // The gate is a soft no-op when disabled in config, preserving pre-3.1.3 behaviour.
+    if (!tradingHoursService.isMarketOpen(tick.symbol(), tick.timestamp())) {
+      metrics.recordTickSuppressed(tick.symbol(), "market_closed");
+      return;
+    }
     // FR-17: when regime auto-select is enabled and the ML service produces a high-confidence
     // regime, route to the strategy the regime prescribes. Otherwise fall back to the manual
     // SymbolStrategyRouter binding.
