@@ -11,7 +11,8 @@ class CurrencyConfigTest {
   @Test
   void currencyForReturnsOverrideWhenSymbolPresent() {
     var config =
-        new CurrencyConfig("USD", Map.of("7203", "JPY", "SAP", "EUR"), List.of("USD", "JPY", "EUR"));
+        new CurrencyConfig(
+            "USD", Map.of("7203", "JPY", "SAP", "EUR"), List.of("USD", "JPY", "EUR"));
     assertThat(config.currencyFor("7203")).isEqualTo("JPY");
     assertThat(config.currencyFor("SAP")).isEqualTo("EUR");
   }

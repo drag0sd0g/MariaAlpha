@@ -9,10 +9,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 
 /**
- * In-memory store of active and recently-terminal algo orders (roadmap 3.4.4). A single instance is
- * sufficient because the strategy-engine itself is the source of truth for live algos — once
- * persistence is needed (e.g. crash recovery, multi-replica HA), this would move behind a repository
- * interface backed by Postgres alongside the orders table.
+ * In-memory store of active and recently-terminal algo orders (roadmap 3.4.4). A single instance
+ * is sufficient because the strategy-engine itself is the source of truth for live algos — once
+ * persistence is needed (e.g. crash recovery, multi-replica HA), this would move behind a
+ * repository interface backed by Postgres alongside the orders table.
  *
  * <p>The registry deliberately retains terminal (cancelled / completed) algos so a downstream UI
  * can replay the final state via {@code GET /api/algo/orders/{id}} after the WebSocket event has

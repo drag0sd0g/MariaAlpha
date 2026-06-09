@@ -656,4 +656,44 @@
         <Class name="com.mariaalpha.ordermanager.controller.dto.FillForReconResponse"/>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
     </Match>
+
+    <!-- Roadmap 3.5.3 — currency exposure (config record + DTO; defensive copies done in
+         CurrencyConfig's compact ctor, exposures are read-side only). -->
+    <Match>
+        <Class name="com.mariaalpha.ordermanager.config.CurrencyConfig"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.ordermanager.controller.dto.CurrencyExposureResponse"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!-- Roadmap 3.1.3 — multi-market trading hours config. Map normalisation is defensive. -->
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.sessions.TradingHoursConfig"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!-- Roadmap 3.4.4 / 3.4.5 — algo execution domain. Parameters are forwarded verbatim from
+         REST → strategy; the immutable contract is enforced at the strategy boundary. -->
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.algo.AlgoOrder"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.algo.AlgoOrderRequest"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.algo.AlgoOrderResponse"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.algo.AlgoProgressPublisher"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.algo.AlgoOrderService"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
 </FindBugsFilter>

@@ -13,8 +13,9 @@ import java.util.UUID;
  *
  * <p>{@code eventType} carries the transition that caused the emission ({@code CREATED} when the
  * algo order is submitted, {@code CANCELLED} on DELETE, {@code SIGNAL_EMITTED} when the bound
- * strategy publishes a signal). The signal-level fields ({@code signalSide}, {@code signalQuantity},
- * {@code signalLimitPrice}) are populated only on {@code SIGNAL_EMITTED}; null otherwise.
+ * strategy publishes a signal). The signal-level fields ({@code signalSide}, {@code
+ * signalQuantity}, {@code signalLimitPrice}) are populated only on {@code SIGNAL_EMITTED}; null
+ * otherwise.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record AlgoProgressEvent(

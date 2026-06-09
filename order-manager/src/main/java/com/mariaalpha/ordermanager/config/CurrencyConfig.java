@@ -11,8 +11,8 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  *
  * <p>Each symbol that ever appears in a fill must resolve to one of the {@link #known()}
  * currencies; symbols not explicitly listed under {@link #overrides()} fall back to {@link
- * #defaultCurrency()}. Currency codes are normalised to uppercase ISO-4217 (e.g. {@code USD}, {@code
- * EUR}, {@code JPY}). FX conversion is deliberately not part of this config — exposures are
+ * #defaultCurrency()}. Currency codes are normalised to uppercase ISO-4217 (e.g. {@code USD},
+ * {@code EUR}, {@code JPY}). FX conversion is deliberately not part of this config — exposures are
  * reported in their native currency. A future ticket can add a rates map for portfolio-base
  * conversion.
  *
