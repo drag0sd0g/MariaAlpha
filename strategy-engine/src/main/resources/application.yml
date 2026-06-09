@@ -23,6 +23,8 @@ strategy-engine:
   kafka:
     ticks-topic: market-data.ticks
     signals-topic: strategy.signals
+    # Roadmap 3.4.5 — algo-execution lifecycle + signal events for WebSocket consumers.
+    algo-progress-topic: algo.progress
   ml:
     host: ${ML_SERVICE_HOST:localhost}
     port: ${ML_SERVICE_PORT:50051}
@@ -96,6 +98,49 @@ strategy-engine:
           sector: TECH
           beta: 1.65
           adv: 250000000
+  # Roadmap 3.1.3 — multi-market trading hours. Strategies skip ticks (and signal evaluation)
+  # for any symbol whose resolved market is closed at the tick's timestamp. The soft gate keeps
+  # indicator-driven strategies (Momentum's EMAs) from drifting on after-hours quotes.
+  #
+  # `enabled: true` is safe for the current US-equities universe — every default symbol resolves
+  # to NYSE, and the simulator CSV ticks land at 14:30 UTC ≈ 10:30 ET, inside the regular session.
+  # Set `enabled: false` to bypass the gate entirely while debugging.
+  trading-hours:
+    enabled: true
+    default-market: NYSE
+    markets:
+      NYSE:
+        timezone: America/New_York
+        sessions:
+          - open: "09:30"
+            close: "16:00"
+        trading-days: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY]
+        holidays: []
+      NASDAQ:
+        timezone: America/New_York
+        sessions:
+          - open: "09:30"
+            close: "16:00"
+        trading-days: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY]
+        holidays: []
+      LSE:
+        timezone: Europe/London
+        sessions:
+          - open: "08:00"
+            close: "16:30"
+        trading-days: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY]
+        holidays: []
+      # TSE has the morning Zenba and afternoon Goba split by a one-hour break (12:30 → 12:30 JST).
+      TSE:
+        timezone: Asia/Tokyo
+        sessions:
+          - open: "09:00"
+            close: "11:30"
+          - open: "12:30"
+            close: "15:30"
+        trading-days: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY]
+        holidays: []
+    symbol-overrides: {}
 
 management:
   server:

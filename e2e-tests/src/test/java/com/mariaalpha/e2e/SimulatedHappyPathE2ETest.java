@@ -102,6 +102,16 @@ class SimulatedHappyPathE2ETest {
         assertThat(portfolio.get("openPositions").asInt()).isGreaterThanOrEqualTo(1);
         assertThat(portfolio.has("totalPnl")).isTrue();
 
+        // Currency exposure (roadmap 3.5.3) — all simulator symbols are USD-denominated, so the
+        // response always carries a single USD row that includes the AAPL VWAP fill.
+        var exposure = httpGetAndCheck("/api/portfolio/currency-exposure");
+        assertThat(exposure.get("rows").isArray()).isTrue();
+        var usdRow = findCurrencyRow(exposure, "USD");
+        assertThat(usdRow).as("USD exposure row must be present after VWAP fill").isNotNull();
+        assertThat(new BigDecimal(usdRow.get("grossExposure").asText()))
+                .as("USD gross exposure ≥ 100 shares × ~$178.5 = $17.8k after VWAP fill")
+                .isGreaterThanOrEqualTo(new BigDecimal("17000"));
+
         var status = httpGetAndCheck("/api/execution/status");
         assertThat(status.get("tradingHalted").asBoolean())
                 .as("daily loss limit should not have tripped on a single 100-share fill")
@@ -495,6 +505,15 @@ class SimulatedHappyPathE2ETest {
 
     private static BigDecimal netQuantity(JsonNode position){
         return new BigDecimal(position.get("netQuantity").asText());
+    }
+
+    private static JsonNode findCurrencyRow(JsonNode exposure, String currency) {
+        for (var row : exposure.get("rows")) {
+            if (currency.equals(row.get("currency").asText())) {
+                return row;
+            }
+        }
+        return null;
     }
 
     /**

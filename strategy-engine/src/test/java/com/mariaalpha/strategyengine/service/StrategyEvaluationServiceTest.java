@@ -27,6 +27,7 @@ import com.mariaalpha.strategyengine.model.Side;
 import com.mariaalpha.strategyengine.publisher.SignalPublisher;
 import com.mariaalpha.strategyengine.routing.RegimeBasedStrategySelector;
 import com.mariaalpha.strategyengine.routing.SymbolStrategyRouter;
+import com.mariaalpha.strategyengine.sessions.TradingHoursService;
 import com.mariaalpha.strategyengine.strategy.TradingStrategy;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -47,6 +48,7 @@ public class StrategyEvaluationServiceTest {
   @Mock private SignalPublisher signalPublisher;
   @Mock private StrategyMetrics metrics;
   @Mock private TradingStrategy strategy;
+  @Mock private TradingHoursService tradingHoursService;
 
   private StrategyEvaluationService underTest;
 
@@ -63,10 +65,12 @@ public class StrategyEvaluationServiceTest {
     var gate = new MlSignalGate(config);
     underTest =
         new StrategyEvaluationService(
-            router, regimeSelector, mlClient, gate, signalPublisher, metrics);
+            router, regimeSelector, mlClient, gate, signalPublisher, metrics, tradingHoursService);
     // Lenient because the regime-selector test overrides this and skips the router path.
     lenient().when(regimeSelector.selectFor(SYMBOL)).thenReturn(Optional.empty());
     lenient().when(router.getActiveStrategy(SYMBOL)).thenReturn(Optional.of(strategy));
+    // Most tests assume the market is open — the trading-hours-gate test overrides this.
+    lenient().when(tradingHoursService.isMarketOpen(any(), any())).thenReturn(true);
   }
 
   @Test
@@ -128,7 +132,13 @@ public class StrategyEvaluationServiceTest {
     var permissiveGate = new MlSignalGate(permissiveConfig);
     var permissiveService =
         new StrategyEvaluationService(
-            router, regimeSelector, mlClient, permissiveGate, signalPublisher, metrics);
+            router,
+            regimeSelector,
+            mlClient,
+            permissiveGate,
+            signalPublisher,
+            metrics,
+            tradingHoursService);
 
     when(strategy.name()).thenReturn("VWAP");
     when(strategy.evaluate(SYMBOL)).thenReturn(Optional.of(BUY_SIGNAL));
@@ -149,7 +159,13 @@ public class StrategyEvaluationServiceTest {
     var sizingGate = new MlSignalGate(sizingConfig);
     var sizingService =
         new StrategyEvaluationService(
-            router, regimeSelector, mlClient, sizingGate, signalPublisher, metrics);
+            router,
+            regimeSelector,
+            mlClient,
+            sizingGate,
+            signalPublisher,
+            metrics,
+            tradingHoursService);
 
     when(strategy.name()).thenReturn("VWAP");
     when(strategy.evaluate(SYMBOL)).thenReturn(Optional.of(BUY_SIGNAL));
@@ -179,6 +195,16 @@ public class StrategyEvaluationServiceTest {
     verify(metrics).recordSignal("MOMENTUM", Side.BUY);
     // Manual router should not be consulted when the regime selector returns a strategy.
     verify(router, never()).getActiveStrategy(SYMBOL);
+  }
+
+  @Test
+  void evaluateSuppressesTickWhenMarketClosed() {
+    when(tradingHoursService.isMarketOpen(eq(SYMBOL), any())).thenReturn(false);
+    underTest.evaluate(tick(SYMBOL));
+    verify(metrics).recordTickSuppressed(SYMBOL, "market_closed");
+    verify(router, never()).getActiveStrategy(any());
+    verify(regimeSelector, never()).selectFor(any());
+    verify(signalPublisher, never()).publish(any());
   }
 
   private static MarketTick tick(String symbol) {

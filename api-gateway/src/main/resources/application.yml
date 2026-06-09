@@ -22,7 +22,7 @@ spring:
             - id: strategies
               uri: ${STRATEGY_ENGINE_URL:http://localhost:8082}
               predicates:
-                - Path=/api/strategies/**,/api/rfq/**,/api/options/**
+                - Path=/api/strategies/**,/api/rfq/**,/api/options/**,/api/algo/**
 
             - id: orders
               uri: ${ORDER_MANAGER_URL:http://localhost:8086}
@@ -103,6 +103,11 @@ mariaalpha:
           path: /ws/alerts
           topic: analytics.risk-alerts
           filter-key: symbol
+        # Roadmap 3.4.5 — algo-execution lifecycle + signal events.
+        algo:
+          path: /ws/algo
+          topic: algo.progress
+          filter-key: algoOrderId
       backpressure-buffer-size: 1024
 
 management:

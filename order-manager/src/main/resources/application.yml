@@ -46,6 +46,13 @@ order-manager:
     positions-updates-topic: positions.updates
   portfolio:
     initial-cash: 1000000.00
+  # Currency reference data for /api/portfolio/currency-exposure (roadmap 3.5.3).
+  # All simulator symbols are USD-denominated; overrides ship dormant so a Phase 3 IBKR
+  # adapter (3.1.x) or a TSE-listed symbol (3.3.x) can be added by config alone.
+  currency:
+    default-currency: USD
+    known: [USD, EUR, JPY, GBP]
+    overrides: {}
   # Distributed position cache. Disable with order-manager.redis.enabled=false
   # to run without a Redis instance — Kafka remains authoritative for downstream consumers.
   redis:
