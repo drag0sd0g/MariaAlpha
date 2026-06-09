@@ -49,4 +49,17 @@ class SymbolStrategyRouterTest {
     router.setActiveStrategy("MSFT", "VWAP");
     assertThat(router.routedSymbols()).containsExactlyInAnyOrder("AAPL", "MSFT");
   }
+
+  @Test
+  void clearActiveStrategyRemovesPreviouslyBoundSymbol() {
+    router.setActiveStrategy("AAPL", "VWAP");
+    assertThat(router.clearActiveStrategy("AAPL")).isTrue();
+    assertThat(router.getActiveStrategyName("AAPL")).isEmpty();
+    assertThat(router.routedSymbols()).doesNotContain("AAPL");
+  }
+
+  @Test
+  void clearActiveStrategyReturnsFalseForUnboundSymbol() {
+    assertThat(router.clearActiveStrategy("AAPL")).isFalse();
+  }
 }

@@ -1,0 +1,8 @@
+# Thin CI/local image — see market-data-gateway/Dockerfile.local for rationale.
+# Expects api-gateway/build/libs/api-gateway.jar to exist (run
+# `./gradlew :api-gateway:bootJar` first).
+FROM eclipse-temurin:21-jre-jammy
+WORKDIR /app
+COPY api-gateway/build/libs/api-gateway.jar app.jar
+EXPOSE 8080 8091
+ENTRYPOINT ["java", "-jar", "app.jar"]

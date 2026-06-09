@@ -1,0 +1,13 @@
+# Thin CI/local image: assumes the bootJar was built host-side via
+# `./gradlew :market-data-gateway:bootJar` and the jar lives at
+# market-data-gateway/build/libs/market-data-gateway.jar.
+#
+# Used by docker-compose.ci.yml to avoid re-running Gradle inside Docker for every
+# service — the host gradle invocation gets full cache reuse via gradle/actions/setup-gradle,
+# whereas the original Dockerfile starts from `gradle:8.12-jdk21` and re-downloads ~500 MB
+# of dependencies per service per CI run.
+FROM eclipse-temurin:21-jre-jammy
+WORKDIR /app
+COPY market-data-gateway/build/libs/market-data-gateway.jar app.jar
+EXPOSE 8079 8081 50052
+ENTRYPOINT ["java", "-jar", "app.jar"]

@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -48,6 +49,12 @@ public class StrategyController {
         .getActiveStrategyName(symbol)
         .map(ResponseEntity::ok)
         .orElse(ResponseEntity.notFound().build());
+  }
+
+  @DeleteMapping("/{symbol}")
+  public ResponseEntity<Void> clearActiveStrategy(@PathVariable String symbol) {
+    boolean removed = router.clearActiveStrategy(symbol);
+    return removed ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
   }
 
   @GetMapping("/{name}/parameters")

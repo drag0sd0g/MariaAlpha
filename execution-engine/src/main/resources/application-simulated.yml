@@ -4,6 +4,18 @@ execution-engine:
     slippage-bps: 2
     partial-fill-ratio: 1.0
     venue: SIMULATED
+  # Tighten the simulated internal-crossing knobs so every submitted order receives a
+  # synthetic counterparty immediately. The stochastic 0.6/0.30 defaults from application.yml
+  # are realistic for prod-like load-testing but cause e2e flakes: under background contention
+  # (e.g. a stateful strategy oscillating on another symbol), a 100-share VWAP child can sit
+  # in the queue past the 40-60 s await timeout. The probabilistic behaviour is still covered
+  # by InternalCrossingEngineTest and the integration test, both of which drive the engine
+  # directly without going through this profile.
+  internal-crossing:
+    cross-probability-on-submit: 1.0
+    match-probability-per-tick: 1.0
+    tick-interval-ms: 20
+    fill-latency-ms: 1
   sor:
     venues:
       - name: SIMULATED

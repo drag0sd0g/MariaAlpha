@@ -37,7 +37,7 @@ spring:
             - id: post-trade
               uri: ${POST_TRADE_URL:http://localhost:8088}
               predicates:
-                - Path=/api/tca/**,/api/recon/**
+                - Path=/api/tca/**,/api/recon/**,/api/allocations/**
 
             - id: market-data
               uri: ${MARKET_DATA_GATEWAY_URL:http://localhost:8079}

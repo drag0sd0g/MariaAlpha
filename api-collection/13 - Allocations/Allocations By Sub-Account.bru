@@ -1,0 +1,20 @@
+meta {
+  name: Allocations By Sub-Account
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/allocations/sub-account/HOUSE
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Returns every allocation row for a sub-account, newest first. Useful for
+  per-account reporting and book-of-record reconciliation.
+}

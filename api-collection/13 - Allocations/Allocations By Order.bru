@@ -1,0 +1,20 @@
+meta {
+  name: Allocations By Order
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/allocations/order/{{lastAllocatedOrderId}}
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Returns every allocation row for a parent order, sub-account name ordered
+  alphabetically. Empty list if the parent hasn't been allocated yet.
+}

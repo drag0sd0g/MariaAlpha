@@ -181,6 +181,21 @@ jobs:
           pip install grpcio-tools==1.70.0 --quiet
           bash proto/generate_python.sh
 
+      # Pre-build all Java service jars once on the host so the warm setup-gradle cache is
+      # reused across modules. Combined with docker-compose.ci.yml + each service's thin
+      # Dockerfile.local this avoids re-running Gradle inside 6 separate Docker contexts
+      # (each of which would otherwise re-download ~500 MB of deps).
+      - name: Pre-build Java service jars
+        run: |
+          ./gradlew \
+            :market-data-gateway:bootJar \
+            :strategy-engine:bootJar \
+            :execution-engine:bootJar \
+            :order-manager:bootJar \
+            :post-trade:bootJar \
+            :api-gateway:bootJar \
+            -x test -x checkstyleMain -x checkstyleTest -x spotbugsMain -x spotbugsTest -x spotlessCheck
+
       - name: Build all service images
         env:
           MARIAALPHA_API_KEY: e2e-test-key
@@ -190,7 +205,7 @@ jobs:
           ALPACA_API_KEY_ID: unused
           ALPACA_API_SECRET_KEY: unused
         run: |
-          docker compose build \
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml build \
             ml-signal-service market-data-gateway strategy-engine \
             execution-engine order-manager post-trade api-gateway
 
@@ -202,6 +217,10 @@ jobs:
           POSTGRES_DB: mariaalpha
           ALPACA_API_KEY_ID: unused
           ALPACA_API_SECRET_KEY: unused
+          # Tells SharedComposeStack to attach docker-compose.ci.yml so testcontainers'
+          # `docker compose up --build` reuses the same thin Dockerfiles we just built above
+          # rather than triggering a full rebuild.
+          MARIAALPHA_E2E_USE_PREBUILT_JARS: "true"
         run: ./gradlew :e2e-tests:test -PincludeTags=e2e --info
 
       - name: Capture compose logs on failure

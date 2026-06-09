@@ -1,0 +1,8 @@
+# Thin CI/local image — see market-data-gateway/Dockerfile.local for rationale.
+# Expects order-manager/build/libs/order-manager.jar to exist (run
+# `./gradlew :order-manager:bootJar` first).
+FROM eclipse-temurin:21-jre-jammy
+WORKDIR /app
+COPY order-manager/build/libs/order-manager.jar app.jar
+EXPOSE 8086 8087
+ENTRYPOINT ["java", "-jar", "app.jar"]

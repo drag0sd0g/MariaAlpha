@@ -1,0 +1,8 @@
+# Thin CI/local image — see market-data-gateway/Dockerfile.local for rationale.
+# Expects strategy-engine/build/libs/strategy-engine.jar to exist (run
+# `./gradlew :strategy-engine:bootJar` first).
+FROM eclipse-temurin:21-jre-jammy
+WORKDIR /app
+COPY strategy-engine/build/libs/strategy-engine.jar app.jar
+EXPOSE 8082 8083
+ENTRYPOINT ["java", "-jar", "app.jar"]

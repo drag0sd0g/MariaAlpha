@@ -21,6 +21,7 @@ docs/
 | Doc | When to read |
 |---|---|
 | [Technical Design Document](technical-design-document.md) | Whole-system view: functional + non-functional requirements, architecture, data model, Kafka topics, scalability, resilience, observability, deployment, roadmap. |
+| [Finance mental map](finance-mental-map.md) | Engineer-friendly reference of every financial concept the project touches — market structure, order taxonomy, execution algos, ML signals, RFQ, risk checks, options Greeks, post-trade, quant primitives. Refresh here before reading any finance-flavoured code. |
 | [Cloud deployment plan](cloud-deployment-plan.md) | Long-form plan for moving the OrbStack-Kubernetes deployment to Oracle Cloud. |
 
 ---

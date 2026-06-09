@@ -1,0 +1,37 @@
+# Compose override for CI and any local run that wants fast image builds.
+#
+# Selects each Java service's `Dockerfile.local`, which is a thin runtime image that copies
+# a host-built bootJar instead of rebuilding it inside Docker. Pair this file with a prior
+# `./gradlew :market-data-gateway:bootJar :strategy-engine:bootJar :execution-engine:bootJar :order-manager:bootJar :post-trade:bootJar :api-gateway:bootJar`
+# so the jars are on disk before `docker compose build` runs.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.ci.yml build
+#   docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
+#
+# In CI the e2e job sets MARIAALPHA_E2E_USE_PREBUILT_JARS=true so SharedComposeStack picks
+# this override up automatically.
+services:
+  market-data-gateway:
+    build:
+      dockerfile: market-data-gateway/Dockerfile.local
+
+  strategy-engine:
+    build:
+      dockerfile: strategy-engine/Dockerfile.local
+
+  execution-engine:
+    build:
+      dockerfile: execution-engine/Dockerfile.local
+
+  order-manager:
+    build:
+      dockerfile: order-manager/Dockerfile.local
+
+  post-trade:
+    build:
+      dockerfile: post-trade/Dockerfile.local
+
+  api-gateway:
+    build:
+      dockerfile: api-gateway/Dockerfile.local

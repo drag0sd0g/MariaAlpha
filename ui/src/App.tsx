@@ -10,6 +10,7 @@ import Options from "@/pages/Options";
 import Strategies from "@/pages/Strategies";
 import Analytics from "@/pages/Analytics";
 import Reconciliation from "@/pages/Reconciliation";
+import Allocations from "@/pages/Allocations";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useAlertStore } from "@/stores/alertStore";
 import { usePositionStore } from "@/stores/positionStore";
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="strategies" element={<Strategies />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="reconciliation" element={<Reconciliation />} />
+          <Route path="allocations" element={<Allocations />} />
         </Route>
       </Routes>
     </>
