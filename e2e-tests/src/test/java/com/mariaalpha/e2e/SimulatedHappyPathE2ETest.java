@@ -167,25 +167,47 @@ class SimulatedHappyPathE2ETest {
     void simulatedCloseTickReachesNvdaPositionWithMocFill() throws Exception {
         bindCloseToNvdaWith45SharesMocOnly();
 
-        var position = awaitPositionAtLeast("NVDA", new BigDecimal("45"), 45);
+        // Gate on the persisted FILLED CLOSE MARKET order rather than a netQuantity == 45 check.
+        // InternalCrossingE2ETest submits 10 × (SELL 10 NVDA, BUY 10 NVDA) against the SAME
+        // shared compose stack, and SOR-routing variation can leave the pairs slightly imbalanced
+        // (e.g. one of the 10 BUYs doesn't land), so the NVDA position seen here is the CLOSE
+        // BUY 45 *plus* whatever residual InternalCrossingE2ETest left behind. The CLOSE path's
+        // correctness is the order's shape (45-share MARKET BUY filled with strategy=CLOSE),
+        // which is invariant to that. Mirrors the pattern simulatedTickReachesPositionWithFillAndPnl
+        // uses (firstFilledVwapAaplBuy).
+        var order = await().atMost(60, TimeUnit.SECONDS)
+                .pollInterval(Duration.ofMillis(500))
+                .ignoreExceptions()
+                .until(this::firstFilledCloseNvdaBuy, Objects::nonNull);
 
-        // The simulated CSV NVDA ticks fall inside the configured pre-close window's MOC zone
-        // (15:55-15:59 ET vs. mocCutoff 15:55), so CLOSE fires the full 45-share parent in one
-        // MARKET (MOC-equivalent) order on the first tick after binding.
-        assertThat(netQuantity(position)).as("NVDA net quantity should reach the 45-share CLOSE parent")
+        assertThat(order.get("side").asText()).isEqualTo("BUY");
+        assertThat(order.get("status").asText()).isEqualTo("FILLED");
+        assertThat(order.get("strategy").asText()).isEqualTo("CLOSE");
+        assertThat(order.get("orderType").asText()).isEqualTo("MARKET");
+        assertThat(new BigDecimal(order.get("quantity").asText()))
+                .as("CLOSE MOC trades the configured 45-share parent in one MARKET clip")
                 .isEqualByComparingTo(new BigDecimal("45"));
 
+        // Position must exist; avgEntryPrice should reflect the CSV NVDA bid/ask band (the CLOSE
+        // BUY is the dominant flow on this symbol so avgEntryPrice is dominated by 875.20).
+        var position = getPosition("NVDA");
+        assertThat(position).as("NVDA position must exist after CLOSE fill").isNotNull();
         var avgEntry = new BigDecimal(position.get("avgEntryPrice").asText());
         assertThat(avgEntry).as("avgEntryPrice within CSV bid/ask span ± slippage")
                 .isBetween(new BigDecimal("875.00"), new BigDecimal("876.00"));
+    }
 
-        var orders = httpGetAndCheck("/api/orders?symbol=NVDA&strategy=CLOSE");
-        assertThat(orders.isArray()).isTrue();
-        assertThat(orders.size()).isGreaterThanOrEqualTo(1);
-        var order = orders.get(0);
-        assertThat(order.get("strategy").asText()).isEqualTo("CLOSE");
-        assertThat(order.get("status").asText()).isEqualTo("FILLED");
-        assertThat(order.get("orderType").asText()).isEqualTo("MARKET");
+    private JsonNode firstFilledCloseNvdaBuy() throws Exception {
+        var orders = httpGetAndCheck("/api/orders?symbol=NVDA&strategy=CLOSE&status=FILLED");
+        if (!orders.isArray()) {
+            return null;
+        }
+        for (var o : orders) {
+            if ("BUY".equals(o.get("side").asText())) {
+                return o;
+            }
+        }
+        return null;
     }
 
     @Test
