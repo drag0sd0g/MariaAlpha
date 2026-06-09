@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -90,6 +91,18 @@ class StrategyControllerTest {
   void getActiveStrategyReturnsNotFoundWhenNoBound() throws Exception {
     when(router.getActiveStrategyName("AAPL")).thenReturn(Optional.empty());
     mockMvc.perform(get("/api/strategies/AAPL/active")).andExpect(status().isNotFound());
+  }
+
+  @Test
+  void clearActiveStrategyReturnsNoContentWhenBindingRemoved() throws Exception {
+    when(router.clearActiveStrategy("AAPL")).thenReturn(true);
+    mockMvc.perform(delete("/api/strategies/AAPL")).andExpect(status().isNoContent());
+  }
+
+  @Test
+  void clearActiveStrategyReturnsNotFoundWhenNothingBound() throws Exception {
+    when(router.clearActiveStrategy("AAPL")).thenReturn(false);
+    mockMvc.perform(delete("/api/strategies/AAPL")).andExpect(status().isNotFound());
   }
 
   @Test

@@ -57,11 +57,24 @@ final class SharedComposeStack {
       return;
     }
     var dockerComposeFile = new File("../docker-compose.yml");
+    // Optional CI override: when MARIAALPHA_E2E_USE_PREBUILT_JARS=true, layer docker-compose.ci.yml
+    // on top so each Java service builds from its thin Dockerfile.local instead of re-running
+    // Gradle inside Docker. CI pre-builds the bootJars host-side with the warm setup-gradle cache,
+    // which is much faster than letting 6 separate Docker contexts each download ~500 MB of deps.
+    var ciOverride = new File("../docker-compose.ci.yml");
+    boolean usePrebuilt =
+        Boolean.parseBoolean(System.getenv().getOrDefault("MARIAALPHA_E2E_USE_PREBUILT_JARS", "false"))
+            && ciOverride.exists();
+    File[] composeFiles =
+        usePrebuilt ? new File[] {dockerComposeFile, ciOverride} : new File[] {dockerComposeFile};
+    if (usePrebuilt) {
+      LOG.info("Shared compose stack: using docker-compose.ci.yml override (pre-built jars)");
+    }
     // Force-down any stale stack left over by a previous crashed/killed run before starting fresh.
     // (This only fires on the very first call across the whole JVM.)
     forceDownExistingStack(dockerComposeFile);
     composeContainer =
-        new ComposeContainer(dockerComposeFile)
+        new ComposeContainer(composeFiles)
             .withLocalCompose(true)
             .withEnv("MARIAALPHA_API_KEY", API_KEY)
             .withEnv("POSTGRES_USER", "mariaalpha")

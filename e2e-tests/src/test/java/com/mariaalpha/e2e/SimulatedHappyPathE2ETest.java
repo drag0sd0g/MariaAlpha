@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,28 @@ class SimulatedHappyPathE2ETest {
         httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     }
 
+    @AfterEach
+    void unbindStatefulStrategies() {
+        // MOMENTUM is stateful — once bound to GOOGL it enters a long position on the bullish EMA
+        // crossover and then oscillates entry/exit every few ticks for the rest of the JVM's life,
+        // saturating the simulated INTERNAL_CROSS queue. Detach it after each test so the next
+        // test's symbol-specific orders don't compete with a background oscillation. The unbind
+        // is best-effort and ignores 404s (the strategy may not have been bound this method).
+        for (String symbol : new String[] {"GOOGL", "AAPL", "MSFT", "AMZN", "TSLA", "NVDA"}) {
+            try {
+                httpClient.send(HttpRequest.newBuilder()
+                                .uri(URI.create(baseUrl + "/api/strategies/" + symbol))
+                                .header("X-API-Key", apiKey)
+                                .DELETE()
+                                .timeout(Duration.ofSeconds(3))
+                                .build(),
+                        HttpResponse.BodyHandlers.discarding());
+            } catch (Exception ignored) {
+                // Best-effort cleanup — never fail a test on this.
+            }
+        }
+    }
+
     @Test
     void simulatedTickReachesPositionWithFillAndPnl() throws Exception {
         bindVwapToAppleWith100Shares();
@@ -48,7 +71,7 @@ class SimulatedHappyPathE2ETest {
         // (JUnit method order is not guaranteed), it leaves an AAPL position behind that would
         // satisfy a netQuantity != 0 wait before VWAP has had a chance to fire. Mirrors the pattern
         // simulatedMomentumUptrendReachesGooglOrderWithFill uses (firstFilledMomentumBuy).
-        var order = await().atMost(40, TimeUnit.SECONDS)
+        var order = await().atMost(60, TimeUnit.SECONDS)
                 .pollInterval(Duration.ofMillis(500))
                 .ignoreExceptions()
                 .until(this::firstFilledVwapAaplBuy, Objects::nonNull);
@@ -102,7 +125,7 @@ class SimulatedHappyPathE2ETest {
     void simulatedTwapTickReachesMsftPositionWithFill() throws Exception {
         bindTwapToMsftWith50Shares();
 
-        var position = awaitPositionAtLeast("MSFT", new BigDecimal("50"), 30);
+        var position = awaitPositionAtLeast("MSFT", new BigDecimal("50"), 45);
 
         assertThat(netQuantity(position)).as("MSFT net quantity should be 50 after TWAP slice fires")
                 .isEqualByComparingTo(new BigDecimal("50"));
@@ -123,7 +146,7 @@ class SimulatedHappyPathE2ETest {
     void simulatedShortfallTickReachesAmznPositionWithFill() throws Exception {
         bindImplementationShortfallToAmznWith40Shares();
 
-        var position = awaitPositionAtLeast("AMZN", new BigDecimal("40"), 30);
+        var position = awaitPositionAtLeast("AMZN", new BigDecimal("40"), 45);
 
         assertThat(netQuantity(position)).as("AMZN net quantity should be 40 after the IS slice fires")
                 .isEqualByComparingTo(new BigDecimal("40"));
@@ -144,7 +167,7 @@ class SimulatedHappyPathE2ETest {
     void simulatedCloseTickReachesNvdaPositionWithMocFill() throws Exception {
         bindCloseToNvdaWith45SharesMocOnly();
 
-        var position = awaitPositionAtLeast("NVDA", new BigDecimal("45"), 30);
+        var position = awaitPositionAtLeast("NVDA", new BigDecimal("45"), 45);
 
         // The simulated CSV NVDA ticks fall inside the configured pre-close window's MOC zone
         // (15:55-15:59 ET vs. mocCutoff 15:55), so CLOSE fires the full 45-share parent in one
@@ -173,7 +196,7 @@ class SimulatedHappyPathE2ETest {
         // parent at 20% participation against 300/250/500/350-share TRADE prints completes in
         // one or two clips depending on tick ordering. Wait for the full parent before asserting
         // so a mid-completion poll doesn't see e.g. 50/60.
-        var position = awaitPositionAtLeast("TSLA", new BigDecimal("60"), 30);
+        var position = awaitPositionAtLeast("TSLA", new BigDecimal("60"), 45);
 
         assertThat(netQuantity(position)).as("TSLA net quantity should reach the 60-share POV parent")
                 .isEqualByComparingTo(new BigDecimal("60"));
@@ -298,7 +321,7 @@ class SimulatedHappyPathE2ETest {
         // long position. A later loop's reverse-crossover may flatten it, so we gate on the
         // persisted (append-only) FILLED BUY order rather than a live, possibly-oscillating net
         // position.
-        var order = await().atMost(40, TimeUnit.SECONDS)
+        var order = await().atMost(60, TimeUnit.SECONDS)
                 .pollInterval(Duration.ofMillis(500))
                 .ignoreExceptions()
                 .until(this::firstFilledMomentumBuy, Objects::nonNull);

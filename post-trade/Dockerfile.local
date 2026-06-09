@@ -1,0 +1,8 @@
+# Thin CI/local image — see market-data-gateway/Dockerfile.local for rationale.
+# Expects post-trade/build/libs/post-trade.jar to exist (run
+# `./gradlew :post-trade:bootJar` first).
+FROM eclipse-temurin:21-jre-jammy
+WORKDIR /app
+COPY post-trade/build/libs/post-trade.jar app.jar
+EXPOSE 8088 8089
+ENTRYPOINT ["java", "-jar", "app.jar"]

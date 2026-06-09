@@ -49,4 +49,20 @@ public class SymbolStrategyRouter {
   public Set<String> routedSymbols() {
     return Set.copyOf(symbolToStrategy.keySet());
   }
+
+  /**
+   * Removes any active strategy binding for {@code symbol}, so subsequent ticks for that symbol no
+   * longer reach a strategy. Returns {@code true} if a binding existed and was removed. Used by e2e
+   * tests to detach a stateful strategy (e.g. MOMENTUM on GOOGL) once their assertion has been met,
+   * preventing the strategy from continuing to oscillate in the background and contending with
+   * later tests for the simulated venue queue.
+   */
+  public boolean clearActiveStrategy(String symbol) {
+    var previous = symbolToStrategy.remove(symbol);
+    if (previous != null) {
+      LOG.info("Unrouted {} (was → {})", symbol, previous);
+      return true;
+    }
+    return false;
+  }
 }
