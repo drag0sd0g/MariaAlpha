@@ -10,7 +10,7 @@ The service has two HTTP interfaces:
 
 | Interface | Port | Protocol | Purpose |
 |-----------|------|----------|---------|
-| REST API | 8086 | HTTP/1.1 + JSON | `/api/orders`, `/api/positions`, `/api/portfolio/summary` |
+| REST API | 8086 | HTTP/1.1 + JSON | `/api/orders`, `/api/positions`, `/api/portfolio/summary`, `/api/portfolio/currency-exposure` |
 | Actuator | 8087 | HTTP/1.1 + JSON | `/actuator/health`, `/actuator/prometheus` — ops and observability |
 
 ---
@@ -383,7 +383,7 @@ The check in `OrderPersistenceService.upsertOrder()` is intentionally lenient fo
 
 ## REST API
 
-All five endpoints live under `/api/*`. They are read-only; the Order Manager offers no mutating routes.
+All six endpoints live under `/api/*`. They are read-only; the Order Manager offers no mutating routes.
 
 ### `GET /api/orders`
 
@@ -411,6 +411,10 @@ Returns a single `PositionResponse`. 404 if the symbol has never had a position 
 ### `GET /api/portfolio/summary`
 
 Returns the aggregated `PortfolioSummaryResponse` described above. Always 200 — an empty portfolio returns zeros plus the initial cash.
+
+### `GET /api/portfolio/currency-exposure`
+
+Read-side aggregation of open-position exposure and realized/unrealized P&L grouped by ISO-4217 currency. Symbol → currency resolution uses `order-manager.currency.overrides` with a `default-currency` fallback (the simulator universe is USD-only, so the default response has a single row). Flat positions contribute realized P&L but not exposure; positions without a mark fall back to `avgEntryPrice`, the same convention as `/api/portfolio/summary`. Full design in [`../strategies/currency-exposure.md`](../strategies/currency-exposure.md).
 
 ---
 
@@ -462,13 +466,16 @@ All configuration lives in `application.yml` or environment variables (`POSTGRES
 | `order-manager.kafka.positions-updates-topic` | `positions.updates` | Outbound position events |
 | `order-manager.portfolio.initial-cash` | `1000000.00` | Starting cash balance |
 | `order-manager.mark-to-market.interval-ms` | `1000` | Mark-to-market frequency |
+| `order-manager.currency.default-currency` | `USD` | Fallback currency for symbols without an override |
+| `order-manager.currency.overrides` | `{}` | Per-symbol currency map for `/api/portfolio/currency-exposure` |
 
-Two `@ConfigurationProperties` records hold the domain-specific config:
+Three `@ConfigurationProperties` records hold the domain-specific config:
 
 - `KafkaConfig` (`order-manager.kafka.*`) — topic names only.
 - `PortfolioConfig` (`order-manager.portfolio.*`) — `initialCash`.
+- `CurrencyConfig` (`order-manager.currency.*`) — `defaultCurrency`, `known`, `overrides`.
 
-Both are injected by constructor into the services that need them.
+All are injected by constructor into the services that need them.
 
 ---
 

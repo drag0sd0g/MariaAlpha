@@ -144,7 +144,7 @@ MariaAlpha's VWAP strategy sits in the `strategy-engine` module and follows the 
 
 ### Data Flow
 
-1. **Tick ingestion** (1.3.3, future): Kafka consumer deserializes `MarketTick` JSON from `market-data.ticks` topic
+1. **Tick ingestion**: Kafka consumer deserializes `MarketTick` JSON from the `market-data.ticks` topic
 2. **Tick routing**: Each tick is passed to the active strategy for that symbol via `strategy.onTick(tick)`
 3. **Evaluation**: The strategy engine calls `strategy.evaluate(symbol)` after each tick
 4. **Signal emission**: If the VWAP algorithm determines it's time to trade (new time bin entered), it returns an `OrderSignal`

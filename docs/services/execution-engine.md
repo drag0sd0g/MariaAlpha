@@ -110,7 +110,7 @@ The `Order` class is intentionally mutable — it accumulates fills, tracks fill
 
 ### Stage 2: Order Type Validation
 
-The `OrderTypeHandlerRegistry` looks up the handler for the order's type. Seven order types are supported: **MARKET, LIMIT, STOP, IOC, FOK, GTC, ICEBERG**. If no handler is registered (e.g., a future PEGGED type), the order is rejected with `"Unsupported order type"`.
+The `OrderTypeHandlerRegistry` looks up the handler for the order's type. Eight order types are supported: **MARKET, LIMIT, STOP, IOC, FOK, GTC, ICEBERG, PEGGED**. If no handler is registered for a type, the order is rejected with `"Unsupported order type"`.
 
 Each handler performs type-specific validation:
 
@@ -149,11 +149,15 @@ Each handler performs type-specific validation:
 - The handler's `toExecutionInstruction` populates `ExecutionInstruction.displayQuantity` so the value flows downstream, but the parent order never reaches a venue adapter directly — see the iceberg dispatch below
 - Emits `TimeInForce.DAY` (TIF applies to each child slice individually)
 
-Wire-format translation lives in `AlpacaOrderTypeMapper`, which collapses IOC/FOK/GTC into Alpaca's `type=limit` with the appropriate `time_in_force` and explicitly rejects ICEBERG (the slicer is responsible for issuing the child LIMITs).
+**PeggedOrderHandler**:
+- `pegType` present (MIDPOINT / PRIMARY / MARKET), `pegOffsetBps` within `execution-engine.pegged.max-offset-bps`, market state present with a two-sided book, optional `limitPrice` price cap not absurdly far from the current reference
+- Like ICEBERG, the parent never reaches a venue adapter directly — `PeggedCoordinator` fronts it with a single re-pegging LIMIT child (see [`../strategies/pegged-orders.md`](../strategies/pegged-orders.md))
 
-The handler pattern remains extensible: adding a new order type (e.g. PEGGED, on the roadmap) only requires implementing the `OrderTypeHandler` interface and annotating with `@Component`. Spring auto-discovers it and the registry picks it up. No existing code changes.
+Wire-format translation lives in `AlpacaOrderTypeMapper`, which collapses IOC/FOK/GTC into Alpaca's `type=limit` with the appropriate `time_in_force` and explicitly rejects ICEBERG and PEGGED (their coordinators are responsible for issuing the child LIMITs).
 
-#### ICEBERG dispatch (special case)
+The handler pattern remains extensible: adding a new order type only requires implementing the `OrderTypeHandler` interface and annotating with `@Component`. Spring auto-discovers it and the registry picks it up. No existing code changes. PEGGED followed exactly this path (plus a coordinator for its stateful runtime) when it shipped in 3.2.3.
+
+#### ICEBERG and PEGGED dispatch (special cases)
 
 Immediately after validation + risk checks, `OrderExecutionService.processOrder` branches on `OrderType.ICEBERG` and hands the parent off to `IcebergCoordinator.onParentSubmit` *instead of* the normal venue-adapter call. The coordinator:
 
@@ -166,9 +170,11 @@ Subsequent slices are issued from `OrderExecutionService.onExecutionReport` via 
 
 A parent cancel (via `ManualOrderService.cancel`) cascades through `IcebergCoordinator.onParentCancelRequested`, which cancels the currently-active child at its venue and transitions the parent to CANCELLED with reason `iceberg-parent-cancelled`. Already-filled children are immutable; not-yet-submitted slices are simply never issued.
 
+PEGGED parents follow the same handler+coordinator split: `OrderExecutionService.processOrder` branches on `OrderType.PEGGED` and hands the parent to `PeggedCoordinator.onParentSubmit`, which keeps **one** LIMIT child working at the peg-derived price and cancels-and-resubmits it when the NBBO reference moves more than `repeg-threshold-bps`. Live progress is exposed at `GET /api/execution/orders/{parentId}/pegged-progress`. Full design in [`../strategies/pegged-orders.md`](../strategies/pegged-orders.md).
+
 ### Stage 3: Risk Check Chain
 
-The order passes through a composable chain of eight risk checks, executed in order. The chain **short-circuits** on the first failure — if check 2 fails, the remaining checks are never evaluated. This is a deliberate design choice: risk checks can involve lookups against position state and market data, so skipping unnecessary checks reduces latency.
+The order passes through a composable chain of ten risk checks, executed in order. The chain **short-circuits** on the first failure — if check 2 fails, the remaining checks are never evaluated. This is a deliberate design choice: risk checks can involve lookups against position state and market data, so skipping unnecessary checks reduces latency.
 
 Each check returns a `RiskCheckResult` with a boolean, the check name, and a human-readable reason. The reason is included in the Kafka rejection event, making it easy to diagnose why an order was blocked.
 
@@ -192,7 +198,7 @@ Counts the number of orders currently in SUBMITTED or PARTIALLY_FILLED status. I
 
 #### Check 5: DailyLossLimit (`@Order(5)`)
 
-Checks the `DailyLossMonitor.isTradingHalted()` flag. This is technically redundant with Stage 0, but it's included in the chain for completeness — if a loss breach occurs *between* Stage 0 and Stage 3 (due to concurrent fill processing), this check catches it. Since it's the cheapest check (a single boolean read), placing it last doesn't add meaningful latency.
+Checks the `DailyLossMonitor.isTradingHalted()` flag. This is technically redundant with Stage 0, but it's included in the chain for completeness — if a loss breach occurs *between* Stage 0 and Stage 3 (due to concurrent fill processing), this check catches it. It's the cheapest check in the chain (a single boolean read), so its position adds no meaningful latency.
 
 #### Check 6: SectorExposure (`@Order(6)`)
 
@@ -205,6 +211,14 @@ Caps |Σ position_notional × beta| in dollars. Catches the case where MaxPortfo
 #### Check 8: AdvParticipation (`@Order(8)`)
 
 Rejects parents whose share count exceeds `max-adv-participation × ADV(symbol)`. Runs against the **parent** quantity, not the first slice — the intent is to refuse parents that are too large to source liquidly regardless of how they'd be chopped by VWAP/TWAP/POV/etc. Refuses any order on a symbol with missing reference data (the conservative default ADV of 0) to fail safe before reference rows are added.
+
+#### Check 9: IntradayVar (`@Order(9)`)
+
+Pre-trade parametric Gaussian VaR. Projects the portfolio's one-day VaR as if the order filled — per-position VaR is `|position_notional| × σ_ann / √trading-days × z(confidence)`, aggregated as a sum of absolutes (conservative: no diversification credit) — and rejects when the projection exceeds `max-intraday-var`. Self-disables when the limit is 0. Full design in [`../strategies/intraday-var.md`](../strategies/intraday-var.md).
+
+#### Check 10: CorrelatedPositions (`@Order(10)`)
+
+Concentration check across operator-defined symbol clusters (`execution-engine.risk.correlated-clusters[]` — a named symbol list with a gross-$ cap per cluster). Catches "same narrative, different sector" risk that the sector and beta checks miss — e.g. the AI trade across NVDA + MSFT + GOOGL. Orders that shrink a cluster's gross always pass. Full design in [`../strategies/correlated-positions.md`](../strategies/correlated-positions.md).
 
 ### Stage 4: Routing
 
@@ -219,7 +233,7 @@ The handler builds an `ExecutionInstruction` from the order (a typed `TimeInForc
 - **Accepted**: The order transitions to `SUBMITTED` and the exchange order ID is stored on the order for fill correlation.
 - **Rejected**: The order transitions to `REJECTED` with the adapter's rejection reason.
 
-For ICEBERG parents this stage is bypassed (see "ICEBERG dispatch" above) — the coordinator owns submission and lifecycle for the parent.
+For ICEBERG and PEGGED parents this stage is bypassed (see the dispatch section above) — the coordinators own submission and lifecycle for the parent.
 
 ---
 
@@ -543,7 +557,7 @@ All settings live under the `execution-engine.*` namespace and are overridable v
 
 The execution engine needs `OrderSignal`, `Side`, and `OrderType` — models that also exist in the strategy engine. Rather than creating a shared-models library, these are replicated locally under `com.mariaalpha.executionengine.model`. This avoids coupling two independently deployable services. The field names match exactly, so Kafka JSON deserialisation works without mapping. A shared-models module will be introduced when a third consumer needs the same types.
 
-The execution engine's `OrderType` enum is the richest copy in the system: MARKET, LIMIT, STOP, IOC, FOK, GTC, ICEBERG. The order-manager `OrderType` mirrors it. The strategy-engine `OrderType` deliberately stays at MARKET/LIMIT — strategies only emit those two; richer types arrive through the manual REST API. Post-trade additionally enumerates `STOP_LIMIT` and `PEGGED` so its TCA pipeline can accept those types without a schema bump when they're added.
+The execution engine's `OrderType` enum is the richest copy in the system: MARKET, LIMIT, STOP, IOC, FOK, GTC, ICEBERG, PEGGED. The order-manager `OrderType` mirrors it. The strategy-engine `OrderType` deliberately stays at MARKET/LIMIT — strategies only emit those two; richer types arrive through the manual REST API. Post-trade additionally enumerates `STOP_LIMIT` so its TCA pipeline can accept that type without a schema bump when it's added.
 
 The execution engine's `OrderSignal` adds `stopPrice` (not present in the strategy engine's copy), plus the Phase-2 fields `displayQuantity`, `tif`, and `parentOrderId`. `OrderSignal` retains a backwards-compatible 8-arg constructor so existing strategy-engine + test call sites compile unchanged. Jackson ignores unknown properties by default, so strategy engine signals deserialise correctly — the missing fields are simply `null`.
 

@@ -40,7 +40,7 @@ through the execution pipeline during development.
 
 | Story | Why it matters |
 |-------|----------------|
-| As a manual trader, I want to submit any of the seven supported order types (MARKET, LIMIT, STOP, IOC, FOK, GTC, ICEBERG) from the browser so that I can enter positions without using the API directly. | Direct REST calls require API key management and JSON construction; a form with validation is faster and safer for ad-hoc use. |
+| As a manual trader, I want to submit any of the eight supported order types (MARKET, LIMIT, STOP, IOC, FOK, GTC, ICEBERG, PEGGED) from the browser so that I can enter positions without using the API directly. | Direct REST calls require API key management and JSON construction; a form with validation is faster and safer for ad-hoc use. |
 | As a manual trader, I want client-side validation (symbol required, positive quantity, limit price required for LIMIT/IOC/FOK/GTC/ICEBERG, displayQuantity required and < quantity for ICEBERG) so that common mistakes are caught before the network round-trip. | Validation errors from the server surface as generic text; a specific field-level message is faster to act on. |
 | As a manual trader, I want the form to render the intrinsic time-in-force (IOC/FOK/GTC) and a `displayQuantity` input when ICEBERG is selected so that I don't need to guess which fields apply to which type. | Conditional fields prevent invalid submissions and make the type semantics visible without referring to the OpenAPI spec. |
 | As an operator, I want to see the iceberg slice progress for active ICEBERG parents (filled / total + percentage badge in the Active Orders table) so that I can tell at a glance how much of a sliced order has executed. | Iceberg parents have hidden state — only one child is on the wire at a time — so an explicit progress indicator is the only way to surface fill progress without drilling into individual children. |
@@ -125,12 +125,13 @@ Combines order submission with live order monitoring on one screen.
 - `DELETE /api/execution/orders/{id}` → cancel order (ICEBERG parent cancel cascades to the active child on the server side)
 - `GET /api/execution/orders/{parentId}/iceberg-progress` → live slice progress for an ICEBERG parent (polled at 1.5 s by `IcebergProgressBadge`; 404 once the parent is FILLED/CANCELLED)
 
-**OrderForm** is fully controlled. All seven order types are in the type dropdown. The conditional
+**OrderForm** is fully controlled. All eight order types are in the type dropdown. The conditional
 field set is:
 
-- **Limit Price** — rendered for LIMIT, IOC, FOK, GTC, ICEBERG
+- **Limit Price** — rendered for LIMIT, IOC, FOK, GTC, ICEBERG (and as the optional price cap for PEGGED)
 - **Stop Price** — rendered for STOP
 - **Display Quantity** — rendered for ICEBERG only (must be ≥ 1 and strictly < quantity)
+- **Peg Type / Peg Offset (bps)** — rendered for PEGGED only (MIDPOINT default; offset must be numeric)
 - **Intrinsic TIF hint** — a small grey label "Time-in-force: IOC/FOK/GTC (intrinsic to X)" shown for IOC/FOK/GTC, so the user doesn't have to guess what TIF the server will apply
 
 Client-side validation runs before any fetch (matching the server-side `@ValidSubmitOrderRequest`
@@ -165,9 +166,11 @@ a stable string key (`orderIds.sort().join(",")`) rather than comparing Map refe
 | `/` | Dashboard — live positions, portfolio P&L, exposure, fills history. |
 | `/orders` | Order Entry — submit manual orders, active-order blotter, recent fills. |
 | `/rfq` | Request-for-quote workflow: two-way pricing for block orders + acceptance flow. |
+| `/options` | Options pricing — Black-Scholes-Merton fair value, Greeks, and implied-vol solver forms against `/api/options/**`. |
 | `/strategies` | Strategy Control — enable/disable strategies per symbol, edit parameters, view regime classification. |
 | `/analytics` | TCA, PnL attribution (Kissell-Glantz components), flow toxicity, axe matcher visualisation. |
 | `/reconciliation` | End-of-day break review — internal vs. external fill comparison, severity breakdown. |
+| `/allocations` | Trade allocation — run PRO_RATA / FIFO allocation for a filled parent and review per-sub-account results. |
 | `/market-data` | Reserved placeholder — currently renders `<ComingSoon>`; intended for a live market tick viewer driven by `WS /ws/market-data`. |
 
 ---

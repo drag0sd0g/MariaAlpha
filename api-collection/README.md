@@ -62,6 +62,12 @@ The market-data-gateway intentionally has no REST surface — its public API is
 gRPC + WebSocket. Use the Strategy Control / Market Data UI pages to exercise it
 during manual testing.
 
+**Not yet covered:** the algo execution API (`/api/algo/orders`, see
+[`docs/strategies/algo-execution-api.md`](../docs/strategies/algo-execution-api.md))
+and the currency-exposure read (`GET /api/portfolio/currency-exposure`, see
+[`docs/strategies/currency-exposure.md`](../docs/strategies/currency-exposure.md)).
+Both are exercised by curl examples in the root README until folders are added here.
+
 ## Conventions
 
 - Every gateway-routed request sends `X-API-Key: {{apiKey}}` — the gateway

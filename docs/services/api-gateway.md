@@ -124,10 +124,10 @@ Five routes defined declaratively. Spring Cloud Gateway evaluates path predicate
 
 | Route ID | Paths | Downstream |
 |----------|-------|-----------|
-| `strategies` | `/api/strategies/**`, `/api/rfq/**` | `STRATEGY_ENGINE_URL` (default: `localhost:8082`) |
+| `strategies` | `/api/strategies/**`, `/api/rfq/**`, `/api/options/**`, `/api/algo/**` | `STRATEGY_ENGINE_URL` (default: `localhost:8082`) |
 | `orders` | `/api/orders/**`, `/api/positions/**`, `/api/portfolio/**` | `ORDER_MANAGER_URL` (default: `localhost:8086`) |
 | `execution` | `/api/execution/**`, `/api/routing/**` | `EXECUTION_ENGINE_URL` (default: `localhost:8084`) |
-| `post-trade` | `/api/tca/**`, `/api/recon/**` | `POST_TRADE_URL` (default: `localhost:8088`) |
+| `post-trade` | `/api/tca/**`, `/api/recon/**`, `/api/allocations/**` | `POST_TRADE_URL` (default: `localhost:8088`) |
 | `market-data` | `/api/market-data/**` | `MARKET_DATA_GATEWAY_URL` (default: `localhost:8079`) |
 
 Paths are forwarded as-is. The HTTP client uses a 2-second connect timeout and 10-second response
@@ -149,6 +149,8 @@ prefix before forwarding.
 ```
 /api/strategies/**    →  strategy-engine:8082
 /api/rfq/**           →  strategy-engine:8082
+/api/options/**       →  strategy-engine:8082
+/api/algo/**          →  strategy-engine:8082
 /api/orders/**        →  order-manager:8086
 /api/positions/**     →  order-manager:8086
 /api/portfolio/**     →  order-manager:8086
@@ -156,12 +158,14 @@ prefix before forwarding.
 /api/routing/**       →  execution-engine:8084
 /api/tca/**           →  post-trade:8088
 /api/recon/**         →  post-trade:8088
+/api/allocations/**   →  post-trade:8088
 /api/market-data/**   →  market-data-gateway:8079
 /api/analytics/**     →  analytics-service:8095 (rewritten to /v1/analytics/**)
 /ws/market-data       →  KafkaTopicBroadcaster (market-data.ticks)
 /ws/positions         →  KafkaTopicBroadcaster (positions.updates)
 /ws/orders            →  KafkaTopicBroadcaster (orders.lifecycle)
 /ws/alerts            →  KafkaTopicBroadcaster (analytics.risk-alerts)
+/ws/algo              →  KafkaTopicBroadcaster (algo.progress)
 ```
 
 ---
@@ -186,7 +190,7 @@ KafkaTopicBroadcaster          (one Sinks.Many per topic, multicast)
 On startup (`@PostConstruct`) creates one `Sinks.Many<String>` per configured endpoint. Each sink
 is a multicast sink with a backpressure buffer of 1024 messages.
 
-Four `@KafkaListener` methods consume from one topic each:
+Five `@KafkaListener` methods consume from one topic each:
 
 | Listener method | Topic | Consumer group |
 |----------------|-------|----------------|
@@ -194,6 +198,7 @@ Four `@KafkaListener` methods consume from one topic each:
 | `onPositions` | `positions.updates` | `api-gateway-<uuid>-positions` |
 | `onOrders` | `orders.lifecycle` | `api-gateway-<uuid>-orders` |
 | `onAlerts` | `analytics.risk-alerts` | `api-gateway-<uuid>-alerts` |
+| `onAlgoProgress` | `algo.progress` | `api-gateway-<uuid>-algo` |
 
 Consumer group IDs use `${random.uuid}` so every gateway instance gets a unique group. This means
 **each instance receives all messages** rather than load-balancing them — appropriate for fan-out
@@ -233,6 +238,7 @@ The `filterKey` per endpoint (configured in `application.yml`):
 | `/ws/positions` | `positions.updates` | `symbol` |
 | `/ws/orders` | `orders.lifecycle` | `orderId` |
 | `/ws/alerts` | `analytics.risk-alerts` | `symbol` |
+| `/ws/algo` | `algo.progress` | `algoOrderId` |
 
 ### `SymbolKeyExtractor`
 

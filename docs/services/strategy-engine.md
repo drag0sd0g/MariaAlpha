@@ -2,20 +2,23 @@
 
 ## Overview
 
-The Strategy Engine is the Java 21 / Spring Boot 3 microservice that sits **between** the Market Data Gateway (upstream, via Kafka) and the Execution Engine (downstream, via Kafka). It is the brain that turns ticks into trading intent. Three jobs live here:
+The Strategy Engine is the Java 21 / Spring Boot 3 microservice that sits **between** the Market Data Gateway (upstream, via Kafka) and the Execution Engine (downstream, via Kafka). It is the brain that turns ticks into trading intent. Six jobs live here:
 
 1. **Run execution strategies** — VWAP, TWAP, Momentum, Implementation Shortfall, POV, Close — through a pluggable `TradingStrategy` interface and a `StrategyRegistry`. Each strategy decides whether the current tick warrants emitting an order, and the engine publishes the resulting `OrderSignal` to `strategy.signals` on Kafka.
 2. **Confirm or veto signals against the ML model** — the `MlSignalGate` calls the ML Signal Service over gRPC for every signal a strategy produces and applies the FR-12 / TDD §5.2.2 policy: high-confidence agreement confirms (and optionally scales) the trade, high-confidence contradiction suppresses it, low confidence is a pass-through.
 3. **Price two-way RFQ quotes** — the `RfqPricingEngine` builds an inventory-aware, volatility-adjusted, size-relative-to-ADV two-way quote on demand from the React UI, and on accept publishes an `OrderSignal` with `strategyName="RFQ"` so the same execution pipeline picks it up.
+4. **Price options** — the stateless `OptionPricingService` answers Black-Scholes-Merton fair value, Greeks, and implied-vol queries under `/api/options/**`. See [`../strategies/options-pricing.md`](../strategies/options-pricing.md).
+5. **Serve programmatic algo orders** — `AlgoOrderService` backs `POST/GET/DELETE /api/algo/orders`, binding a strategy and applying its parameters in one call and publishing lifecycle/signal events to `algo.progress`. See [`../strategies/algo-execution-api.md`](../strategies/algo-execution-api.md).
+6. **Gate ticks by trading hours** — `TradingHoursService` drops ticks for symbols whose resolved market (NYSE/NASDAQ, TSE, …) is closed at the tick's timestamp, so after-hours prints never pollute indicator state. See [`../strategies/multi-market-trading-hours.md`](../strategies/multi-market-trading-hours.md).
 
-The service has two HTTP interfaces and one Kafka consumer + producer pair:
+The service has two HTTP interfaces and one Kafka consumer + two producers:
 
 | Interface | Port | Protocol | Purpose |
 |---|---|---|---|
-| REST API | 8082 | HTTP/1.1 + JSON | `/api/strategies/**`, `/api/rfq/**` |
+| REST API | 8082 | HTTP/1.1 + JSON | `/api/strategies/**`, `/api/rfq/**`, `/api/options/**`, `/api/algo/**` |
 | Actuator | 8083 | HTTP/1.1 + JSON | `/actuator/health/{liveness,readiness}`, `/actuator/prometheus` |
 | Kafka consumer | — | — | `market-data.ticks` (group `strategy-engine`, earliest) |
-| Kafka producer | — | — | `strategy.signals` (key=symbol) |
+| Kafka producers | — | — | `strategy.signals` (key=symbol), `algo.progress` (key=algoOrderId) |
 | gRPC client | — | HTTP/2 | `SignalService.GetSignal(symbol)` on ML Signal Service :50051 |
 | HTTP client | — | HTTP/1.1 + JSON | `GET /api/positions/{symbol}` on Order Manager :8086 |
 
@@ -130,7 +133,7 @@ Note the two namespaces: bindings are keyed by **symbol** (`AAPL`), parameters a
 1. **Feed `MarketStateCache`** — every tick refreshes the per-symbol bid/ask/last/mid and pushes a new sample onto the rolling mid-price ring. This is what the RFQ engine and the volatility tracker read.
 2. **Hand off to `StrategyEvaluationService`** — drives the strategy-evaluation-then-ML-gate-then-publish pipeline.
 
-`StrategyEvaluationService.evaluate(tick)`:
+`StrategyEvaluationService.evaluate(tick)` first consults `TradingHoursService` — if the symbol's resolved market is closed at the tick's timestamp the tick is dropped (`mariaalpha_strategy_ticks_suppressed_total{reason="market_closed"}` increments) and the pipeline below never runs. See [`../strategies/multi-market-trading-hours.md`](../strategies/multi-market-trading-hours.md). For in-session ticks:
 
 ```java
 var strategy = router.getActiveStrategy(tick.symbol()).orElseThrow();
@@ -297,6 +300,10 @@ strategy-engine:
 | `POST /api/rfq/quote` `{"symbol","quantity"}` | Build a two-way quote. |
 | `POST /api/rfq/accept` `{"quoteId","side","price"}` | Accept a previously issued quote. Returns the published `OrderSignal`. |
 | `GET /api/rfq/quotes/{quoteId}` | Look up a previously issued quote (debug). |
+| `POST /api/options/price` / `greeks` / `implied-volatility` | Black-Scholes-Merton pricing, Greeks, IV solver — see [`../strategies/options-pricing.md`](../strategies/options-pricing.md). |
+| `POST /api/algo/orders` | Create + start a parent algo order in one call; returns a tracking UUID. |
+| `GET /api/algo/orders[/{id}]` | List / inspect algo orders. |
+| `DELETE /api/algo/orders/{id}` | Cancel an algo order (unbinds the strategy). See [`../strategies/algo-execution-api.md`](../strategies/algo-execution-api.md). |
 
 Status codes worth knowing for `/rfq`:
 
@@ -409,5 +416,6 @@ The umbrella chart at `charts/mariaalpha/` ships the strategy-engine as a single
 - **TDD:** [`technical-design-document.md`](../technical-design-document.md) — §3.2 (FR-7..12), §3.3 (FR-12 ML integration), §3.8 (FR-40 RFQ pricing), §5.2.2 (Strategy Engine), §5.3.1 (Strategy Registry), §5.4 (data model), §7 (resilience), §8.2 (metrics).
 - **Sibling explainers:** [`execution-engine.md`](execution-engine.md), [`ml-signal-service.md`](ml-signal-service.md), [`order-manager.md`](order-manager.md), [`api-gateway.md`](api-gateway.md).
 - **Per-strategy deep dives:** [`strategies/vwap.md`](../strategies/vwap.md), [`twap.md`](../strategies/twap.md), [`momentum.md`](../strategies/momentum.md), [`implementation-shortfall.md`](../strategies/implementation-shortfall.md), [`pov.md`](../strategies/pov.md), [`close.md`](../strategies/close.md), [`rfq-pricing.md`](../strategies/rfq-pricing.md).
+- **Feature deep dives:** [`options-pricing.md`](../strategies/options-pricing.md), [`algo-execution-api.md`](../strategies/algo-execution-api.md), [`multi-market-trading-hours.md`](../strategies/multi-market-trading-hours.md).
 - **Source root:** [strategy-engine/src/main/java/com/mariaalpha/strategyengine/](../../strategy-engine/src/main/java/com/mariaalpha/strategyengine/).
 - **Configuration:** [strategy-engine/src/main/resources/application.yml](../../strategy-engine/src/main/resources/application.yml).

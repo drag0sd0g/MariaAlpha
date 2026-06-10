@@ -83,11 +83,13 @@ Flip `secrets.useSealedSecrets: true` and enable the controller via `sealed-secr
 
 This chart deploys MariaAlpha to a local Kubernetes cluster. The Bitnami Redis subchart wired into order-manager + execution-engine is the distributed position cache (cluster DNS: `redis-master.mariaalpha-data.svc.cluster.local:6379`, auth disabled for the local install). NetworkPolicies, HPA tuning, PDBs, and TLS via cert-manager `ClusterIssuer` are deferred to follow-up tickets.
 
+Note: the Python **analytics-service** is deployed by Docker Compose only — it has no subchart yet, so `/api/analytics/**` routes return errors on a Helm deployment until one is added.
+
 ## Layout
 
 ```
 charts/mariaalpha/
-├── Chart.yaml                       umbrella, declares 9 external deps
+├── Chart.yaml                       umbrella, declares 10 external deps
 ├── values.yaml                      local defaults
 ├── values-burst.yaml                load-test overlay
 ├── values-oci.yaml                  cloud overlay (placeholder)

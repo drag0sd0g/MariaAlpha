@@ -33,13 +33,13 @@ Each microservice has a dedicated explainer covering its architecture, data flow
 | Service | Explainer | Role |
 |---|---|---|
 | Market Data Gateway | *(deep-dive doc TBD — see TDD §5.2.1)* | Subscribes to Alpaca; normalises ticks to `market-data.ticks`; serves the live order book over gRPC. |
-| **Strategy Engine** | [`services/strategy-engine.md`](services/strategy-engine.md) | Hosts the strategy registry, the ML confirm/veto gate, and the RFQ pricing engine. |
+| **Strategy Engine** | [`services/strategy-engine.md`](services/strategy-engine.md) | Hosts the strategy registry, the ML confirm/veto gate, the RFQ pricing engine, the [options pricer](strategies/options-pricing.md), the [algo execution API](strategies/algo-execution-api.md), and [multi-market trading hours](strategies/multi-market-trading-hours.md). |
 | ML Signal Service | [`services/ml-signal-service.md`](services/ml-signal-service.md) | Python gRPC + FastAPI. LightGBM signal model + Random Forest regime classifier. |
-| Execution Engine | [`services/execution-engine.md`](services/execution-engine.md) | Order lifecycle, risk-check chain, exchange adapters, daily-loss kill-switch. |
+| Execution Engine | [`services/execution-engine.md`](services/execution-engine.md) | Order lifecycle, ten-check risk chain (incl. [intraday VaR](strategies/intraday-var.md) and [correlated positions](strategies/correlated-positions.md)), [pegged orders](strategies/pegged-orders.md), exchange adapters, daily-loss kill-switch. |
 | Smart Order Router | [`services/smart-order-router.md`](services/smart-order-router.md) | Scored multi-criteria venue selection (sub-component of Execution Engine). |
 | Internal Crossing Engine | [`services/internal-crossing-engine.md`](services/internal-crossing-engine.md) | In-process midpoint matching for desk-vs-desk flow (sub-component of Execution Engine). |
-| Order Manager | [`services/order-manager.md`](services/order-manager.md) | System of record for orders, fills, positions, portfolio P&L. |
-| Post-Trade | *(deep-dive doc TBD — see TDD §5.2.6)* | TCA computation, end-of-day reconciliation. |
+| Order Manager | [`services/order-manager.md`](services/order-manager.md) | System of record for orders, fills, positions, portfolio P&L, [currency exposure](strategies/currency-exposure.md). |
+| Post-Trade | *(deep-dive doc TBD — see TDD §5.2.6)* | TCA computation, end-of-day reconciliation, [trade allocation](strategies/trade-allocation.md). |
 | Analytics Service | [`services/analytics-service.md`](services/analytics-service.md) | Python FastAPI. Flow toxicity, PnL attribution, axe matcher. |
 | API Gateway | [`services/api-gateway.md`](services/api-gateway.md) | Unified REST + WebSocket entry point. API-key auth. |
 | React UI | [`services/ui.md`](services/ui.md) | TypeScript + Vite + Tailwind + Recharts. Dashboard, Order Entry, RFQ, etc. |
@@ -47,9 +47,11 @@ Each microservice has a dedicated explainer covering its architecture, data flow
 
 ---
 
-## Strategies
+## Strategies & trading features
 
-Each *execution* strategy implements `TradingStrategy` and registers with the Strategy Engine's `StrategyRegistry`. The RFQ engine is on this page too — it's a *pricing* algorithm rather than a `TradingStrategy`, but it shares the same engine and emits the same `OrderSignal`.
+Each *execution* strategy implements `TradingStrategy` and registers with the Strategy Engine's `StrategyRegistry`. The same folder also documents the pricing engines, risk checks, and trading features that ship alongside the strategies — they share the engine, the risk chain, or the order pipeline even though they aren't `TradingStrategy` implementations.
+
+### Execution strategies
 
 | Strategy | Explainer | Style |
 |---|---|---|
@@ -59,7 +61,30 @@ Each *execution* strategy implements `TradingStrategy` and registers with the St
 | Implementation Shortfall | [`strategies/implementation-shortfall.md`](strategies/implementation-shortfall.md) | Schedule: front-loaded along an Almgren–Chriss trajectory. |
 | POV | [`strategies/pov.md`](strategies/pov.md) | Reactive: participate as a fraction of traded volume. |
 | Close | [`strategies/close.md`](strategies/close.md) | Schedule: working-into-the-close + MOC clip. |
-| **RFQ pricing** | [`strategies/rfq-pricing.md`](strategies/rfq-pricing.md) | Pricing: inventory-skewed, vol- and ADV-relative two-way quote. |
+
+### Pricing engines
+
+| Feature | Explainer | What it does |
+|---|---|---|
+| RFQ pricing | [`strategies/rfq-pricing.md`](strategies/rfq-pricing.md) | Inventory-skewed, vol- and ADV-relative two-way quote. |
+| Options pricing | [`strategies/options-pricing.md`](strategies/options-pricing.md) | Black-Scholes-Merton pricing, Greeks, and implied-vol solver (Strategy Engine REST). |
+
+### Risk checks
+
+| Feature | Explainer | What it does |
+|---|---|---|
+| Intraday VaR | [`strategies/intraday-var.md`](strategies/intraday-var.md) | Pre-trade parametric VaR limit over the simulated post-trade portfolio. |
+| Correlated positions | [`strategies/correlated-positions.md`](strategies/correlated-positions.md) | Caps aggregate exposure across correlation clusters of symbols. |
+| Currency exposure | [`strategies/currency-exposure.md`](strategies/currency-exposure.md) | Read-side per-currency exposure and P&L aggregation in the Order Manager. |
+
+### Order handling & access
+
+| Feature | Explainer | What it does |
+|---|---|---|
+| Pegged orders | [`strategies/pegged-orders.md`](strategies/pegged-orders.md) | PEGGED order type: tracks midpoint / bid / ask, re-pricing as the NBBO moves. |
+| Trade allocation | [`strategies/trade-allocation.md`](strategies/trade-allocation.md) | Post-trade fill allocation across sub-accounts (pro-rata, FIFO). |
+| Algo execution API | [`strategies/algo-execution-api.md`](strategies/algo-execution-api.md) | Programmatic REST + WebSocket surface for external algo clients. |
+| Multi-market trading hours | [`strategies/multi-market-trading-hours.md`](strategies/multi-market-trading-hours.md) | Session calendars gating strategy evaluation per listing market. |
 
 ---
 

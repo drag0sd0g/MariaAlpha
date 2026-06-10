@@ -214,7 +214,7 @@ The MVP intentionally stops here. Real desks layer more in:
 | Client tiering | Roadmap item 4.7.1. The accept endpoint already records the signal's source; once a client identity exists upstream the engine can multiply `baseSpreadBps` per client tier. | A per-client multiplier injected before step 3 of §2. |
 | Cross-asset / ETF arbitrage hedge | Out of scope for cash equities MVP. | A hedge stage between accept and publish that fans out additional `OrderSignal`s. |
 | Inventory aging | Long positions held overnight should skew further. | A timestamp on positions + a time-decay factor applied to `inventoryLambda`. |
-| Realised vs. implied vol | We don't subscribe to options data. | Roadmap derivatives work (issues 3.2.1–3.2.2). |
+| Realised vs. implied vol | We don't subscribe to live options-market data. The Black-Scholes pricer + IV solver shipped (see [`options-pricing.md`](options-pricing.md)), but a live implied-vol feed is still missing. | An IV input to `VolatilityTracker` replacing (or blending with) the realised-vol estimate. |
 
 ---
 
