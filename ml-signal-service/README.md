@@ -161,7 +161,7 @@ cd ml-signal-service
 pytest tests/ -v
 ```
 
-All 40 tests cover: indicators (numerical correctness), feature engine (tick aggregation, bar building, feature computation), signal model (inference, thresholds, hot-reload), gRPC servicer (GetSignal, GetRegime, StreamSignals), and FastAPI endpoints (health, ready, metrics, reload).
+The test suite covers: indicators (numerical correctness), feature engine (tick aggregation, bar building, feature computation), signal model (inference, thresholds, hot-reload), gRPC servicer (GetSignal, GetRegime, StreamSignals), and FastAPI endpoints (health, ready, metrics, reload).
 
 ## Docker
 

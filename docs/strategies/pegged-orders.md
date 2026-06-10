@@ -7,7 +7,7 @@
 
 A **pegged order** is an order whose working limit price is tied to a live market reference and re-prices itself when that reference moves. Pegging lets a trader express intent like *"sit at the midpoint"* or *"track the ask"* without manually cancelling and re-submitting on every NBBO tick — the execution engine does that for them.
 
-Pegged is the seventh order type to ship in MariaAlpha (after MARKET, LIMIT, STOP, IOC, FOK, GTC, and ICEBERG). Like ICEBERG, it does **not** map cleanly onto a single `OrderTypeHandler` instruction because the parent has to react to ongoing market events — so it follows the same handler+coordinator split: a thin `PeggedOrderHandler` validates the request and a `PeggedCoordinator` owns the runtime lifecycle.
+Pegged is the eighth order type to ship in MariaAlpha (after MARKET, LIMIT, STOP, IOC, FOK, GTC, and ICEBERG). Like ICEBERG, it does **not** map cleanly onto a single `OrderTypeHandler` instruction because the parent has to react to ongoing market events — so it follows the same handler+coordinator split: a thin `PeggedOrderHandler` validates the request and a `PeggedCoordinator` owns the runtime lifecycle.
 
 ## 2. Peg types
 

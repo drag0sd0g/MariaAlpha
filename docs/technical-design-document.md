@@ -314,6 +314,9 @@ sequenceDiagram
 | FR-10b | The system SHALL implement a Close execution algorithm that benchmarks against the closing-auction print: a configurable fraction of the parent is worked as equal-duration LIMIT slices through a pre-close window `[windowStart, mocCutoff)`, and the remainder fires as a single MARKET (Market-on-Close equivalent) child at `mocCutoff = closeTime − mocOffsetMinutes`. The algorithm SHALL handle the degenerate cases (zero pre-close fraction ⇒ pure MOC; full fraction ⇒ no MOC clip) and SHALL include a defensive post-close sweep for late-binding scenarios. |
 | FR-11 | The system SHALL allow runtime selection of the active strategy per symbol via the REST API and UI, without requiring a restart. |
 | FR-12 | The system SHALL consume real-time ML signals from the Signal Service via gRPC and incorporate them as an additional input to strategy decisions (e.g., adjusting urgency, confirming/vetoing signals). |
+| FR-12a | The system SHALL gate strategy evaluation by per-market trading-hours calendars (sessions, lunch breaks, holidays, weekends), dropping ticks for symbols whose resolved venue is closed at the tick's timestamp so closed-market prints never pollute indicator state. See [`strategies/multi-market-trading-hours.md`](strategies/multi-market-trading-hours.md). |
+| FR-12b | The system SHALL provide a stateless options-pricing module: Black-Scholes-Merton fair value, the five first-order Greeks, and an implied-volatility solver, exposed under `/api/options/{price,greeks,implied-volatility}`. See [`strategies/options-pricing.md`](strategies/options-pricing.md). |
+| FR-12c | The system SHALL provide a programmatic algo execution API: `POST /api/algo/orders` creates and starts a parent algo order in one call, returning a UUID that can be queried, listed, and cancelled over REST and followed in real time via the `/ws/algo` WebSocket (events fan out over the `algo.progress` Kafka topic). See [`strategies/algo-execution-api.md`](strategies/algo-execution-api.md). |
 
 ### 3.3 ML Signal Service (Python)
 
@@ -333,9 +336,9 @@ sequenceDiagram
 | FR-19 | The Execution Engine SHALL accept order signals from the Strategy Engine and submit them to the configured exchange adapter (Alpaca or simulated). |
 | FR-20 | The system SHALL implement an Alpaca exchange adapter using Alpaca's REST API (`POST /v2/orders`) for order submission and the WebSocket trade updates stream for fill notifications. |
 | FR-21 | The system SHALL implement a simulated exchange adapter with a basic price-time priority matching engine that fills orders against the current market data, simulating realistic latency and partial fills. |
-| FR-22 | The Execution Engine SHALL support order types MARKET, LIMIT, STOP, IOC, FOK, GTC, and Iceberg. Order type handling SHALL be implemented via an `OrderTypeHandler` interface with a registry, so that additional types (e.g. Pegged) can be added by implementing the interface and registering the handler — without modifying existing order processing logic. Iceberg is implemented via a dedicated `IcebergCoordinator` (sibling of the handler registry) that slices a parent into LIMIT children, rather than as a stateless handler. |
+| FR-22 | The Execution Engine SHALL support order types MARKET, LIMIT, STOP, IOC, FOK, GTC, Iceberg, and Pegged. Order type handling SHALL be implemented via an `OrderTypeHandler` interface with a registry, so that additional types can be added by implementing the interface and registering the handler — without modifying existing order processing logic. Iceberg and Pegged are implemented via dedicated coordinators (`IcebergCoordinator`, `PeggedCoordinator` — siblings of the handler registry) that manage parent state and emit LIMIT children, rather than as stateless handlers. |
 | FR-23 | The Execution Engine SHALL maintain the full order lifecycle state machine: NEW → SUBMITTED → PARTIALLY_FILLED → FILLED / CANCELLED / REJECTED, with all state transitions published to the `orders.lifecycle` Kafka topic. |
-| FR-24 | The Execution Engine SHALL enforce pre-trade risk checks before submitting any order via a composable `RiskCheck` chain. MVP checks include: maximum order notional value, maximum position size per symbol, and maximum total portfolio exposure. The chain is configured via `config/risk-limits.yml` and designed so that additional checks (sector exposure limits, beta limits, intraday VaR, ADV-relative sizing) can be added by implementing the `RiskCheck` interface and appending to the chain — without modifying existing checks. |
+| FR-24 | The Execution Engine SHALL enforce pre-trade risk checks before submitting any order via a composable `RiskCheck` chain, configured via `config/risk-limits.yml` and designed so that additional checks can be added by implementing the `RiskCheck` interface and appending to the chain — without modifying existing checks. Ten checks ship today: max order notional, max position per symbol, max portfolio exposure, max open orders, daily loss limit, sector exposure, beta exposure, ADV participation, [intraday VaR](strategies/intraday-var.md), and [correlated-position clusters](strategies/correlated-positions.md). |
 
 ### 3.5 Order Manager and Position Tracking
 
@@ -345,6 +348,7 @@ sequenceDiagram
 | FR-26 | The system SHALL maintain a real-time position book that updates on every fill event, tracking per-symbol: net quantity, average entry price, realized P&L, and unrealized P&L (mark-to-market against latest tick). |
 | FR-27 | The system SHALL compute portfolio-level aggregates in real time: total P&L, total exposure (gross and net), number of open positions, and cash balance. |
 | FR-28 | The system SHALL publish position and P&L updates to the `positions.updates` Kafka topic for consumption by the UI and analytics services. |
+| FR-28a | The system SHALL expose a read-side per-currency exposure aggregation (`GET /api/portfolio/currency-exposure`) that groups open-position exposure and realized/unrealized P&L by ISO-4217 currency, using per-symbol currency overrides with a configurable default. See [`strategies/currency-exposure.md`](strategies/currency-exposure.md). |
 
 ### 3.6 Post-Trade and Reconciliation
 
@@ -354,6 +358,7 @@ sequenceDiagram
 | FR-30 | The reconciliation process SHALL flag discrepancies (missing fills, price mismatches, quantity mismatches) and persist them to a `reconciliation_breaks` table in PostgreSQL. |
 | FR-31 | The system SHALL compute transaction cost analysis (TCA) for every completed order, measuring: slippage (fill price vs. arrival price), implementation shortfall, VWAP benchmark comparison, and spread cost. |
 | FR-32 | TCA results SHALL be published to the `analytics.tca` Kafka topic and persisted to PostgreSQL for historical analysis. |
+| FR-32a | The Post-Trade Service SHALL allocate filled parent orders across a configured roster of sub-accounts via `PRO_RATA` or `FIFO` algorithms, with `Σ allocations == parent_quantity` guaranteed, idempotent re-runs per order, and results persisted to the `allocations` table. See [`strategies/trade-allocation.md`](strategies/trade-allocation.md). |
 
 ### 3.7 Analytics Service (Python)
 
@@ -550,6 +555,10 @@ public interface TradingStrategy {
 
 **Options pricing module (roadmap 3.2.1 / 3.2.2 — delivered):** Black-Scholes-Merton fair value plus the five first-order Greeks (Δ, Γ, vega, θ, ρ) for a European option on a single underlying with a continuous dividend yield. Exposed under `/api/options/{price,greeks,implied-volatility}`; the implied-volatility endpoint inverts a market premium back to σ via Newton-Raphson with a bisection fallback. The module is stateless, lives alongside the equity strategies in `strategy-engine`, and does **not** implement `TradingStrategy` (it answers "what is this contract worth right now?", not "how do I work a parent over time?"). Full design is in [`strategies/options-pricing.md`](strategies/options-pricing.md).
 
+**Multi-market trading hours (roadmap 3.1.3 — delivered):** `TradingHoursService` sits in `StrategyEvaluationService` between the Kafka consumer and the strategy chain and drops ticks for symbols whose resolved market is closed at the tick's timestamp — sessions, lunch breaks (TSE), holidays, and weekends are all modelled per market under `strategy-engine.trading-hours`. Suppressed ticks increment `mariaalpha_strategy_ticks_suppressed_total{reason="market_closed"}`. Full design in [`strategies/multi-market-trading-hours.md`](strategies/multi-market-trading-hours.md).
+
+**Algo execution API (roadmap 3.4.4 / 3.4.5 — delivered):** `AlgoOrderService` + `AlgoOrderRegistry` provide the programmatic surface behind `POST/GET/DELETE /api/algo/orders` — one POST binds the strategy and applies its parameters in a single shot, returning a UUID. Lifecycle and signal events publish to the `algo.progress` Kafka topic, which the API Gateway fans out over the `/ws/algo` WebSocket. Full design in [`strategies/algo-execution-api.md`](strategies/algo-execution-api.md).
+
 #### 5.2.3 ML Signal Service
 
 | Property | Value |
@@ -633,6 +642,8 @@ public interface ExchangeAdapter {
 
 **Position Calculation:** On every fill: (1) adjust quantity and weighted avg entry price, (2) compute realized P&L on position-reducing fills, (3) mark-to-market open positions against latest tick, (4) publish updated snapshot to `positions.updates` (Kafka, authoritative async path) and to the **Redis position cache** (key `mariaalpha:position:<symbol>` with a 24 h TTL, plus a pub/sub event on `mariaalpha.positions.updates` so subscribers can refresh without polling). Redis is a pure cache — PostgreSQL remains the system of record and Kafka is the durable event log; cache failures degrade gracefully (warn + continue) so a Redis outage never blocks fill processing.
 
+**Currency exposure tracking (roadmap 3.5.3 — delivered):** `CurrencyExposureService` provides a read-side aggregation over the position book — gross/net exposure and realized/unrealized P&L grouped by ISO-4217 currency, resolved via per-symbol `overrides` with a `default-currency` fallback. Exposed at `GET /api/portfolio/currency-exposure`. The simulator universe is USD-only so the live response has a single row by default; the mapping is pre-wired for the multi-currency symbols a Phase 3 IBKR/TSE rollout would add. Full design in [`strategies/currency-exposure.md`](strategies/currency-exposure.md).
+
 #### 5.2.6 Post-Trade and Reconciliation Engine
 
 | Property | Value |
@@ -670,9 +681,9 @@ Exposed Prometheus metrics: `mariaalpha_analytics_toxicity_markout_bps`, `mariaa
 | --- | --- |
 | **Language** | Java 21 |
 | **Framework** | Spring Cloud Gateway (reactive) |
-| **Role** | Unified REST + WebSocket entry point for the React UI, programmatic consumers, and (roadmap) external electronic trading clients via REST API + FIX gateway |
+| **Role** | Unified REST + WebSocket entry point for the React UI, programmatic consumers, and external algo clients (REST + WebSocket today; FIX gateway on the roadmap) |
 
-Routes: `/api/market-data/**`, `/api/strategies/**`, `/api/orders/**`, `/api/analytics/**`, `/api/recon/**`, `/api/routing/**`. WebSocket endpoints: `/ws/market-data`, `/ws/positions`, `/ws/orders`, `/ws/alerts`.
+Routes: `/api/market-data/**`, `/api/strategies/**`, `/api/rfq/**`, `/api/options/**`, `/api/algo/**`, `/api/orders/**`, `/api/positions/**`, `/api/portfolio/**`, `/api/execution/**`, `/api/routing/**`, `/api/analytics/**`, `/api/tca/**`, `/api/recon/**`, `/api/allocations/**`. WebSocket endpoints: `/ws/market-data`, `/ws/positions`, `/ws/orders`, `/ws/alerts`, `/ws/algo`.
 
 #### 5.2.9 React UI
 
@@ -682,7 +693,7 @@ Routes: `/api/market-data/**`, `/api/strategies/**`, `/api/orders/**`, `/api/ana
 | **Framework** | React 18 with Vite, TailwindCSS, Recharts |
 | **Role** | SPA for live risk monitoring, order management, RFQ pricing, and analytics |
 
-Pages: Dashboard, Market Data, Order Entry, RFQ, Strategy Control, Analytics, Reconciliation.
+Pages: Dashboard, Market Data (placeholder), Order Entry, RFQ, Options, Strategy Control, Analytics, Reconciliation, Allocations.
 
 ### 5.3 Extensibility Architecture
 
@@ -829,7 +840,7 @@ routed child order to the right adapter — the simulated profile ships a LIT ve
 `ALPACA`), a simulated dark venue, and an internal venue backed by the real midpoint crossing
 engine described below. ML-based adaptive scoring is on the roadmap (issue 4.8.1).
 
-#### 5.3.7 Internal Crossing Engine
+#### 5.3.6 Internal Crossing Engine
 
 `InternalCrossingEngine` is the in-process matching engine behind the `INTERNAL_CROSS` venue. It
 maintains a per-symbol, side-keyed FIFO book of resting orders and crosses offsetting BUY/SELL
@@ -867,23 +878,23 @@ The adapter dispatches `ExecutionReport` callbacks **asynchronously** through it
 `OrderExecutionService.processOrder` time to transition both orders to `SUBMITTED` before the
 `FILLED` events arrive.
 
-#### 5.3.6 Electronic Trading API (Roadmap)
+#### 5.3.7 Electronic Trading API
 
-The architecture decouples **inbound order channels** from the **execution pipeline**. In the MVP, orders originate exclusively from the React UI via the API Gateway. The same Strategy Engine → Risk Check Chain → SOR → Exchange Adapter pipeline processes all orders regardless of origin. This means adding new inbound channels requires **no changes to the execution pipeline** — only a new entry point that produces `OrderSignal` objects:
+The architecture decouples **inbound order channels** from the **execution pipeline**. The same Strategy Engine → Risk Check Chain → SOR → Exchange Adapter pipeline processes all orders regardless of origin, so adding a new inbound channel requires **no changes to the execution pipeline** — only a new entry point that produces `OrderSignal` objects:
 
 ```mermaid
 graph TB
     subgraph "Inbound Channels"
         UI[React UI] -->|REST/WS| GW[API Gateway]
+        REST[Algo Execution<br/>REST API + /ws/algo] -->|OpenAPI| GW
         FIX[FIX Gateway<br/>roadmap] -->|QuickFIX/J| GW
-        REST[Electronic Trading<br/>REST API<br/>roadmap] -->|OpenAPI| GW
     end
 
     GW --> SE[Strategy Engine<br/>+ Risk Checks<br/>+ SOR]
     SE --> EE[Exchange<br/>Adapter]
 ```
 
-The Electronic Trading REST API (roadmap items 3.4.4 / 3.4.5) would expose endpoints for programmatic algo execution: `POST /api/v1/algo/vwap`, `POST /api/v1/algo/twap`, `POST /api/v1/algo/is`, etc. — each accepting order parameters and returning a tracking ID for monitoring execution progress via WebSocket. The FIX gateway (roadmap item 3.4.3) would accept standard FIX 4.4 NewOrderSingle messages and route them through the same pipeline.
+The Electronic Trading REST API (roadmap items 3.4.4 / 3.4.5 — **delivered**) exposes programmatic algo execution as a single strategy-agnostic surface: `POST /api/algo/orders` accepts `{symbol, side, targetQuantity, strategyName, parameters}` and returns a tracking UUID; GET/DELETE manage the order's lifecycle; progress events flow over the `algo.progress` Kafka topic to the `/ws/algo` WebSocket (see §2.6.4 for the end-to-end sequence and [`strategies/algo-execution-api.md`](strategies/algo-execution-api.md) for the full design). The FIX gateway (roadmap item 3.4.3) would accept standard FIX 4.4 NewOrderSingle messages and route them through the same pipeline.
 
 #### 5.3.8 Distributed Position Cache
 
@@ -1024,11 +1035,13 @@ All topics start with **1 partition** and **minimal retention** in the MVP. Part
 | Topic | Key | Value Schema | Initial Partitions | Initial Retention |
 | --- | --- | --- | --- | --- |
 | `market-data.ticks` | symbol | MarketTick JSON | 1 | 4 hours |
+| `strategy.signals` | symbol | OrderSignal JSON | 1 | 3 days |
 | `orders.lifecycle` | orderId | OrderEvent JSON | 1 | 3 days |
 | `positions.updates` | symbol | PositionSnapshot JSON | 1 | 3 days |
 | `analytics.tca` | orderId | TCA result JSON | 1 | 3 days |
 | `analytics.risk-alerts` | symbol | RiskAlert JSON | 1 | 3 days |
 | `routing.decisions` | orderId | SOR routing decision JSON | 1 | 3 days |
+| `algo.progress` | algoOrderId | AlgoProgressEvent JSON | 1 | 3 days |
 | `orders.dlq` | orderId | Error + original order JSON | 1 | 30 days |
 
 > **Rationale for non-zero retention:** Even in the MVP, consumers that crash and restart need to replay unprocessed messages from their last committed offset. Zero retention would cause data loss on restart. Market data ticks are high-volume with short-lived value (4 hours). Order/position topics are lower-volume with audit value (3 days). DLQ retains longer for manual inspection.
@@ -1445,13 +1458,15 @@ manual smoke runbook today.
 Broker integration with Interactive Brokers, options pricing, Japanese-market microstructure rules,
 and program/basket trading. These extend MariaAlpha beyond a single broker (Alpaca, US equities)
 into multi-asset, multi-region territory. **Deliberately deferred behind Phase 5** — there is no
-benefit to extending the asset-class surface before the existing one is validated.
+benefit to extending the asset-class surface before the existing one is validated. A number of
+3.x items were pulled forward and have already shipped (marked **delivered** below, each with a
+deep-dive under `docs/strategies/`); the remaining rows are open backlog.
 
 | # | Issue Title | Component |
 | --- | --- | --- |
 | [3.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/87) | Implement IBKR `MarketDataAdapter` (TWS API) | Market Data GW |
 | [3.1.2](https://github.com/drag0sd0g/MariaAlpha/issues/88) | Implement IBKR `ExchangeAdapter` (TWS API) | Execution Engine |
-| [3.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/89) | Implement multi-market trading hours support | Strategy Engine |
+| [3.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/89) | Implement multi-market trading hours support — **delivered**, see [`strategies/multi-market-trading-hours.md`](strategies/multi-market-trading-hours.md) | Strategy Engine |
 | [3.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/90) | Implement options pricing model (Black-Scholes) — **delivered**, see [`strategies/options-pricing.md`](strategies/options-pricing.md) | Strategy Engine |
 | [3.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/91) | Implement Greeks computation (delta, gamma, vega, theta) — **delivered**, see [`strategies/options-pricing.md`](strategies/options-pricing.md) | Strategy Engine |
 | [3.2.3](https://github.com/drag0sd0g/MariaAlpha/issues/92) | Implement Pegged order type handler — **delivered**, see [`strategies/pegged-orders.md`](strategies/pegged-orders.md) | Execution Engine |
@@ -1462,11 +1477,11 @@ benefit to extending the asset-class surface before the existing one is validate
 | [3.4.1](https://github.com/drag0sd0g/MariaAlpha/issues/97) | Implement program / basket trading engine | Execution Engine |
 | [3.4.2](https://github.com/drag0sd0g/MariaAlpha/issues/98) | Implement trade allocation — **delivered**, see [`strategies/trade-allocation.md`](strategies/trade-allocation.md) | Post-Trade |
 | [3.4.3](https://github.com/drag0sd0g/MariaAlpha/issues/99) | Implement FIX protocol gateway (QuickFIX/J) for inbound algo orders | API Gateway |
-| [3.4.4](https://github.com/drag0sd0g/MariaAlpha/issues/100) | Implement Electronic Trading REST API for programmatic algo execution | API Gateway |
-| [3.4.5](https://github.com/drag0sd0g/MariaAlpha/issues/119) | Implement algo execution tracking and progress reporting via WebSocket | API Gateway |
+| [3.4.4](https://github.com/drag0sd0g/MariaAlpha/issues/100) | Implement Electronic Trading REST API for programmatic algo execution — **delivered**, see [`strategies/algo-execution-api.md`](strategies/algo-execution-api.md) | API Gateway |
+| [3.4.5](https://github.com/drag0sd0g/MariaAlpha/issues/119) | Implement algo execution tracking and progress reporting via WebSocket — **delivered**, see [`strategies/algo-execution-api.md`](strategies/algo-execution-api.md) | API Gateway |
 | [3.5.1](https://github.com/drag0sd0g/MariaAlpha/issues/101) | Implement intraday VaR risk check — **delivered**, see [`strategies/intraday-var.md`](strategies/intraday-var.md) | Execution Engine |
 | [3.5.2](https://github.com/drag0sd0g/MariaAlpha/issues/102) | Implement correlated position limits — **delivered**, see [`strategies/correlated-positions.md`](strategies/correlated-positions.md) | Execution Engine |
-| [3.5.3](https://github.com/drag0sd0g/MariaAlpha/issues/103) | Implement currency exposure tracking | Order Manager |
+| [3.5.3](https://github.com/drag0sd0g/MariaAlpha/issues/103) | Implement currency exposure tracking — **delivered**, see [`strategies/currency-exposure.md`](strategies/currency-exposure.md) | Order Manager |
 
 ### Phase 4: Advanced Platform Features (post-validation)
 

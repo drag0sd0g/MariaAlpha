@@ -9,23 +9,26 @@ Full-stack algorithmic trading engine — see [Technical Design Document](docs/t
 MariaAlpha is a working, end-to-end algorithmic trading engine:
 
 - **Live market data ingestion** — simulated CSV replay (default) or Alpaca IEX WebSocket, with auto-reconnect and per-symbol in-memory order book.
-- **Six execution algorithms + RFQ pricing** — VWAP, TWAP, Momentum/trend-following, Implementation Shortfall, POV (Percentage of Volume), Close (Market-on-Close benchmark), and a two-way RFQ engine with inventory-skewed, vol- and ADV-relative pricing. Every signal is gated by an ML confirm/veto (LightGBM signal model + Random Forest regime classifier called over gRPC with a Resilience4j circuit breaker). Strategy hot-swap at runtime via REST.
-- **Eight pre-trade risk checks** — max notional, max position, max portfolio exposure, max open orders, daily loss limit, plus sector / beta / ADV-participation checks driven by per-symbol reference data. Composable chain that short-circuits on first failure; daily-loss trip halts trading and is resumable via REST.
+- **Six execution algorithms + RFQ pricing** — VWAP, TWAP, Momentum/trend-following, Implementation Shortfall, POV (Percentage of Volume), Close (Market-on-Close benchmark), and a two-way RFQ engine with inventory-skewed, vol- and ADV-relative pricing. Every signal is gated by an ML confirm/veto (LightGBM signal model + Random Forest regime classifier called over gRPC with a Resilience4j circuit breaker). Strategy hot-swap at runtime via REST, plus a programmatic [algo execution API](docs/strategies/algo-execution-api.md) (`POST /api/algo/orders` + `/ws/algo` progress WebSocket) for external clients.
+- **Multi-market trading hours** — per-market session calendars (NYSE/NASDAQ, TSE with lunch break, holidays) gate strategy evaluation so closed-market ticks never pollute indicator state.
+- **Options pricing** — Black-Scholes-Merton pricer with full Greeks (delta, gamma, vega, theta, rho) and an implied-volatility solver, exposed over REST and a dedicated UI page.
+- **Ten pre-trade risk checks** — max notional, max position, max portfolio exposure, max open orders, daily loss limit, sector / beta / ADV-participation checks driven by per-symbol reference data, plus [intraday parametric VaR](docs/strategies/intraday-var.md) and [correlated-position cluster limits](docs/strategies/correlated-positions.md). Composable chain that short-circuits on first failure; daily-loss trip halts trading and is resumable via REST.
 - **Smart Order Router** with scored multi-criteria venue selection across LIT, DARK, and INTERNAL venues, plus an in-process **internal crossing engine** that matches offsetting BUY/SELL interest at the NBBO midpoint.
-- **Seven order types** — MARKET, LIMIT, STOP, IOC, FOK, GTC, Iceberg (with a dedicated coordinator that slices parents into LIMIT children).
+- **Eight order types** — MARKET, LIMIT, STOP, IOC, FOK, GTC, Iceberg (with a dedicated coordinator that slices parents into LIMIT children), and [Pegged](docs/strategies/pegged-orders.md) (midpoint/primary/market peg that re-prices its working child as the NBBO moves).
 - **Dual exchange routing** — simulated exchange (configurable fill latency + slippage) or Alpaca paper trading (REST + `trade_updates` WebSocket with reconnect), switchable via `EXECUTION_PROFILE`.
-- **Real-time position and P&L tracking** — mark-to-market unrealized P&L, portfolio aggregates, fill history persisted in PostgreSQL with a Redis hot-path cache for sub-millisecond pre-trade reads.
+- **Real-time position and P&L tracking** — mark-to-market unrealized P&L, portfolio aggregates, [per-currency exposure](docs/strategies/currency-exposure.md), fill history persisted in PostgreSQL with a Redis hot-path cache for sub-millisecond pre-trade reads.
 - **Transaction Cost Analysis + PnL attribution + flow toxicity + axe matching** — slippage, implementation shortfall, VWAP benchmark, spread cost per order; Kissell-Glantz five-component PnL decomposition; per-counterparty markout-based toxicity; client-interest axe matcher.
+- **Trade allocation** — post-trade splitting of filled parents across sub-accounts (pro-rata with remainder handling, or FIFO waterfall), persisted as the per-account book of record.
 - **End-of-day reconciliation** — scheduled comparison of internal fills against the external venue's activity log, with four break categories (MISSING / EXTRA / QUANTITY / PRICE) published to `analytics.risk-alerts`.
-- **React UI** — Dashboard, Order Entry, RFQ, Strategy Control, Analytics, Reconciliation, all driven by live WebSocket streams. Served via nginx in Docker Compose; via an init-container config-render under Helm.
+- **React UI** — Dashboard, Order Entry, RFQ, Options, Strategy Control, Analytics, Reconciliation, Allocations, all driven by live WebSocket streams. Served via nginx in Docker Compose; via an init-container config-render under Helm.
 - **Full observability** — Grafana LGTM stack (Alloy, Prometheus, Loki, Tempo, Grafana 11) with three provisioned dashboards: Trading Pipeline, Portfolio & Risk, Post-Trade & Quality.
 - **Production-grade CI** — Spotless / Checkstyle / SpotBugs / ESLint / Prettier / ruff / mypy, JUnit unit + Testcontainers integration tests + Docker-Compose-driven end-to-end suite, mutation testing (PITest + mutmut), CodeQL and Snyk security scans, multi-arch Docker image publish, Helm lint + kubeconform.
 - **Two deployment targets** — Docker Compose for local development, an umbrella Helm chart for Kubernetes (validated against OrbStack, Docker Desktop, minikube, kind).
-- **Importable API collection** — [`api-collection/`](api-collection/) is a Bruno collection covering every gateway-routed REST endpoint plus direct-to-service health/admin calls.
+- **Importable API collection** — [`api-collection/`](api-collection/) is a Bruno collection covering the gateway-routed REST surface (health, strategies, RFQ, options, orders, positions, portfolio, execution, pegged, routing, TCA, recon, allocations, analytics) plus direct-to-service health/admin calls.
 
 The end-to-end acceptance suite under `e2e-tests/` boots the full Docker Compose stack and traverses the complete Tick-to-Trade pipeline on every CI run.
 
-See [§11 of the Technical Design Document](docs/technical-design-document.md#11-roadmap) for the roadmap of additional capabilities not yet built (multi-broker integration via IBKR, options/Greeks, Tokyo Stock Exchange microstructure, program/basket trading, FIX gateway, backtesting, OAuth/RBAC, ML-driven SOR, and others).
+See [§11 of the Technical Design Document](docs/technical-design-document.md#11-roadmap) for the roadmap of additional capabilities not yet built (backtesting, cloud deployment, multi-broker integration via IBKR, Tokyo Stock Exchange microstructure, program/basket trading, FIX gateway, OAuth/RBAC, ML-driven SOR, and others).
 
 ## Prerequisites
 
@@ -110,7 +113,7 @@ Polling /actuator/health on every service...
 
 ## Kubernetes Quickstart (Helm on OrbStack)
 
-An alternative to docker-compose: deploy the same stack to a local Kubernetes cluster via the umbrella Helm chart in [`charts/mariaalpha/`](charts/mariaalpha/README.md).
+An alternative to docker-compose: deploy the same stack (minus the analytics-service, which has no subchart yet) to a local Kubernetes cluster via the umbrella Helm chart in [`charts/mariaalpha/`](charts/mariaalpha/README.md).
 
 ```bash
 brew install helm                            # one-time
@@ -252,15 +255,36 @@ curl -X PUT -H "X-API-Key: local-dev-key" \
         }' \
     http://localhost:8080/api/strategies/CLOSE/parameters
 
+# Or skip the bind+configure two-step entirely: the algo execution API creates and
+# starts a parent algo order in one POST, returning a UUID you can poll, cancel,
+# and follow over the /ws/algo WebSocket. See docs/strategies/algo-execution-api.md.
+curl -X POST -H "X-API-Key: local-dev-key" \
+    -H "Content-Type: application/json" \
+    -d '{
+          "symbol": "MSFT",
+          "side": "BUY",
+          "targetQuantity": 50,
+          "strategyName": "TWAP",
+          "parameters": {
+            "targetQuantity": 50,
+            "side": "BUY",
+            "startTime": "14:30:00",
+            "endTime": "16:00:00",
+            "numSlices": 6
+          }
+        }' \
+    http://localhost:8080/api/algo/orders
+
 # Place a manual LIMIT order.
 curl -X POST -H "X-API-Key: local-dev-key" \
     -H "Content-Type: application/json" \
     -d '{"symbol":"AAPL","side":"BUY","orderType":"LIMIT","quantity":10,"limitPrice":180.00}' \
     http://localhost:8080/api/execution/orders
 
-# Read positions and portfolio summary.
+# Read positions, portfolio summary, and per-currency exposure.
 curl -fsS -H "X-API-Key: local-dev-key" http://localhost:8080/api/positions
 curl -fsS -H "X-API-Key: local-dev-key" http://localhost:8080/api/portfolio/summary
+curl -fsS -H "X-API-Key: local-dev-key" http://localhost:8080/api/portfolio/currency-exposure
 ```
 
 ### 7. Tear down
@@ -329,7 +353,7 @@ just run
 
 ### React UI (port 5173 in dev)
 
-The web UI is a Vite + React 18 + TypeScript single-page app with seven pages: Dashboard (live positions, P&L, exposure), Order Entry (manual order submission, active orders, fills), RFQ, Strategy Control, Analytics, Reconciliation, and a Market Data placeholder reserved for a future page.
+The web UI is a Vite + React 18 + TypeScript single-page app with nine pages: Dashboard (live positions, P&L, exposure), Order Entry (manual order submission, active orders, fills), RFQ, Options (Black-Scholes pricing + Greeks), Strategy Control, Analytics, Reconciliation, Allocations, and a Market Data placeholder reserved for a future page.
 
 #### Quickstart
 
