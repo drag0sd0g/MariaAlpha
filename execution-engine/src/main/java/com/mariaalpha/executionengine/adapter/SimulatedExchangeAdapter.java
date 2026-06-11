@@ -119,6 +119,9 @@ public class SimulatedExchangeAdapter implements ExchangeAdapter {
             return;
           }
           if (order.getOrderType() == OrderType.STOP) {
+            if (newState.lastTradePrice() == null) {
+              return;
+            }
             boolean triggered =
                 (order.getSide() == Side.BUY
                         && newState.lastTradePrice().compareTo(order.getStopPrice()) >= 0)
@@ -133,6 +136,9 @@ public class SimulatedExchangeAdapter implements ExchangeAdapter {
               scheduleFill(exchangeId, order, newState, config.fillLatencyMs());
             }
           } else if (order.getOrderType() == OrderType.LIMIT) {
+            if (newState.bidPrice() == null || newState.askPrice() == null) {
+              return;
+            }
             boolean canFill =
                 (order.getSide() == Side.BUY
                         && order.getLimitPrice().compareTo(newState.askPrice()) >= 0)

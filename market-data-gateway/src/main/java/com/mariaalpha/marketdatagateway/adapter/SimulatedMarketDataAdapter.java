@@ -23,6 +23,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Schedulers;
 
 @Component
 @Profile("simulated")
@@ -84,15 +85,18 @@ public class SimulatedMarketDataAdapter implements MarketDataAdapter {
     }
     Flux<MarketTick> singlePass =
         config.speedMultiplier() <= 0 ? Flux.fromIterable(filtered) : replayWithDelay(filtered);
-    if (config.loopDelayMs() <= 0) {
-      return singlePass;
+    if (config.loopDelayMs() > 0) {
+      // Loop the CSV replay with a pause between iterations so strategies configured
+      // after startup still receive ticks. Stops immediately when disconnect() is called.
+      singlePass =
+          singlePass.repeatWhen(
+              n ->
+                  n.delayElements(Duration.ofMillis(config.loopDelayMs()))
+                      .takeWhile(ignored -> connected));
     }
-    // Loop the CSV replay with a pause between iterations so strategies configured
-    // after startup still receive ticks. Stops immediately when disconnect() is called.
-    return singlePass.repeatWhen(
-        n ->
-            n.delayElements(Duration.ofMillis(config.loopDelayMs()))
-                .takeWhile(ignored -> connected));
+    // The replay sleeps between ticks — keep it off the subscriber's thread so callers
+    // (ApplicationRunner, health indicators) aren't blocked for the duration of a pass.
+    return singlePass.subscribeOn(Schedulers.boundedElastic());
   }
 
   /** Returns only ticks whose symbol matches the subscription list. */

@@ -133,6 +133,24 @@ class PortfolioServiceTest {
     assertThat(cash).isEqualByComparingTo("500000");
   }
 
+  @Test
+  void totalValueDoesNotDoubleCountUnrealizedPnl() {
+    // Buy 100 AAPL @ 150: cash 1,000,000 → 985,000. Mark rises to 160 → unrealized +1,000 and
+    // market value 16,000. Equity must be 985,000 + 16,000 = 1,001,000 (initial + unrealized),
+    // NOT 1,002,000 (which would count the unrealized gain twice).
+    var order = new OrderEntity();
+    order.setOrderId(UUID.randomUUID());
+    var buy = newFill(order, "AAPL", Side.BUY, BigDecimal.valueOf(150), BigDecimal.valueOf(100));
+    var pos = newPosition("AAPL", "100", "150", "160", "0", "1000");
+    when(positionRepository.findAll()).thenReturn(List.of(pos));
+    when(fillRepository.findAll()).thenReturn(List.of(buy));
+
+    var summary = service.summary();
+    assertThat(summary.cashBalance()).isEqualByComparingTo("985000");
+    assertThat(summary.netExposure()).isEqualByComparingTo("16000");
+    assertThat(summary.totalValue()).isEqualByComparingTo("1001000");
+  }
+
   private FillEntity newFill(
       OrderEntity order, String symbol, Side side, BigDecimal price, BigDecimal qty) {
     var fill = new FillEntity();

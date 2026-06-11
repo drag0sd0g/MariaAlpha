@@ -338,7 +338,7 @@ All arithmetic uses `BigDecimal` with scale 8 and `HALF_UP` rounding, matching t
 
 One public entry point: `summary()`. Returns a `PortfolioSummaryResponse` with:
 
-- `totalValue = cashBalance + netExposure + unrealizedPnl`
+- `totalValue = cashBalance + netExposure` — cash already reflects every fill's entry/exit flow and netExposure is marked to market, so unrealized P&L is embedded in the sum (adding it separately would double-count it).
 - `cashBalance = initialCash + Σ(SELL: +price × qty) − Σ(BUY: +price × qty) − Σ(commission)` — computed by scanning every fill.
 - `grossExposure = Σ |netQuantity × markPrice|` over open positions (uses `avgEntryPrice` as a fallback when no mark is cached).
 - `netExposure = Σ (netQuantity × markPrice)` — signed.

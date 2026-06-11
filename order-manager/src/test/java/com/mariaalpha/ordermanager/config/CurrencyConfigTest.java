@@ -44,8 +44,7 @@ class CurrencyConfigTest {
 
   @Test
   void overrideValuesAndKeysAreUppercased() {
-    var config =
-        new CurrencyConfig("usd", Map.of("sap", "eur"), List.of("usd", "eur"));
+    var config = new CurrencyConfig("usd", Map.of("sap", "eur"), List.of("usd", "eur"));
     assertThat(config.defaultCurrency()).isEqualTo("USD");
     assertThat(config.overrides()).containsEntry("SAP", "EUR");
     assertThat(config.known()).containsExactly("USD", "EUR");

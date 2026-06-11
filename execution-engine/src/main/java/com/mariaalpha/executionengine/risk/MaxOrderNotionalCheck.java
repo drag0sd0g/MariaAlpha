@@ -27,7 +27,7 @@ public class MaxOrderNotionalCheck implements RiskCheck {
   @Override
   public RiskCheckResult check(Order order) {
     var market = marketStateTracker.getMarketState(order.getSymbol());
-    if (market == null) {
+    if (market == null || market.lastTradePrice() == null) {
       return RiskCheckResult.fail(
           name(), "Market data unavailable for symbol: " + order.getSymbol());
     }

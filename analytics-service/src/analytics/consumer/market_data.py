@@ -103,7 +103,8 @@ class MarketDataConsumer:
                 price = tick.get("price")
                 symbol = tick.get("symbol")
                 ts = tick.get("timestamp")
-                if price is None or symbol is None:
+                # QUOTE ticks carry price=0 — only positive trade prices belong in the cache.
+                if price is None or symbol is None or float(price) <= 0:
                     continue
                 # ts is ISO-8601; for ts-keyed lookups we use epoch seconds.
                 ts_seconds = _iso_to_epoch(ts) if isinstance(ts, str) else time.time()

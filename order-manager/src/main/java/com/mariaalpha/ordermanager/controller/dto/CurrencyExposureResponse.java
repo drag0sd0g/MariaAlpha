@@ -6,8 +6,8 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Aggregated portfolio exposure broken down per ISO-4217 currency code. Each {@link Row}
- * represents the sum of position exposures for symbols that resolve (via {@link
+ * Aggregated portfolio exposure broken down per ISO-4217 currency code. Each {@link Row} represents
+ * the sum of position exposures for symbols that resolve (via {@link
  * com.mariaalpha.ordermanager.config.CurrencyConfig}) to that currency at the time of the request.
  * Exposures are reported in their native currency — no FX conversion is performed.
  */

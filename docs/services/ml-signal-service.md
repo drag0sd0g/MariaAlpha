@@ -595,7 +595,7 @@ Here's the complete journey of a market tick through the system, from raw data t
 ```
 1. Alpaca WebSocket → market-data-gateway → Kafka "market-data.ticks"
    │
-   │  (raw tick: {"symbol":"AAPL", "tradePrice":150.25, "tradeVolume":500, "timestamp":"..."})
+   │  (raw tick: {"symbol":"AAPL", "eventType":"TRADE", "price":150.25, "size":500, "timestamp":"..."})
    │
 2. TickConsumer (background thread) polls Kafka
    │  └─ Deserializes JSON, extracts price and volume

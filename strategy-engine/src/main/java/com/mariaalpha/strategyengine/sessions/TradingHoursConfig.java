@@ -16,15 +16,15 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  *
  * <p>A {@link MarketSchedule} carries a timezone (so each session's open / close are in local
  * time), a list of {@link SessionWindow}s (TSE has two — the morning Zenba and afternoon Goba, US
- * markets have one continuous session, LSE has one), a set of trading days, and an optional
- * holiday list.
+ * markets have one continuous session, LSE has one), a set of trading days, and an optional holiday
+ * list.
  *
  * <p>Symbols pick their market via {@link #symbolOverrides()}; symbols not listed fall back to
- * {@link #defaultMarket()}. The {@link #enabled()} flag is a soft feature gate — when {@code
- * false} the service treats every market as 24/7 open, matching the pre-3.1.3 behaviour.
+ * {@link #defaultMarket()}. The {@link #enabled()} flag is a soft feature gate — when {@code false}
+ * the service treats every market as 24/7 open, matching the pre-3.1.3 behaviour.
  *
- * <p>FX conversion is unrelated and lives separately (see {@code order-manager.currency} +
- * {@code CurrencyExposureService}).
+ * <p>FX conversion is unrelated and lives separately (see {@code order-manager.currency} + {@code
+ * CurrencyExposureService}).
  */
 @ConfigurationProperties(prefix = "strategy-engine.trading-hours")
 public record TradingHoursConfig(

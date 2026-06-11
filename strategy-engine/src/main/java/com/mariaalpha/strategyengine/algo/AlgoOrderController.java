@@ -17,8 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * REST surface for programmatic algorithmic-order submission (roadmap 3.4.4). Sits alongside the
  * strategy-binding endpoints under {@code /api/strategies/*}: where those bind a strategy to a
- * symbol persistently, this one submits a single named parent order with target quantity and gets
- * a UUID back that the caller can poll / cancel.
+ * symbol persistently, this one submits a single named parent order with target quantity and gets a
+ * UUID back that the caller can poll / cancel.
  *
  * <p>The contract is intentionally simple — POST to create, GET to query, DELETE to cancel. Lives
  * under the api-gateway's {@code /api/algo/**} route (configured in api-gateway/application.yml).

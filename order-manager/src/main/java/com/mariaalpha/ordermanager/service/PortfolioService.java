@@ -95,7 +95,10 @@ public class PortfolioService {
     }
 
     var totalPnl = realizedPnl.add(unrealizedPnl);
-    var totalValue = cash.add(netExposure).add(unrealizedPnl);
+    // Equity = cash + market value of open positions. Cash already reflects every fill's
+    // entry/exit flow and netExposure is marked to market, so unrealized P&L is embedded in the
+    // sum — adding it again would double-count it.
+    var totalValue = cash.add(netExposure);
 
     return new PortfolioSummaryResponse(
         totalValue.setScale(SCALE, RoundingMode.HALF_UP),

@@ -325,7 +325,7 @@ class AlpacaMarketDataAdapterTest {
   }
 
   @Test
-  void maxRetriesExhaustedStopsReconnecting() {
+  void reconnectKeepsRetryingPastBackoffTableWithCappedDelay() {
     var config =
         new AlpacaMarketDataConfig(
             "wss://unused", mockServer.url("/").toString(), "test-key", "test-secret");
@@ -334,7 +334,8 @@ class AlpacaMarketDataAdapterTest {
     testAdapter.connect(List.of("AAPL"));
     IntStream.range(0, MAX_RETRIES).forEach(ignore -> testAdapter.scheduleReconnect());
 
-    // One more should NOT increment the counter
+    // Past the end of the backoff table the adapter keeps retrying at the capped delay —
+    // giving up permanently would leave the gateway tickless until a restart.
     var countBefore =
         Objects.requireNonNull(registry.find("mariaalpha_md_websocket_reconnects_total").counter())
             .count();
@@ -343,8 +344,8 @@ class AlpacaMarketDataAdapterTest {
         Objects.requireNonNull(registry.find("mariaalpha_md_websocket_reconnects_total").counter())
             .count();
 
-    assertThat(countAfter).isEqualTo(countBefore);
-    assertThat(countAfter).isEqualTo(MAX_RETRIES);
+    assertThat(countAfter).isEqualTo(countBefore + 1);
+    assertThat(countAfter).isEqualTo(MAX_RETRIES + 1);
   }
 
   @Test

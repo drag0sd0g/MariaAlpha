@@ -23,6 +23,7 @@ class ManualOrderServiceTest {
   private OrderExecutionService executionService;
   private OrderLifecycleManager lifecycleManager;
   private IcebergCoordinator icebergCoordinator;
+  private com.mariaalpha.executionengine.adapter.VenueAdapterRegistry venueAdapters;
   private ManualOrderService service;
 
   @BeforeEach
@@ -30,7 +31,11 @@ class ManualOrderServiceTest {
     executionService = mock(OrderExecutionService.class);
     lifecycleManager = mock(OrderLifecycleManager.class);
     icebergCoordinator = mock(IcebergCoordinator.class);
-    service = new ManualOrderService(executionService, lifecycleManager, icebergCoordinator, null);
+    venueAdapters = mock(com.mariaalpha.executionengine.adapter.VenueAdapterRegistry.class);
+    when(venueAdapters.get(any())).thenReturn(java.util.Optional.empty());
+    service =
+        new ManualOrderService(
+            executionService, lifecycleManager, icebergCoordinator, null, venueAdapters);
 
     // submitOrder returns the order passed in (simulates pipeline registration)
     when(executionService.submitOrder(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));

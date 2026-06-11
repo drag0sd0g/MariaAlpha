@@ -93,10 +93,12 @@ When an `OrderSignal` arrives on the `strategy.signals` Kafka topic, it passes t
 
 ### Stage 0: Trading Halt Check
 
-Before any processing, the service checks whether the `DailyLossMonitor` has halted trading. If cumulative realised P&L for the day has breached the configured loss limit, all incoming signals are immediately rejected. This is the cheapest possible check — a single `AtomicBoolean.get()` — and it sits at the top to avoid wasting work on orders that will never execute.
+The order is registered with the lifecycle manager first, then the service checks whether the `DailyLossMonitor` has halted trading. If cumulative realised P&L for the day has breached the configured loss limit, the order is transitioned to REJECTED with reason `"Trading halted"` — registering before rejecting ensures the rejection is published on `orders.lifecycle`, so order-manager and the UI see the drop instead of a silent no-op.
 
 ```java
+lifecycleManager.registerOrder(order);
 if (dailyLossMonitor.isTradingHalted()) {
+    lifecycleManager.transition(order.getOrderId(), OrderStatus.REJECTED, null, "Trading halted");
     metrics.recordRejection("TradingHalted");
     return;
 }
@@ -168,7 +170,7 @@ Immediately after validation + risk checks, `OrderExecutionService.processOrder`
 
 Subsequent slices are issued from `OrderExecutionService.onExecutionReport` via the `icebergCoordinator.onChildFillIfApplicable(order, report)` hook (called once `dailyLossMonitor.onFill` has run). The coordinator transitions the parent into PARTIALLY_FILLED on the first child completion and into FILLED when cumulative child fills meet the parent quantity (with reason `iceberg-complete`).
 
-A parent cancel (via `ManualOrderService.cancel`) cascades through `IcebergCoordinator.onParentCancelRequested`, which cancels the currently-active child at its venue and transitions the parent to CANCELLED with reason `iceberg-parent-cancelled`. Already-filled children are immutable; not-yet-submitted slices are simply never issued.
+A parent cancel (via `ManualOrderService.cancel`) cascades through `IcebergCoordinator.onParentCancelRequested`, which cancels the currently-active child at its venue and transitions the parent to CANCELLED with reason `iceberg-parent-cancelled`. Already-filled children are immutable; not-yet-submitted slices are simply never issued. For plain (non-iceberg, non-pegged) orders, `ManualOrderService.cancel` first cancels the order at its venue via the venue adapter's `cancelOrder(exchangeOrderId)` and then transitions it locally — cancelling only the local state would leave the order live at the exchange, and a later fill would arrive for an order the system considers CANCELLED.
 
 PEGGED parents follow the same handler+coordinator split: `OrderExecutionService.processOrder` branches on `OrderType.PEGGED` and hands the parent to `PeggedCoordinator.onParentSubmit`, which keeps **one** LIMIT child working at the peg-derived price and cancels-and-resubmits it when the NBBO reference moves more than `repeg-threshold-bps`. Live progress is exposed at `GET /api/execution/orders/{parentId}/pegged-progress`. Full design in [`../strategies/pegged-orders.md`](../strategies/pegged-orders.md).
 
@@ -366,13 +368,13 @@ The `DailyLossMonitor` tracks cumulative realised P&L throughout the trading day
 
 ### How P&L is Calculated
 
-On every fill, the monitor computes:
+The monitor keeps its own per-symbol position book — signed net quantity plus weighted-average entry cost, updated on every fill. A fill that opens or extends a position realises nothing; a fill that reduces or flips a position realises:
 
 ```
-pnl = (fillPrice - entryPrice) × fillQuantity
+pnl = (fillPrice - avgEntryCost) × closedQuantity × sign(position)
 ```
 
-Where `entryPrice` is the order's current weighted-average fill price at the time of the fill. This is a simplified P&L model — it tracks the difference between exit and entry prices rather than full mark-to-market. The P&L is accumulated atomically using `AtomicReference.accumulateAndGet()` for lock-free thread safety.
+on the closed portion (the sign flips the formula correctly for short positions, and a flip re-opens the residual at the fill price). This is realised P&L only — no mark-to-market of open positions. The P&L is accumulated atomically using `AtomicReference.accumulateAndGet()` for lock-free thread safety; the position book itself is updated via the `ConcurrentHashMap.compute` idiom.
 
 ### Halt Trigger
 

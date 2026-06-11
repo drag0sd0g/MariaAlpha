@@ -58,7 +58,9 @@ public class PeggedRegistry {
   }
 
   public PeggedProgress recordChildCancelled(String parentOrderId, String childOrderId) {
-    childToParent.remove(childOrderId);
+    // Deliberately keep the childToParent mapping: the venue cancel is asynchronous, and a fill
+    // that raced the cancel must still be attributable to the parent. The mapping is cleaned up
+    // in removeParent when the parent reaches a terminal state.
     return progress.compute(parentOrderId, (k, v) -> v == null ? null : v.withChildCancelled());
   }
 
