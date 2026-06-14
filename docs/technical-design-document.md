@@ -403,7 +403,7 @@ sequenceDiagram
 | NFR-4 | Position and P&L recalculation SHALL complete within 10ms per fill event. |
 | NFR-5 | UI dashboard updates SHALL reflect position changes within 1 second (end-to-end from fill to screen). |
 
-> **Note:** NFR-1 through NFR-5 are design targets for the intended deployment profile (developer workstation, ≥16 GB RAM, SSD). Benchmark measurements are not in this table yet; the work to produce them across local, OrbStack-Kubernetes, and OCI Ampere A1 cloud surfaces is tracked by [#5.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/178). Once that issue lands, this footnote will be replaced with the actual p50 / p95 / p99 numbers and any required revisions to the targets above.
+> **Note:** NFR-1 through NFR-5 are design targets for the intended deployment profile (developer workstation, ≥16 GB RAM, SSD). Benchmark measurements are not in this table yet; the work to produce them across local and OrbStack-Kubernetes surfaces is tracked by [#5.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/178). Once that issue lands, this footnote will be replaced with the actual p50 / p95 / p99 numbers and any required revisions to the targets above.
 
 ### 4.2 Capacity
 
@@ -1339,7 +1339,7 @@ Tag selection is event-driven (`docker/metadata-action`): pull requests build th
 
 > The umbrella Helm chart lives at `charts/mariaalpha/` — see [`charts/mariaalpha/README.md`](../charts/mariaalpha/README.md) and the runbook [`docs/runbooks/helm-install.md`](runbooks/helm-install.md). The Analytics Service row below is not yet covered by the chart.
 
-The table below is the **Phase-2 sizing target**, not what the local chart currently ships. The local chart defaults to `replicaCount: 1` with `autoscaling.enabled: false` for every Java service to keep the OrbStack laptop install lean — HPA templates exist behind the flag so a cloud overlay can enable them without touching templates.
+The table below is the **Phase-2 sizing target**, not what the local chart currently ships. The local chart defaults to `replicaCount: 1` with `autoscaling.enabled: false` for every Java service to keep the OrbStack laptop install lean — HPA templates exist behind the flag so a higher-capacity overlay can enable them without touching templates.
 
 | Component | Replicas (target) | CPU Req | CPU Limit | Mem Req | Mem Limit |
 | --- | --- | --- | --- | --- | --- |
@@ -1369,39 +1369,82 @@ The table below is the **Phase-2 sizing target**, not what the local chart curre
 The capabilities described in §3 (functional requirements) through §10 (deployment) are all
 **implemented** and form the core of MariaAlpha today. This section records the work that has not
 yet been picked up. Each row is scoped to a single GitHub issue so the backlog stays trackable;
-none of them is required to *run* the system, but the Phase 5 block below is required to *trust*
-it — that is, to gain enough evidence (cloud-deployed multi-week paper-trading run, measured NFRs,
-operational hardening) to make any subsequent real-money decision honestly.
+none of them is required to *run* the system. The remaining backlog is small, so the phases are
+presented and worked in their natural numeric order — finish the feature expansion first
+(Phases 3 and 4), then validate and productionise what exists (Phase 5).
 
-**Priority ordering as of 2026-06-05:**
+**Work order as of 2026-06-14:**
 
-1. **Phase 5 — Validation & Productionisation.** Promoted ahead of everything else. This is the
-   evidence-gathering and hardening phase: backtester, cloud deploy, engineering benchmarks,
-   multi-week paper-trading run, alerting, SLOs, chaos drills. None of it adds features; all of it
-   is what separates "engineering-complete prototype" from "system you would trust with capital."
-2. **Phase 3 — Multi-Market & Derivatives Capabilities.** Feature expansion. Picked up after
-   Phase 5 evidence is in hand and after a deliberate decision on whether to invest in extending
-   the asset-class surface.
-3. **Phase 4 — Advanced Platform Features.** Mostly operational/analytical depth (RBAC, model
-   retraining, portfolio optimization, ML-driven SOR, multi-region HA). Mostly post-validation.
-4. **Other Considerations (unscheduled).** Architectural alternatives kept for the record.
+1. **Phase 3 — Multi-Market & Derivatives Capabilities.** Feature expansion: IBKR broker
+   integration, Tokyo Stock Exchange microstructure, program/basket trading, and the FIX gateway.
+   Several 3.x items have already shipped (options pricing, pegged orders, trade allocation, the
+   algo execution API, VaR/correlation/currency risk, multi-market hours) and are no longer listed.
+2. **Phase 4 — Advanced Platform Features.** Operational and analytical depth: RBAC, model
+   retraining, portfolio optimization, ML-driven SOR.
+3. **Phase 5 — Validation & Productionisation.** The evidence-gathering and hardening phase:
+   backtester, ML signal A/B audit, engineering benchmarks, a multi-week paper-trading run,
+   alerting, SLOs, chaos drills. None of it adds features; all of it is what separates an
+   "engineering-complete prototype" from a "system you would trust with capital."
 
-The numeric prefixes (3.x.y, 4.x.y, 5.x.y) are **stable issue identifiers**, not a temporal
-ordering. The order in which the phases are presented below reflects the work order.
+The numeric prefixes (3.x.y, 4.x.y, 5.x.y) are **stable issue identifiers** that match the backing
+GitHub issues; the phases are presented below in that same ascending order.
 
-### Phase 5: Validation & Productionisation (in flight — do this first)
+### Phase 3: Multi-Market & Derivatives Capabilities
+
+Broker integration with Interactive Brokers, Japanese-market microstructure rules, and
+program/basket trading. These extend MariaAlpha beyond a single broker (Alpaca, US equities) into
+multi-asset, multi-region territory. Several 3.x items have already shipped and are documented under
+[`docs/strategies/`](strategies/) — options pricing & Greeks, pegged orders, trade allocation, the
+algo execution API, intraday VaR, correlated-position limits, currency exposure, and multi-market
+trading hours — so only the open backlog is listed below.
+
+| # | Issue Title | Component |
+| --- | --- | --- |
+| [3.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/87) | Implement IBKR `MarketDataAdapter` (TWS API) | Market Data GW |
+| [3.1.2](https://github.com/drag0sd0g/MariaAlpha/issues/88) | Implement IBKR `ExchangeAdapter` (TWS API) | Execution Engine |
+| [3.3.1](https://github.com/drag0sd0g/MariaAlpha/issues/93) | Implement TSE tick size table and validation | Execution Engine |
+| [3.3.2](https://github.com/drag0sd0g/MariaAlpha/issues/94) | Implement auction session handling (Itayose, closing) | Market Data GW |
+| [3.3.3](https://github.com/drag0sd0g/MariaAlpha/issues/95) | Implement daily price limit enforcement | Execution Engine |
+| [3.3.4](https://github.com/drag0sd0g/MariaAlpha/issues/96) | Implement short-selling uptick rule | Execution Engine |
+| [3.4.1](https://github.com/drag0sd0g/MariaAlpha/issues/97) | Implement program / basket trading engine | Execution Engine |
+| [3.4.3](https://github.com/drag0sd0g/MariaAlpha/issues/99) | Implement FIX protocol gateway (QuickFIX/J) for inbound algo orders | API Gateway |
+
+### Phase 4: Advanced Platform Features
+
+OAuth/RBAC, ML model lifecycle, portfolio optimization, ML-driven SOR, and other items that improve
+the operational and analytical surface of the product without changing what markets it trades.
+
+> 4.1.1 (Backtester) and 4.4.2 (ML A/B audit) were originally scheduled here; they have been
+> moved into **Phase 5** as #5.1.1 and #5.1.2 respectively, since both are validation deliverables
+> rather than feature expansions.
+>
+> 4.5.1 (Cloud IaC / multi-region HA) has been **removed** — cloud deployment is no longer on the
+> roadmap, so there is no cloud footprint to make highly available.
+
+| # | Issue Title | Component |
+| --- | --- | --- |
+| [4.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/105) | Implement JWT/OAuth2 authentication | API Gateway |
+| [4.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/106) | Implement role-based access control | API Gateway |
+| [4.3.1](https://github.com/drag0sd0g/MariaAlpha/issues/107) | Implement warrant trading via IBKR | Execution Engine |
+| [4.4.1](https://github.com/drag0sd0g/MariaAlpha/issues/108) | Implement model retraining pipeline | ML Signal Service |
+| [4.6.1](https://github.com/drag0sd0g/MariaAlpha/issues/111) | Implement portfolio optimization (mean-variance) | Analytics Service |
+| [4.7.1](https://github.com/drag0sd0g/MariaAlpha/issues/112) | Implement client tiering for RFQ pricing | Strategy Engine |
+| [4.8.1](https://github.com/drag0sd0g/MariaAlpha/issues/113) | Implement ML-based adaptive SOR | Execution Engine |
+| [4.9.1](https://github.com/drag0sd0g/MariaAlpha/issues/114) | Evaluate Apache Flink for complex event processing | Infrastructure |
+
+### Phase 5: Validation & Productionisation
 
 The single largest gap between *"the system runs"* and *"the system is trustworthy"* is **evidence**:
 that the strategies make money on historical data, that the NFRs hold under load on the realistic
 deployment target, that the operational story (alerting, kill-switch, recon, secrets) survives
-contact with reality, and that the system can run unattended for weeks. This phase is structured to
-close that gap before any further feature work.
+contact with reality, and that the system can run unattended for weeks. This phase closes that gap.
 
-The execution sequence within Phase 5 has three parallel-friendly workstreams: **strategy
-validation** (backtester first, ML signal A/B audit second, then long-run paper-trading evidence),
-**cloud deployment** (Cloud-1..Cloud-8 from `docs/cloud-deployment-plan.md`, which is what enables
-24×5 paper trading without a local laptop), and **operational hardening** (the things you find out
-you needed only after running unattended).
+Two parallel-friendly workstreams remain: **strategy validation** (5.1) and **operational
+hardening** (5.3). The former **5.2 cloud-deployment** workstream has been **removed** — MariaAlpha
+runs on Docker Compose locally and on a local Kubernetes cluster (OrbStack/Docker Desktop/minikube/
+kind) via Helm, and that is now the full deployment story. The long-run evidence run is gathered by
+leaving the stack running uninterrupted on a developer workstation against Alpaca paper trading, so
+no cloud footprint is required.
 
 #### 5.1 Strategy validation
 
@@ -1412,30 +1455,13 @@ you needed only after running unattended).
 | [5.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/178) | Engineering benchmark suite + Grafana 'Benchmark' dashboard | Observability |
 | [5.1.4](https://github.com/drag0sd0g/MariaAlpha/issues/174) | Extended paper-trading evidence-gathering run (8+ weeks) | Strategy Engine |
 
-5.1.1 was previously identifier 4.1.1 and 5.1.2 was 4.4.2; both have been re-milestoned ahead of
-the multi-market work. The order within 5.1 is sequential: the backtester (5.1.1) produces baseline
-per-strategy expectations on historical data; the A/B audit (5.1.2) layers on top to decide whether
-the ML signal gate adds or destroys alpha; the engineering benchmark (5.1.3) replaces the
-*"unmeasured design targets"* footnote in §4.1 with real numbers across local, OrbStack, and cloud
-deployment surfaces; the evidence run (5.1.4) is the calendar-time experiment that brings
-everything together and produces a published equity curve.
-
-#### 5.2 Cloud deployment
-
-| # | Issue Title | Component |
-| --- | --- | --- |
-| [5.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/179) | Cloud-1: Provision OCI/OKE cluster and VCN | Infrastructure |
-| [5.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/173) | Cloud-2: Ingress + DNS + TLS (NGINX + cert-manager + nip.io) | Infrastructure |
-| [5.2.3](https://github.com/drag0sd0g/MariaAlpha/issues/177) | Cloud-3: Sealed-secrets controller + initial secret set | Infrastructure |
-| [5.2.4](https://github.com/drag0sd0g/MariaAlpha/issues/180) | Cloud-4: Persistent storage and Postgres backups | Infrastructure |
-| [5.2.5](https://github.com/drag0sd0g/MariaAlpha/issues/181) | Cloud-5: deploy.yml GitHub Actions workflow (OKE rollout) | CI/CD |
-| [5.2.6](https://github.com/drag0sd0g/MariaAlpha/issues/182) | Cloud-6: Cloud security hardening | Infrastructure |
-| [5.2.7](https://github.com/drag0sd0g/MariaAlpha/issues/183) | Cloud-7: Cloud smoke runbook + observability check | Documentation |
-| [5.2.8](https://github.com/drag0sd0g/MariaAlpha/issues/184) | Cloud-8: Helm chart cloud overrides (values-cloud.yaml) | Infrastructure |
-
-These eight issues operationalise `docs/cloud-deployment-plan.md`. The target is Oracle Cloud
-Always-Free (Ampere A1, 4 OCPU / 24 GB, OKE Basic, eu-frankfurt-1) — see the cloud plan §3 for why
-this is the only no-time-limit-free option in 2026.
+5.1.1 was previously identifier 4.1.1 and 5.1.2 was 4.4.2. The order within 5.1 is sequential: the
+backtester (5.1.1) produces baseline per-strategy expectations on historical data; the A/B audit
+(5.1.2) layers on top to decide whether the ML signal gate adds or destroys alpha; the engineering
+benchmark (5.1.3) replaces the *"unmeasured design targets"* footnote in §4.1 with real numbers
+across local and OrbStack-Kubernetes surfaces; the evidence run (5.1.4) is the calendar-time
+experiment — the stack left running uninterrupted on a developer workstation against Alpaca paper
+trading — that brings everything together and produces a published equity curve.
 
 #### 5.3 Operational hardening
 
@@ -1452,95 +1478,4 @@ of writing, has not been stress-tested. The daily-loss kill-switch (§7.6) is im
 never fired in anger; the DLQ (§7.4) retains messages but has no documented remediation path;
 EOD reconciliation against Alpaca's `/v2/account/activities` (§5.2.6) is exercised only by the
 manual smoke runbook today.
-
-### Phase 3: Multi-Market & Derivatives Capabilities (post-validation)
-
-Broker integration with Interactive Brokers, options pricing, Japanese-market microstructure rules,
-and program/basket trading. These extend MariaAlpha beyond a single broker (Alpaca, US equities)
-into multi-asset, multi-region territory. **Deliberately deferred behind Phase 5** — there is no
-benefit to extending the asset-class surface before the existing one is validated. A number of
-3.x items were pulled forward and have already shipped (marked **delivered** below, each with a
-deep-dive under `docs/strategies/`); the remaining rows are open backlog.
-
-| # | Issue Title | Component |
-| --- | --- | --- |
-| [3.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/87) | Implement IBKR `MarketDataAdapter` (TWS API) | Market Data GW |
-| [3.1.2](https://github.com/drag0sd0g/MariaAlpha/issues/88) | Implement IBKR `ExchangeAdapter` (TWS API) | Execution Engine |
-| [3.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/89) | Implement multi-market trading hours support — **delivered**, see [`strategies/multi-market-trading-hours.md`](strategies/multi-market-trading-hours.md) | Strategy Engine |
-| [3.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/90) | Implement options pricing model (Black-Scholes) — **delivered**, see [`strategies/options-pricing.md`](strategies/options-pricing.md) | Strategy Engine |
-| [3.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/91) | Implement Greeks computation (delta, gamma, vega, theta) — **delivered**, see [`strategies/options-pricing.md`](strategies/options-pricing.md) | Strategy Engine |
-| [3.2.3](https://github.com/drag0sd0g/MariaAlpha/issues/92) | Implement Pegged order type handler — **delivered**, see [`strategies/pegged-orders.md`](strategies/pegged-orders.md) | Execution Engine |
-| [3.3.1](https://github.com/drag0sd0g/MariaAlpha/issues/93) | Implement TSE tick size table and validation | Execution Engine |
-| [3.3.2](https://github.com/drag0sd0g/MariaAlpha/issues/94) | Implement auction session handling (Itayose, closing) | Market Data GW |
-| [3.3.3](https://github.com/drag0sd0g/MariaAlpha/issues/95) | Implement daily price limit enforcement | Execution Engine |
-| [3.3.4](https://github.com/drag0sd0g/MariaAlpha/issues/96) | Implement short-selling uptick rule | Execution Engine |
-| [3.4.1](https://github.com/drag0sd0g/MariaAlpha/issues/97) | Implement program / basket trading engine | Execution Engine |
-| [3.4.2](https://github.com/drag0sd0g/MariaAlpha/issues/98) | Implement trade allocation — **delivered**, see [`strategies/trade-allocation.md`](strategies/trade-allocation.md) | Post-Trade |
-| [3.4.3](https://github.com/drag0sd0g/MariaAlpha/issues/99) | Implement FIX protocol gateway (QuickFIX/J) for inbound algo orders | API Gateway |
-| [3.4.4](https://github.com/drag0sd0g/MariaAlpha/issues/100) | Implement Electronic Trading REST API for programmatic algo execution — **delivered**, see [`strategies/algo-execution-api.md`](strategies/algo-execution-api.md) | API Gateway |
-| [3.4.5](https://github.com/drag0sd0g/MariaAlpha/issues/119) | Implement algo execution tracking and progress reporting via WebSocket — **delivered**, see [`strategies/algo-execution-api.md`](strategies/algo-execution-api.md) | API Gateway |
-| [3.5.1](https://github.com/drag0sd0g/MariaAlpha/issues/101) | Implement intraday VaR risk check — **delivered**, see [`strategies/intraday-var.md`](strategies/intraday-var.md) | Execution Engine |
-| [3.5.2](https://github.com/drag0sd0g/MariaAlpha/issues/102) | Implement correlated position limits — **delivered**, see [`strategies/correlated-positions.md`](strategies/correlated-positions.md) | Execution Engine |
-| [3.5.3](https://github.com/drag0sd0g/MariaAlpha/issues/103) | Implement currency exposure tracking — **delivered**, see [`strategies/currency-exposure.md`](strategies/currency-exposure.md) | Order Manager |
-
-### Phase 4: Advanced Platform Features (post-validation)
-
-OAuth/RBAC, ML model lifecycle, multi-region HA, portfolio optimization, ML-driven SOR, and other
-items that improve the operational and analytical surface of the product without changing what
-markets it trades.
-
-> 4.1.1 (Backtester) and 4.4.2 (ML A/B audit) were originally scheduled here; they have been
-> promoted into **Phase 5** as #5.1.1 and #5.1.2 respectively, since both are validation
-> prerequisites for any real-money path rather than feature expansions.
->
-> 4.5.1 (Cloud IaC) was originally scoped as multi-cloud Terraform; it has been **re-scoped** to
-> multi-region / HA expansion of the OKE deployment because the initial single-region OKE bring-up
-> is now handled by Phase 5 issues #5.2.1–#5.2.8.
-
-| # | Issue Title | Component |
-| --- | --- | --- |
-| [4.2.1](https://github.com/drag0sd0g/MariaAlpha/issues/105) | Implement JWT/OAuth2 authentication | API Gateway |
-| [4.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/106) | Implement role-based access control | API Gateway |
-| [4.3.1](https://github.com/drag0sd0g/MariaAlpha/issues/107) | Implement warrant trading via IBKR | Execution Engine |
-| [4.4.1](https://github.com/drag0sd0g/MariaAlpha/issues/108) | Implement model retraining pipeline | ML Signal Service |
-| [4.5.1](https://github.com/drag0sd0g/MariaAlpha/issues/110) | Multi-region HA expansion of the OKE deployment | Deployment |
-| [4.6.1](https://github.com/drag0sd0g/MariaAlpha/issues/111) | Implement portfolio optimization (mean-variance) | Analytics Service |
-| [4.7.1](https://github.com/drag0sd0g/MariaAlpha/issues/112) | Implement client tiering for RFQ pricing | Strategy Engine |
-| [4.8.1](https://github.com/drag0sd0g/MariaAlpha/issues/113) | Implement ML-based adaptive SOR | Execution Engine |
-| [4.9.1](https://github.com/drag0sd0g/MariaAlpha/issues/114) | Evaluate Apache Flink for complex event processing | Infrastructure |
-
-### Other Considerations (unscheduled)
-
-Items below are deliberately **unscheduled** — they're recorded here so the rationale and trade-offs aren't lost, but the decision to take them on is deferred until either a concrete need or a clear cost/benefit signal emerges.
-
-#### LMAX Disruptor refactor for in-process hot paths
-
-The current architecture relies on Spring `@KafkaListener` (one thread per partition), `ConcurrentHashMap`, `ThreadPoolBulkhead`, and Project Reactor for in-process event handling. End-to-end p99 latency today is gated by inter-service Kafka hops (~1–10 ms each), the ML gRPC call (up to 100 ms timeout), the Alpaca REST call, and Postgres writes — *not* by in-process queueing. So adopting the LMAX Disruptor pattern would not move NFR-2 today.
-
-A Disruptor-based refactor becomes worthwhile once features appear that are bound by **in-process throughput** rather than network I/O:
-
-- **Backtesting engine** (roadmap issue 5.1.1) — millions of historical ticks replayed through the full pipeline in a single process; no Kafka, no DB hot path. The initial Phase 5 backtester is scoped as a *correctness* deliverable, not a throughput one; a Disruptor pass on the backtester comes later if replay speed becomes the bottleneck.
-- **Internal crossing engine** — an in-process matching engine is the canonical single-writer Disruptor use case; the existing engine is the natural pilot site.
-- **Program / basket trading engine** (3.4.1) and **FIX gateway** (3.4.3) — high in-process fan-out per parent order.
-- **Tokyo full-depth market data** (3.3.x) — if it materially exceeds NFR-3's 10k ticks/s budget per gateway instance.
-
-The natural insertion point is **after the multi-market / derivatives work lands** (the Phase 3 items) and **once the Phase 5 backtester has produced its first results** — that's when in-process throughput becomes the binding constraint and the backtester gains the most from a Disruptor re-platform. Doing it before Phase 5 finishes would be premature: the backtester's first job is to produce evidence on strategies that may or may not survive that evidence, and re-platforming a component that gets deleted is wasted effort.
-
-Three ambition levels worth keeping in mind:
-
-| Level | Scope | Effort | Outcome |
-|---|---|---|---|
-| **A** | One new module (e.g. internal crossing engine) implemented Disruptor-internal, Kafka at the boundaries. | ~1 week | A contained, demonstrable component. Touches nothing else. |
-| **B** | `execution-engine` in-process pipeline (signal-in → audit → validate → risk → SOR → submit; fills → lifecycle → publish) refactored to a Disruptor ring with pooled events. Kafka stays at the edges. Persistence in `order-manager` stays as-is. | ~3–4 weeks | LMAX-style architectural fingerprint without the inter-service rip. Resilience4j bulkheads removed on the in-process path; mutable pooled event slots replace per-event allocation. Benchmarks become a deliverable. |
-| **C** | Consolidate `execution-engine` + `order-manager` into one event-sourced "business-logic core" running on a single Disruptor pipeline (LMAX original). Postgres becomes a journal sink; state is in-memory and rebuilt by replay. Aeron/Chronicle Queue replaces Kafka for core transport. | ~8–12 weeks | Maximally HFT-realistic but reverses the §5.1 microservice choice for the trading core. |
-
-**Default recommendation when this is picked up: Level B, scheduled as a dedicated milestone between the multi-market/derivatives work and the advanced-platform work.** Level A remains the right scope-limited pilot if it's bundled into a follow-up iteration of the internal crossing engine. Level C is documented for completeness but should not be considered without an explicit product-level decision to abandon the microservice boundary between execution and order management.
-
-Friction points that any of the above will have to address:
-
-- `@KafkaListener` and `@Transactional` flows are blocking by design — bridge code is needed at the ring boundaries.
-- JDBC inside a Disruptor handler stalls the ring; persistence must stay outside the hot path (Level B) or be replaced by event sourcing (Level C).
-- Project Reactor in `market-data-gateway` (`OrderBookManager` / `Sinks.Many`) does not compose with Disruptor — pick one model per service.
-- Resilience4j `ThreadPoolBulkhead` is the pattern Disruptor replaces; it would be retired from the in-process path and retained only for outbound HTTP boundaries.
-- Without pinned cores / low-jitter hosts (i.e. on a noisy K8s pod), Disruptor's measurable gain shrinks substantially — the deployment target affects ROI.
 

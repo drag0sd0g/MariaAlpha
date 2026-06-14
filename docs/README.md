@@ -6,7 +6,6 @@ This folder is organised by purpose, not chronology. Start at the [Technical Des
 docs/
 ├── README.md                           ← you are here
 ├── technical-design-document.md        ← top-level architecture, FRs/NFRs, roadmap
-├── cloud-deployment-plan.md            ← long-form plan for the cloud migration
 │
 ├── services/                           ← one deep-dive per microservice
 ├── strategies/                         ← one deep-dive per execution / pricing strategy
@@ -22,7 +21,6 @@ docs/
 |---|---|
 | [Technical Design Document](technical-design-document.md) | Whole-system view: functional + non-functional requirements, architecture, data model, Kafka topics, scalability, resilience, observability, deployment, roadmap. |
 | [Finance mental map](finance-mental-map.md) | Engineer-friendly reference of every financial concept the project touches — market structure, order taxonomy, execution algos, ML signals, RFQ, risk checks, options Greeks, post-trade, quant primitives. Refresh here before reading any finance-flavoured code. |
-| [Cloud deployment plan](cloud-deployment-plan.md) | Long-form plan for moving the OrbStack-Kubernetes deployment to Oracle Cloud. |
 
 ---
 
