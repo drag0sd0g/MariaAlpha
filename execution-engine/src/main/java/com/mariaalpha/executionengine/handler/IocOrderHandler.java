@@ -27,7 +27,7 @@ public class IocOrderHandler implements OrderTypeHandler {
       return ValidationResult.fail("IOC order requires a positive limit price");
     }
 
-    if (marketState == null) {
+    if (marketState == null || marketState.bidPrice() == null || marketState.askPrice() == null) {
       return ValidationResult.fail("No market data available for " + order.getSymbol());
     }
 

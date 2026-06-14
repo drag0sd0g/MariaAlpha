@@ -66,8 +66,7 @@ class AlgoOrderControllerTest {
         .perform(
             post("/api/algo/orders")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    "{\"side\":\"BUY\",\"targetQuantity\":100,\"strategyName\":\"VWAP\"}"))
+                .content("{\"side\":\"BUY\",\"targetQuantity\":100,\"strategyName\":\"VWAP\"}"))
         .andExpect(status().isBadRequest());
   }
 

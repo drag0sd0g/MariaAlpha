@@ -14,10 +14,10 @@ import org.springframework.stereotype.Service;
 /**
  * Resolves whether a symbol's market is currently trading at a given timestamp (roadmap 3.1.3).
  *
- * <p>Used by {@code StrategyEvaluationService} as an early-exit gate: ticks that arrive outside
- * the resolved market's session windows are dropped before the strategy sees them. Keeping
- * after-hours ticks out of strategy state matters most for indicator-driven strategies (Momentum's
- * EMAs / RSI would otherwise drift on stale quotes).
+ * <p>Used by {@code StrategyEvaluationService} as an early-exit gate: ticks that arrive outside the
+ * resolved market's session windows are dropped before the strategy sees them. Keeping after-hours
+ * ticks out of strategy state matters most for indicator-driven strategies (Momentum's EMAs / RSI
+ * would otherwise drift on stale quotes).
  *
  * <p>When {@code enabled=false} the service short-circuits to "always open" so the pre-3.1.3
  * behaviour is preserved with zero config change. Single-market deployments only need to ensure

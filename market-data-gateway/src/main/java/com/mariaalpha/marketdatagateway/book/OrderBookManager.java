@@ -34,6 +34,20 @@ public class OrderBookManager {
     LOG.info("Order book manager started");
   }
 
+  /**
+   * Drops the current subscription and re-subscribes to the adapter's tick stream. Required in the
+   * simulated profile: the {@code @PostConstruct} subscription happens before the runner calls
+   * {@code adapter.connect()}, and the simulated adapter's pre-connect stream is an empty flux that
+   * completes immediately — without a re-subscribe the book would never see a tick.
+   */
+  public void restart() {
+    if (subscription != null && !subscription.isDisposed()) {
+      subscription.dispose();
+    }
+    subscription = adapter.streamTicks().subscribe(this::onTick);
+    LOG.info("Order book manager re-subscribed to tick stream");
+  }
+
   @PreDestroy
   void stop() {
     if (subscription != null && !subscription.isDisposed()) {

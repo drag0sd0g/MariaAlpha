@@ -222,6 +222,73 @@ class PeggedCoordinatorTest {
   }
 
   @Test
+  void repegAfterPartialFillSubmitsOnlyRemainingQuantity() {
+    primeBook("100.00", "100.20"); // mid 100.10
+    var p = parent(Side.BUY, 100, PegType.MIDPOINT, 0);
+    when(lifecycleManager.getOrder(any()))
+        .thenAnswer(
+            inv -> {
+              String id = inv.getArgument(0);
+              if (id.equals(p.getOrderId())) {
+                return p;
+              }
+              var match =
+                  capturedChildren.stream().filter(c -> c.getOrderId().equals(id)).findFirst();
+              match.ifPresent(c -> c.setExchangeOrderId("EX-existing"));
+              return match.orElse(null);
+            });
+    coordinator.onParentSubmit(p);
+    var child = capturedChildren.get(0);
+
+    // Child partially fills 40 of 100, stays working.
+    coordinator.onChildFillIfApplicable(
+        child,
+        new ExecutionReport(
+            "EX-1", new BigDecimal("100.10"), 40, 60, "PRIMARY", Instant.now(), null));
+
+    // Big NBBO move triggers a repeg — the fresh child must be sized at the REMAINING 60,
+    // not the full parent quantity (fills live on the children, never the parent Order).
+    primeBook("100.20", "100.40");
+
+    assertThat(capturedChildren).hasSize(2);
+    assertThat(capturedChildren.get(1).getQuantity()).isEqualTo(60);
+  }
+
+  @Test
+  void completedChildWithRemainingParentResubmitsOnNextTickWithoutThreshold() {
+    primeBook("100.00", "100.20"); // mid 100.10
+    var p = parent(Side.BUY, 100, PegType.MIDPOINT, 0);
+    when(lifecycleManager.getOrder(any()))
+        .thenAnswer(
+            inv -> {
+              String id = inv.getArgument(0);
+              if (id.equals(p.getOrderId())) {
+                return p;
+              }
+              var match =
+                  capturedChildren.stream().filter(c -> c.getOrderId().equals(id)).findFirst();
+              return match.orElse(null);
+            });
+    coordinator.onParentSubmit(p);
+    var child = capturedChildren.get(0);
+
+    // Child completes (remaining 0) after filling only 40 — parent still has 60 outstanding.
+    coordinator.onChildFillIfApplicable(
+        child,
+        new ExecutionReport(
+            "EX-1", new BigDecimal("100.10"), 40, 0, "PRIMARY", Instant.now(), null));
+
+    // A sub-threshold wobble must still spawn a fresh child for the residual — there is no
+    // active child to leave working, so waiting for a full repeg move would stall the parent.
+    primeBook("100.01", "100.21");
+
+    assertThat(capturedChildren).hasSize(2);
+    assertThat(capturedChildren.get(1).getQuantity()).isEqualTo(60);
+    // No active child existed, so nothing should have been cancelled at the venue.
+    verify(venueAdapter, never()).cancelOrder(any());
+  }
+
+  @Test
   void completedParentDoesNotRepeg() {
     primeBook("100.00", "100.20");
     var p = parent(Side.BUY, 100, PegType.MIDPOINT, 0);

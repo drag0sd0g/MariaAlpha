@@ -156,6 +156,7 @@ public class IcebergCoordinator {
       return false;
     }
     child.setExchangeOrderId(ack.exchangeOrderId());
+    lifecycleManager.registerExchangeOrderId(ack.exchangeOrderId(), child.getOrderId());
     registry.linkChildToParent(child, parent, sliceQty);
     transition(child, OrderStatus.SUBMITTED, null);
     if (sliceIndex == 0) {

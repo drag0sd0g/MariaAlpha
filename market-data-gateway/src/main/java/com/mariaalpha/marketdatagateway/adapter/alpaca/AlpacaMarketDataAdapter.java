@@ -66,7 +66,8 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
 
   private volatile List<String> subscribedSymbols = List.of();
   private volatile boolean shutdownRequested;
-  private volatile int reconnectAttempt;
+  private final java.util.concurrent.atomic.AtomicInteger reconnectAttempt =
+      new java.util.concurrent.atomic.AtomicInteger();
 
   @Autowired
   public AlpacaMarketDataAdapter(AlpacaMarketDataConfig config, MeterRegistry meterRegistry) {
@@ -114,7 +115,7 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
   public void connect(List<String> symbols) {
     this.subscribedSymbols = List.copyOf(symbols);
     this.shutdownRequested = false;
-    this.reconnectAttempt = 0;
+    this.reconnectAttempt.set(0);
     doConnect();
   }
 
@@ -191,7 +192,12 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
     try {
       var tree = objectMapper.readTree(raw);
       for (var node : tree) {
-        var typeCode = node.get("T").asText();
+        var typeNode = node.get("T");
+        if (typeNode == null || typeNode.isNull()) {
+          LOG.debug("Ignoring Alpaca message without a type field: {}", node);
+          continue;
+        }
+        var typeCode = typeNode.asText();
         var messageType = AlpacaMessageType.fromCode(typeCode);
         if (messageType == null) {
           LOG.debug("Ignoring unknown message type: {}", typeCode);
@@ -224,7 +230,7 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
       session.send(Flux.just(session.textMessage(authMsg))).subscribe();
 
     } else if (status == AlpacaAuthStatus.AUTHENTICATED) {
-      reconnectAttempt = 0;
+      reconnectAttempt.set(0);
       LOG.info("Authenticated, subscribing to {}", symbols);
       var subMsg =
           objectMapper.writeValueAsString(
@@ -319,15 +325,14 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
 
   @VisibleForTesting
   void scheduleReconnect() {
-    if (reconnectAttempt >= MAX_RETRIES) {
-      LOG.error("Max reconnect attempts ({}) exhausted", MAX_RETRIES);
-      emitStaleTicks();
-      return;
-    }
+    // Retry forever with the backoff capped at the last rung — giving up permanently would
+    // leave the gateway tickless until the process is restarted. Last ticks are re-emitted as
+    // stale so downstream consumers know the feed is degraded while we reconnect.
     emitStaleTicks();
     reconnectCounter.increment();
-    var delay = BACKOFF_MS[reconnectAttempt++];
-    LOG.warn("Reconnecting in {} millis (attempt {}/{})", delay, reconnectAttempt, MAX_RETRIES);
+    var attempt = reconnectAttempt.getAndIncrement();
+    var delay = BACKOFF_MS[Math.min(attempt, BACKOFF_MS.length - 1)];
+    LOG.warn("Reconnecting in {} millis (attempt {})", delay, attempt + 1);
     delayReconnect(delay);
   }
 }

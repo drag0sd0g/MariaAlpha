@@ -33,7 +33,7 @@ public class MaxPortfolioExposureCheck implements RiskCheck {
   @Override
   public RiskCheckResult check(Order order) {
     var market = marketStateTracker.getMarketState(order.getSymbol());
-    if (market == null) {
+    if (market == null || market.lastTradePrice() == null) {
       return RiskCheckResult.fail(
           name(), "Market data not available for symbol: " + order.getSymbol());
     }

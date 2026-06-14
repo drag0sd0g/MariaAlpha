@@ -73,7 +73,7 @@ public class KafkaTopicBroadcaster {
       autoStartup = "true",
       properties = {"auto.offset.reset=latest"})
   void onMarketData(ConsumerRecord<String, String> record) {
-    forward("market-data.ticks", record);
+    forward(record);
   }
 
   @KafkaListener(
@@ -82,7 +82,7 @@ public class KafkaTopicBroadcaster {
       autoStartup = "true",
       properties = {"auto.offset.reset=latest"})
   void onPositions(ConsumerRecord<String, String> record) {
-    forward("positions.updates", record);
+    forward(record);
   }
 
   @KafkaListener(
@@ -91,7 +91,7 @@ public class KafkaTopicBroadcaster {
       autoStartup = "true",
       properties = {"auto.offset.reset=latest"})
   void onOrders(ConsumerRecord<String, String> record) {
-    forward("orders.lifecycle", record);
+    forward(record);
   }
 
   @KafkaListener(
@@ -100,7 +100,7 @@ public class KafkaTopicBroadcaster {
       autoStartup = "true",
       properties = {"auto.offset.reset=latest"})
   void onAlerts(ConsumerRecord<String, String> record) {
-    forward("analytics.risk-alerts", record);
+    forward(record);
   }
 
   // Roadmap 3.4.5 — algo-execution progress: CREATED / CANCELLED / SIGNAL_EMITTED events
@@ -112,17 +112,19 @@ public class KafkaTopicBroadcaster {
       autoStartup = "true",
       properties = {"auto.offset.reset=latest"})
   void onAlgoProgress(ConsumerRecord<String, String> record) {
-    forward("algo.progress", record);
+    forward(record);
   }
 
-  private void forward(String topic, ConsumerRecord<String, String> record) {
-    Sinks.Many<String> sink = sinks.get(topic);
+  private void forward(ConsumerRecord<String, String> record) {
+    // Key by the record's actual topic — the sinks map is built from the configured endpoint
+    // topics, so hardcoded literals here would silently drop everything if config diverged.
+    Sinks.Many<String> sink = sinks.get(record.topic());
     if (sink == null) {
       return;
     }
     var sinkEmitResult = sink.tryEmitNext(record.value());
     if (sinkEmitResult.isFailure()) {
-      LOG.debug("emit failed for topic {}: {}", topic, sinkEmitResult);
+      LOG.debug("emit failed for topic {}: {}", record.topic(), sinkEmitResult);
     }
   }
 }

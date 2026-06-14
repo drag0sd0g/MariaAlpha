@@ -15,9 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Aggregates open-position exposure by currency. Mirrors {@link PortfolioService}'s gross/net
- * exposure logic but groups by the currency resolved from {@link CurrencyConfig}, so a desk
- * trading mixed-currency books can see (for example) JPY exposure separately from USD without
- * needing FX rates to collapse them into a single base.
+ * exposure logic but groups by the currency resolved from {@link CurrencyConfig}, so a desk trading
+ * mixed-currency books can see (for example) JPY exposure separately from USD without needing FX
+ * rates to collapse them into a single base.
  *
  * <p>No FX conversion: exposures are reported in their native currency. Adding a rates map and a
  * portfolio-base option is a deliberate follow-up — keeps this ticket small and avoids baking in a
@@ -63,9 +63,11 @@ public class CurrencyExposureService {
       }
     }
 
-    var rows = byCurrency.values().stream().sorted((a, b) -> a.currency.compareTo(b.currency))
-        .map(Aggregator::toRow)
-        .toList();
+    var rows =
+        byCurrency.values().stream()
+            .sorted((a, b) -> a.currency.compareTo(b.currency))
+            .map(Aggregator::toRow)
+            .toList();
     return new CurrencyExposureResponse(rows, openPositions, Instant.now());
   }
 

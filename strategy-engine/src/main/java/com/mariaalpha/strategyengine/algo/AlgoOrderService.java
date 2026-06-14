@@ -19,14 +19,14 @@ import org.springframework.stereotype.Service;
  *       com.mariaalpha.strategyengine.strategy.TradingStrategy#updateParameters}).
  *   <li>Bind the strategy to the symbol so the tick-driven evaluation path picks it up.
  *   <li>Register the algo order in the in-memory {@link AlgoOrderRegistry}.
- *   <li>Fan out a {@code CREATED} (or {@code CANCELLED}) event to the {@code algo.progress}
- *       Kafka topic for WebSocket consumers (roadmap 3.4.5).
+ *   <li>Fan out a {@code CREATED} (or {@code CANCELLED}) event to the {@code algo.progress} Kafka
+ *       topic for WebSocket consumers (roadmap 3.4.5).
  * </ol>
  *
  * <p>This is a v1 surface — it deliberately doesn't yet track child-fill progress against the
  * algo's {@code targetQuantity}. That work needs {@code algoOrderId} propagation through
- * SignalPublisher → execution-engine → order-manager → orders.lifecycle, which is captured in
- * the docs as a future ticket.
+ * SignalPublisher → execution-engine → order-manager → orders.lifecycle, which is captured in the
+ * docs as a future ticket.
  */
 @Service
 public class AlgoOrderService {
@@ -50,8 +50,8 @@ public class AlgoOrderService {
   }
 
   /**
-   * Submit a new algo order. Throws {@link IllegalArgumentException} if {@code strategyName} is
-   * not registered — the controller maps this to a 400.
+   * Submit a new algo order. Throws {@link IllegalArgumentException} if {@code strategyName} is not
+   * registered — the controller maps this to a 400.
    */
   public AlgoOrder submit(AlgoOrderRequest request) {
     var strategyOpt = strategyRegistry.get(request.strategyName());
@@ -61,9 +61,13 @@ public class AlgoOrderService {
     var strategy = strategyOpt.get();
 
     var params = request.parameters() == null ? Map.<String, Object>of() : request.parameters();
-    if (!params.isEmpty()) {
-      strategy.updateParameters(params);
-    }
+    // The order's own side / targetQuantity drive the strategy unless the caller explicitly
+    // overrides them in `parameters` — otherwise an order could execute with whatever side or
+    // quantity a previous algo order left behind on the singleton strategy instance.
+    var effectiveParams = new java.util.HashMap<String, Object>(params);
+    effectiveParams.putIfAbsent("side", request.side().name());
+    effectiveParams.putIfAbsent("targetQuantity", request.targetQuantity());
+    strategy.updateParameters(effectiveParams);
     router.setActiveStrategy(request.symbol(), request.strategyName());
 
     var now = Instant.now();
@@ -91,9 +95,9 @@ public class AlgoOrderService {
   }
 
   /**
-   * Cancel an algo order. Unbinds the strategy from the symbol so no further signals fire and
-   * emits the {@code CANCELLED} lifecycle event. Returns the updated record or empty if the id is
-   * unknown / already terminal.
+   * Cancel an algo order. Unbinds the strategy from the symbol so no further signals fire and emits
+   * the {@code CANCELLED} lifecycle event. Returns the updated record or empty if the id is unknown
+   * / already terminal.
    */
   public Optional<AlgoOrder> cancel(UUID id) {
     var current = orderRegistry.find(id);

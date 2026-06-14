@@ -205,8 +205,10 @@ class FeatureEngine:
     def _extract_price_and_volume(tick: dict[str, object]) -> tuple[float, int] | None:
         event_type = str(tick.get("eventType", ""))
         if event_type == "TRADE":
-            price = float(tick.get("tradePrice", 0))  # type: ignore[arg-type]
-            vol = int(tick.get("tradeVolume", 0))  # type: ignore[call-overload]
+            # market-data-gateway serializes MarketTick with `price` / `size`
+            # (see MarketTick.java) — not `tradePrice` / `tradeVolume`.
+            price = float(tick.get("price", 0))  # type: ignore[arg-type]
+            vol = int(tick.get("size", 0))  # type: ignore[call-overload]
             if price > 0:
                 return price, vol
         elif event_type == "QUOTE":

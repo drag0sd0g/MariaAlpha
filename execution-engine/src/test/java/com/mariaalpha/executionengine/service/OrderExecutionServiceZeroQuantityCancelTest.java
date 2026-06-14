@@ -89,7 +89,7 @@ class OrderExecutionServiceZeroQuantityCancelTest {
             eq(order.getOrderId()), eq(OrderStatus.CANCELLED), isNull(), eq("ioc-residual-cancel"));
     verify(metrics).recordIocResidualCancelled("AAPL", "BUY");
     verify(metrics, never()).recordFokKilled(any(), any());
-    verify(dailyLossMonitor, never()).onFill(any(), any(), any());
+    verify(dailyLossMonitor, never()).onFill(any());
   }
 
   @Test

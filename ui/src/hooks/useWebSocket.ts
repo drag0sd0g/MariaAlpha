@@ -87,7 +87,14 @@ export function useWebSocket<T>(opts: Options<T>): { state: ConnectionState } {
     return () => {
       unmounted = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (socket && socket.readyState === WebSocket.OPEN) socket.close(1000);
+      // Close CONNECTING sockets too — an unmount mid-handshake would otherwise leak a
+      // connection that completes in the background and stays open.
+      if (
+        socket &&
+        (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)
+      ) {
+        socket.close(1000);
+      }
       useConnectionStore.getState().remove(endpoint);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- queryKey captures `query`

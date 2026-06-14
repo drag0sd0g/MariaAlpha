@@ -1,5 +1,6 @@
 package com.mariaalpha.executionengine.consumer;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mariaalpha.executionengine.model.MarketState;
 import com.mariaalpha.executionengine.service.MarketStateTracker;
@@ -11,6 +12,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+/**
+ * Maintains per-symbol {@link MarketState} from the ticks topic.
+ *
+ * <p>Ticks are sparse: an Alpaca TRADE tick carries no bid/ask (they arrive as 0) and a QUOTE tick
+ * carries no trade price. Each field is therefore merged with the previous state — a zero or
+ * missing value never overwrites a previously-known one. Without this, every QUOTE would zero the
+ * last trade price (silently disabling the notional-based risk checks) and every TRADE would zero
+ * the NBBO (breaking pegged reference prices and SOR market snapshots).
+ */
 @Component
 public class MarketDataConsumer {
 
@@ -30,16 +40,28 @@ public class MarketDataConsumer {
   public void onTick(ConsumerRecord<String, String> record) {
     try {
       var node = objectMapper.readTree(record.value());
+      var symbol = node.get("symbol").asText();
+      var previous = marketStateTracker.getMarketState(symbol);
       var state =
           new MarketState(
-              node.get("symbol").asText(),
-              new BigDecimal(node.get("bidPrice").asText()),
-              new BigDecimal(node.get("askPrice").asText()),
-              new BigDecimal(node.get("price").asText()),
+              symbol,
+              merge(node, "bidPrice", previous == null ? null : previous.bidPrice()),
+              merge(node, "askPrice", previous == null ? null : previous.askPrice()),
+              merge(node, "price", previous == null ? null : previous.lastTradePrice()),
               Instant.parse(node.get("timestamp").asText()));
       marketStateTracker.update(state);
     } catch (Exception e) {
       LOG.error("Failed to parse market data tick: {}", e.getMessage());
     }
+  }
+
+  /** The tick's value if present and positive, otherwise the previous value (may be null). */
+  private static BigDecimal merge(JsonNode node, String field, BigDecimal previous) {
+    JsonNode value = node.get(field);
+    if (value == null || value.isNull()) {
+      return previous;
+    }
+    var parsed = new BigDecimal(value.asText());
+    return parsed.signum() > 0 ? parsed : previous;
   }
 }

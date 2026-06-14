@@ -166,19 +166,11 @@ public class AlpacaExchangeAdapter implements ExchangeAdapter {
     if (shuttingDown.get()) {
       return;
     }
+    // Retry forever with the backoff capped at the last rung — giving up permanently would
+    // silently drop every subsequent fill until the process is restarted.
     var attempt = reconnectAttempt.getAndIncrement();
-    if (attempt >= MAX_RECONNECTS) {
-      LOG.error(
-          "Alpaca trade_updates: max reconnect attempts ({}) exhausted — fills will be missed",
-          MAX_RECONNECTS);
-      return;
-    }
-    var delayMs = BACKOFF_MS[attempt];
-    LOG.warn(
-        "Alpaca trade_updates: scheduling reconnect attempt {}/{} in {}ms",
-        attempt + 1,
-        MAX_RECONNECTS,
-        delayMs);
+    var delayMs = BACKOFF_MS[Math.min(attempt, BACKOFF_MS.length - 1)];
+    LOG.warn("Alpaca trade_updates: scheduling reconnect attempt {} in {}ms", attempt + 1, delayMs);
     reconnectScheduler.schedule(this::doConnect, delayMs, TimeUnit.MILLISECONDS);
   }
 

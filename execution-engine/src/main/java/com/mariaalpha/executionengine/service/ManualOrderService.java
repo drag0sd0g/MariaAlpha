@@ -1,5 +1,6 @@
 package com.mariaalpha.executionengine.service;
 
+import com.mariaalpha.executionengine.adapter.VenueAdapterRegistry;
 import com.mariaalpha.executionengine.controller.dto.SubmitOrderRequest;
 import com.mariaalpha.executionengine.controller.dto.SubmitOrderResponse;
 import com.mariaalpha.executionengine.iceberg.IcebergCoordinator;
@@ -23,16 +24,19 @@ public class ManualOrderService {
   private final OrderLifecycleManager lifecycleManager;
   private final IcebergCoordinator icebergCoordinator;
   private final PeggedCoordinator peggedCoordinator;
+  private final VenueAdapterRegistry venueAdapters;
 
   public ManualOrderService(
       OrderExecutionService executionService,
       OrderLifecycleManager lifecycleManager,
       IcebergCoordinator icebergCoordinator,
-      PeggedCoordinator peggedCoordinator) {
+      PeggedCoordinator peggedCoordinator,
+      VenueAdapterRegistry venueAdapters) {
     this.executionService = executionService;
     this.lifecycleManager = lifecycleManager;
     this.icebergCoordinator = icebergCoordinator;
     this.peggedCoordinator = peggedCoordinator;
+    this.venueAdapters = venueAdapters;
   }
 
   public SubmitOrderResponse submit(SubmitOrderRequest request) {
@@ -79,6 +83,13 @@ public class ManualOrderService {
       if (order.getOrderType() == OrderType.PEGGED && peggedCoordinator != null) {
         peggedCoordinator.onParentCancelRequested(order);
         return true;
+      }
+      // Cancel at the venue first — without this the order stays live at the exchange and a
+      // later fill would arrive for an order we consider CANCELLED.
+      if (order.getExchangeOrderId() != null && order.getVenue() != null) {
+        venueAdapters
+            .get(order.getVenue())
+            .ifPresent(adapter -> adapter.cancelOrder(order.getExchangeOrderId()));
       }
       lifecycleManager.transition(orderId, OrderStatus.CANCELLED, null, "Manual cancel");
       return true;

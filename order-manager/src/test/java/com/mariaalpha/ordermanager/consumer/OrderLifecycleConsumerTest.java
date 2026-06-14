@@ -19,6 +19,7 @@ import com.mariaalpha.ordermanager.model.OrderStatus;
 import com.mariaalpha.ordermanager.model.OrderType;
 import com.mariaalpha.ordermanager.model.Side;
 import com.mariaalpha.ordermanager.publisher.PositionUpdatePublisher;
+import com.mariaalpha.ordermanager.service.LifecycleEventHandler;
 import com.mariaalpha.ordermanager.service.OrderPersistenceService;
 import com.mariaalpha.ordermanager.service.PositionService;
 import java.math.BigDecimal;
@@ -43,14 +44,15 @@ class OrderLifecycleConsumerTest {
   @Mock private ObjectProvider<RedisPositionCachePublisher> cacheProvider;
 
   private ObjectMapper objectMapper;
+  private LifecycleEventHandler handler;
   private OrderLifecycleConsumer consumer;
 
   @BeforeEach
   void setUp() {
     objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
-    consumer =
-        new OrderLifecycleConsumer(
-            objectMapper, persistenceService, positionService, publisher, cacheProvider);
+    handler =
+        new LifecycleEventHandler(persistenceService, positionService, publisher, cacheProvider);
+    consumer = new OrderLifecycleConsumer(objectMapper, handler);
   }
 
   @Test
@@ -60,7 +62,7 @@ class OrderLifecycleConsumerTest {
     when(persistenceService.upsertOrder(event)).thenReturn(saved);
     when(persistenceService.persistFillIfAbsent(saved, null)).thenReturn(Optional.empty());
 
-    consumer.handle(event);
+    handler.handle(event);
 
     verify(positionService, never()).applyFill(any());
     verify(publisher, never()).publish(any());
@@ -79,7 +81,7 @@ class OrderLifecycleConsumerTest {
         .thenReturn(Optional.of(persistedFill));
     when(positionService.applyFill(persistedFill)).thenReturn(position);
 
-    consumer.handle(event);
+    handler.handle(event);
 
     verify(positionService).applyFill(persistedFill);
     verify(publisher).publish(any(PositionSnapshot.class));
@@ -87,7 +89,7 @@ class OrderLifecycleConsumerTest {
 
   @Test
   void nullEventIsDropped() {
-    consumer.handle(null);
+    handler.handle(null);
     verify(persistenceService, never()).upsertOrder(any());
   }
 
@@ -96,7 +98,7 @@ class OrderLifecycleConsumerTest {
     var event =
         new OrderLifecycleEvent(
             UUID.randomUUID().toString(), OrderStatus.REJECTED, null, null, "bad", Instant.now());
-    consumer.handle(event);
+    handler.handle(event);
     verify(persistenceService, never()).upsertOrder(any());
   }
 

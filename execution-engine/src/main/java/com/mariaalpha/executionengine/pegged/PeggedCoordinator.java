@@ -125,8 +125,9 @@ public class PeggedCoordinator {
     if (updated.parentComplete()) {
       finalizeParentFilled(parent);
     }
-    // If the child is complete but parent isn't, the next NBBO tick will submit a fresh child
-    // through onMarketStateUpdate. No immediate resubmit here — we don't have a fresh reference.
+    // If the child is complete but parent isn't, the next NBBO tick submits a fresh child
+    // through onMarketStateUpdate (unconditionally when no child is active — see maybeRepeg).
+    // No immediate resubmit here — we don't have a fresh reference.
   }
 
   /** Cascade a parent CANCELLED transition to the currently-active child, if any. */
@@ -164,6 +165,12 @@ public class PeggedCoordinator {
   }
 
   private void maybeRepeg(Order parent, MarketState state) {
+    if (isTerminal(parent.getStatus())) {
+      // Parent was rejected/cancelled/filled outside the coordinator (e.g. first child rejected
+      // and OrderExecutionService transitioned the parent) — stop tracking it.
+      registry.removeParent(parent.getOrderId());
+      return;
+    }
     var progressOpt = registry.progress(parent.getOrderId());
     if (progressOpt.isEmpty()) {
       return;
@@ -182,17 +189,33 @@ public class PeggedCoordinator {
     if (newPrice == null) {
       return;
     }
-    if (!priceCalculator.shouldRepeg(
-        progress.lastSubmittedPrice(), newPrice, config.repegThresholdBps())) {
+    boolean hasActiveChild = progress.activeChildOrderId() != null;
+    // With no active child (previous child filled completely but the parent still has remaining
+    // quantity), resubmit on the next tick regardless of how little the price moved — otherwise
+    // the residual would sit idle until the market moved a full repeg threshold.
+    if (hasActiveChild
+        && !priceCalculator.shouldRepeg(
+            progress.lastSubmittedPrice(), newPrice, config.repegThresholdBps())) {
       return;
     }
-    cancelActiveChild(parent.getOrderId());
-    submitChild(parent, reference, newPrice, true);
+    if (hasActiveChild) {
+      cancelActiveChild(parent.getOrderId());
+    }
+    submitChild(parent, reference, newPrice, hasActiveChild);
+  }
+
+  private static boolean isTerminal(OrderStatus status) {
+    return status == OrderStatus.FILLED
+        || status == OrderStatus.CANCELLED
+        || status == OrderStatus.REJECTED;
   }
 
   private boolean submitChild(
       Order parent, BigDecimal reference, BigDecimal limitPrice, boolean isRepeg) {
-    var remaining = parent.getQuantity() - parent.getFilledQuantity();
+    // Remaining quantity lives in the registry's PeggedProgress — child fills are applied to the
+    // child orders, never to the parent Order object, so parent.getFilledQuantity() is always 0.
+    var remaining =
+        registry.progress(parent.getOrderId()).map(PeggedProgress::remainingQuantity).orElse(0);
     if (remaining <= 0) {
       return false;
     }
@@ -221,6 +244,7 @@ public class PeggedCoordinator {
       return false;
     }
     child.setExchangeOrderId(ack.exchangeOrderId());
+    lifecycleManager.registerExchangeOrderId(ack.exchangeOrderId(), child.getOrderId());
     registry.recordChildSubmitted(
         parent.getOrderId(), child.getOrderId(), reference, limitPrice, isRepeg);
     transition(child, OrderStatus.SUBMITTED, null);

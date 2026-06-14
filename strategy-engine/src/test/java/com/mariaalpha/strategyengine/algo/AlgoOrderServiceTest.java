@@ -49,18 +49,20 @@ class AlgoOrderServiceTest {
     assertThat(algo.status()).isEqualTo(AlgoOrder.Status.ACTIVE);
     assertThat(algo.symbol()).isEqualTo("AAPL");
     assertThat(algo.targetQuantity()).isEqualTo(100);
-    verify(strategy).updateParameters(params);
+    // Caller params are forwarded, enriched with the order's side (and targetQuantity when the
+    // caller didn't supply one) so the strategy can't run with a stale side from a prior order.
+    verify(strategy).updateParameters(Map.of("targetQuantity", 100, "side", "BUY"));
     verify(router).setActiveStrategy("AAPL", "VWAP");
     verify(progressPublisher).publishLifecycle(algo, AlgoProgressEvent.EventType.CREATED);
     assertThat(orderRegistry.find(algo.algoOrderId())).contains(algo);
   }
 
   @Test
-  void submitWithoutParametersStillBindsButSkipsUpdate() {
+  void submitWithoutParametersStillAppliesSideAndQuantity() {
     when(strategyRegistry.get("VWAP")).thenReturn(Optional.of(strategy));
-    var req = new AlgoOrderRequest("AAPL", Side.BUY, 100, "VWAP", null);
+    var req = new AlgoOrderRequest("AAPL", Side.SELL, 250, "VWAP", null);
     service.submit(req);
-    verify(strategy, never()).updateParameters(any());
+    verify(strategy).updateParameters(Map.of("side", "SELL", "targetQuantity", 250L));
     verify(router).setActiveStrategy(anyString(), anyString());
   }
 

@@ -78,13 +78,14 @@ public class OrderExecutionService {
   private void processOrder(Order order) {
     long startTime = System.currentTimeMillis();
 
+    lifecycleManager.registerOrder(order);
+
     if (dailyLossMonitor.isTradingHalted()) {
       LOG.warn("Signal rejected - trading halted. Symbol: {}", order.getSymbol());
+      lifecycleManager.transition(order.getOrderId(), OrderStatus.REJECTED, null, "Trading halted");
       metrics.recordRejection("TradingHalted");
       return;
     }
-
-    lifecycleManager.registerOrder(order);
 
     var handler = handlerRegistry.getHandler(order.getOrderType()).orElse(null);
     if (handler == null) {
@@ -179,6 +180,7 @@ public class OrderExecutionService {
     var orderAck = adapter.submitOrder(execInstruction);
     if (orderAck.accepted()) {
       order.setExchangeOrderId(orderAck.exchangeOrderId());
+      lifecycleManager.registerExchangeOrderId(orderAck.exchangeOrderId(), order.getOrderId());
       lifecycleManager.transition(order.getOrderId(), OrderStatus.SUBMITTED, null, null);
       metrics.recordVenueSubmit(adapter.venueName(), adapter.venueType().name());
       LOG.info(
@@ -237,14 +239,24 @@ public class OrderExecutionService {
             report.timestamp());
     var newStatus =
         report.remainingQuantity() == 0 ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED;
-    lifecycleManager.transition(order.getOrderId(), newStatus, fill, null);
+    try {
+      lifecycleManager.transition(order.getOrderId(), newStatus, fill, null);
+    } catch (IllegalStateTransitionException e) {
+      // A fill can race a cancel (the venue filled before our cancel landed). The order is
+      // already terminal locally, but the fill is real — keep counting it below.
+      LOG.warn(
+          "Fill {} arrived for order {} already in terminal state: {}",
+          fill.fillId(),
+          order.getOrderId(),
+          e.getMessage());
+    }
 
     venueAdapters.adapters().stream()
         .filter(a -> a.venueName().equals(report.venue()))
         .findFirst()
         .ifPresent(a -> metrics.recordVenueFill(a.venueName(), a.venueType().name()));
 
-    dailyLossMonitor.onFill(fill, order.getAvgFillPrice(), order.getSymbol());
+    dailyLossMonitor.onFill(fill);
 
     if (icebergCoordinator != null) {
       icebergCoordinator.onChildFillIfApplicable(order, report);
