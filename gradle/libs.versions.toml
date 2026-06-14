@@ -19,6 +19,7 @@ resilience4j = "2.2.0"
 okhttp = "4.12.0"
 caffeine = "3.1.8"
 springdoc = "2.6.0"
+quickfixj = "2.3.2"
 pitest-plugin = "1.19.0"
 pitest-tool = "1.19.6"
 pitest-junit5 = "1.2.3"
@@ -48,6 +49,8 @@ okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
 springdoc-openapi-webflux-ui = { module = "org.springdoc:springdoc-openapi-starter-webflux-ui", version.ref = "springdoc" }
 mockwebserver = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "okhttp" }
+quickfixj-core = { module = "org.quickfixj:quickfixj-core", version.ref = "quickfixj" }
+quickfixj-messages-fix44 = { module = "org.quickfixj:quickfixj-messages-fix44", version.ref = "quickfixj" }
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }

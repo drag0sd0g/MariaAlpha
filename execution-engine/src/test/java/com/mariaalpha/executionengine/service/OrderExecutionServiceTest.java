@@ -91,6 +91,7 @@ class OrderExecutionServiceTest {
             dailyLossMonitor,
             metrics,
             icebergCoordinator,
+            null,
             null);
     service.registerCallbacks();
   }

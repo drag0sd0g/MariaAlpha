@@ -1,6 +1,7 @@
 package com.mariaalpha.executionengine.service;
 
 import com.mariaalpha.executionengine.adapter.VenueAdapterRegistry;
+import com.mariaalpha.executionengine.basket.BasketCoordinator;
 import com.mariaalpha.executionengine.handler.OrderTypeHandlerRegistry;
 import com.mariaalpha.executionengine.iceberg.IcebergCoordinator;
 import com.mariaalpha.executionengine.lifecycle.IllegalStateTransitionException;
@@ -37,6 +38,7 @@ public class OrderExecutionService {
   private final ExecutionMetrics metrics;
   private final IcebergCoordinator icebergCoordinator;
   private final PeggedCoordinator peggedCoordinator;
+  private final BasketCoordinator basketCoordinator;
 
   public OrderExecutionService(
       OrderTypeHandlerRegistry handlerRegistry,
@@ -48,7 +50,8 @@ public class OrderExecutionService {
       DailyLossMonitor dailyLossMonitor,
       ExecutionMetrics metrics,
       IcebergCoordinator icebergCoordinator,
-      PeggedCoordinator peggedCoordinator) {
+      PeggedCoordinator peggedCoordinator,
+      BasketCoordinator basketCoordinator) {
     this.handlerRegistry = handlerRegistry;
     this.riskCheckChain = riskCheckChain;
     this.router = router;
@@ -59,6 +62,7 @@ public class OrderExecutionService {
     this.metrics = metrics;
     this.icebergCoordinator = icebergCoordinator;
     this.peggedCoordinator = peggedCoordinator;
+    this.basketCoordinator = basketCoordinator;
   }
 
   @PostConstruct
@@ -263,6 +267,9 @@ public class OrderExecutionService {
     }
     if (peggedCoordinator != null) {
       peggedCoordinator.onChildFillIfApplicable(order, report);
+    }
+    if (basketCoordinator != null) {
+      basketCoordinator.onLegFillIfApplicable(order, report);
     }
   }
 }
