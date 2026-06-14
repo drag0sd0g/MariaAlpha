@@ -1,0 +1,22 @@
+meta {
+  name: Basket Progress
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/execution/baskets/{{lastBasketId}}
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Returns the aggregate BasketView for a basket order (roadmap 3.4.1): overall
+  status (SUBMITTED / PARTIALLY_FILLED / FILLED / REJECTED), leg counts, target
+  vs filled quantity, and per-leg status. Run "Submit Program/Basket Order"
+  first to populate lastBasketId.
+}

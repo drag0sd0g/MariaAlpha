@@ -72,6 +72,18 @@ mariaalpha:
         management-url: ${ANALYTICS_SERVICE_MANAGEMENT_URL:http://localhost:8095}
         required: true
 
+    # Inbound FIX 4.4 acceptor (roadmap 3.4.3). Disabled by default — set FIX_GATEWAY_ENABLED=true
+    # (e.g. in docker-compose) to open the listen socket. Translates NewOrderSingle /
+    # OrderCancelRequest into execution-engine REST calls and replies with ExecutionReport.
+    fix:
+      enabled: ${FIX_GATEWAY_ENABLED:false}
+      host: ${FIX_GATEWAY_HOST:0.0.0.0}
+      port: ${FIX_GATEWAY_PORT:9878}
+      sender-comp-id: ${FIX_SENDER_COMP_ID:MARIAALPHA}
+      target-comp-id: ${FIX_TARGET_COMP_ID:CLIENT}
+      heartbeat-seconds: ${FIX_HEARTBEAT_SECONDS:30}
+      execution-engine-url: ${EXECUTION_ENGINE_URL:http://localhost:8084}
+
     security:
       api-key: ${MARIAALPHA_API_KEY:}
       header-name: X-API-Key

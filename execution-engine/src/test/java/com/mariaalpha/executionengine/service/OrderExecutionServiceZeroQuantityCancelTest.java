@@ -59,6 +59,7 @@ class OrderExecutionServiceZeroQuantityCancelTest {
             dailyLossMonitor,
             metrics,
             mock(IcebergCoordinator.class),
+            null,
             null);
 
     order =

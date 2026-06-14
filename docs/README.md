@@ -81,7 +81,9 @@ Each *execution* strategy implements `TradingStrategy` and registers with the St
 |---|---|---|
 | Pegged orders | [`strategies/pegged-orders.md`](strategies/pegged-orders.md) | PEGGED order type: tracks midpoint / bid / ask, re-pricing as the NBBO moves. |
 | Trade allocation | [`strategies/trade-allocation.md`](strategies/trade-allocation.md) | Post-trade fill allocation across sub-accounts (pro-rata, FIFO). |
+| Program/basket trading | [`strategies/program-basket-trading.md`](strategies/program-basket-trading.md) | Multi-leg basket orders fanned out through the standard pipeline with aggregate tracking. |
 | Algo execution API | [`strategies/algo-execution-api.md`](strategies/algo-execution-api.md) | Programmatic REST + WebSocket surface for external algo clients. |
+| FIX gateway | [`strategies/fix-gateway.md`](strategies/fix-gateway.md) | Inbound FIX 4.4 acceptor (QuickFIX/J) for programmatic order entry. |
 | Multi-market trading hours | [`strategies/multi-market-trading-hours.md`](strategies/multi-market-trading-hours.md) | Session calendars gating strategy evaluation per listing market. |
 
 ---

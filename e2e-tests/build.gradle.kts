@@ -13,25 +13,23 @@ dependencies {
     testImplementation("org.awaitility:awaitility:4.2.2")
     testImplementation("ch.qos.logback:logback-classic:1.5.32")
     testImplementation("org.codehaus.janino:janino:3.1.12")
-    // Regime classifier e2e calls GetRegime directly over gRPC.
     testImplementation(project(":proto"))
     testImplementation(libs.grpc.netty.shaded)
     testImplementation(libs.grpc.stub)
     testImplementation(libs.grpc.protobuf)
+    testImplementation(libs.quickfixj.core)
+    testImplementation(libs.quickfixj.messages.fix44)
 }
 
 
 tasks.named<Test>("test") {
     useJUnitPlatform {
-        // Default behaviour mirrors root build.gradle.kts: opt-in via -PincludeTags=e2e.
         if (project.hasProperty("includeTags")) {
             includeTags(project.property("includeTags") as String)
         } else {
             excludeTags("e2e")
         }
     }
-    // The test boots ~10 containers; double the default JVM heap so logs and JSON deserialisation
-    // don't OOM.
     maxHeapSize = "1g"
     testLogging {
         events("passed", "skipped", "failed")

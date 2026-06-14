@@ -632,6 +632,14 @@ public interface ExchangeAdapter {
 }
 ```
 
+**Program/basket trading (roadmap 3.4.1 — delivered):** `BasketTradingService` accepts a list of
+legs and fans each out through the standard single-order pipeline (`OrderExecutionService.submitOrder`
+→ risk → SOR → venue), so every leg gets the full risk chain and emits its own `orders.lifecycle`
+events. A `BasketRegistry`/`BasketCoordinator` pair tracks the aggregate — the coordinator is hooked
+into `onExecutionReport` alongside the iceberg/pegged coordinators and is a no-op for non-basket
+orders. Exposed under `POST/GET /api/execution/baskets`. Broker- and market-agnostic. Full design in
+[`strategies/program-basket-trading.md`](strategies/program-basket-trading.md).
+
 #### 5.2.5 Order Manager
 
 | Property | Value |
@@ -684,6 +692,13 @@ Exposed Prometheus metrics: `mariaalpha_analytics_toxicity_markout_bps`, `mariaa
 | **Role** | Unified REST + WebSocket entry point for the React UI, programmatic consumers, and external algo clients (REST + WebSocket today; FIX gateway on the roadmap) |
 
 Routes: `/api/market-data/**`, `/api/strategies/**`, `/api/rfq/**`, `/api/options/**`, `/api/algo/**`, `/api/orders/**`, `/api/positions/**`, `/api/portfolio/**`, `/api/execution/**`, `/api/routing/**`, `/api/analytics/**`, `/api/tca/**`, `/api/recon/**`, `/api/allocations/**`. WebSocket endpoints: `/ws/market-data`, `/ws/positions`, `/ws/orders`, `/ws/alerts`, `/ws/algo`.
+
+**FIX gateway (roadmap 3.4.3 — delivered):** an inbound QuickFIX/J FIX 4.4 acceptor that decodes
+`NewOrderSingle`/`OrderCancelRequest`, forwards them to execution-engine's REST surface, and replies
+with `ExecutionReport`/`OrderCancelReject`. It is the FIX-protocol sibling of the REST order-entry
+path and is **disabled by default** (`mariaalpha.fix.enabled=false`) so it never opens a socket in
+tests/CI. Algorithmic parent orders stay on the REST `/api/algo/**` surface — standard FIX tags can't
+carry MariaAlpha's per-strategy parameters. Full design in [`strategies/fix-gateway.md`](strategies/fix-gateway.md).
 
 #### 5.2.9 React UI
 
@@ -1376,9 +1391,10 @@ presented and worked in their natural numeric order — finish the feature expan
 **Work order as of 2026-06-14:**
 
 1. **Phase 3 — Multi-Market & Derivatives Capabilities.** Feature expansion: IBKR broker
-   integration, Tokyo Stock Exchange microstructure, program/basket trading, and the FIX gateway.
-   Several 3.x items have already shipped (options pricing, pegged orders, trade allocation, the
-   algo execution API, VaR/correlation/currency risk, multi-market hours) and are no longer listed.
+   integration and Tokyo Stock Exchange microstructure. Several 3.x items have already shipped
+   (options pricing, pegged orders, trade allocation, the algo execution API, program/basket
+   trading, the FIX gateway, VaR/correlation/currency risk, multi-market hours) and are no longer
+   listed.
 2. **Phase 4 — Advanced Platform Features.** Operational and analytical depth: RBAC, model
    retraining, portfolio optimization, ML-driven SOR.
 3. **Phase 5 — Validation & Productionisation.** The evidence-gathering and hardening phase:
@@ -1391,12 +1407,13 @@ GitHub issues; the phases are presented below in that same ascending order.
 
 ### Phase 3: Multi-Market & Derivatives Capabilities
 
-Broker integration with Interactive Brokers, Japanese-market microstructure rules, and
-program/basket trading. These extend MariaAlpha beyond a single broker (Alpaca, US equities) into
-multi-asset, multi-region territory. Several 3.x items have already shipped and are documented under
-[`docs/strategies/`](strategies/) — options pricing & Greeks, pegged orders, trade allocation, the
-algo execution API, intraday VaR, correlated-position limits, currency exposure, and multi-market
-trading hours — so only the open backlog is listed below.
+Broker integration with Interactive Brokers and Japanese-market microstructure rules. These extend
+MariaAlpha beyond a single broker (Alpaca, US equities) into multi-asset, multi-region territory.
+Several 3.x items have already shipped and are documented under `docs/strategies/` — options pricing
+& Greeks, pegged orders, [program/basket trading](strategies/program-basket-trading.md), the
+[FIX gateway](strategies/fix-gateway.md), trade allocation, the algo execution API, intraday VaR,
+correlated-position limits, currency exposure, and multi-market trading hours — so only the open
+backlog is listed below.
 
 | # | Issue Title | Component |
 | --- | --- | --- |
@@ -1406,8 +1423,6 @@ trading hours — so only the open backlog is listed below.
 | [3.3.2](https://github.com/drag0sd0g/MariaAlpha/issues/94) | Implement auction session handling (Itayose, closing) | Market Data GW |
 | [3.3.3](https://github.com/drag0sd0g/MariaAlpha/issues/95) | Implement daily price limit enforcement | Execution Engine |
 | [3.3.4](https://github.com/drag0sd0g/MariaAlpha/issues/96) | Implement short-selling uptick rule | Execution Engine |
-| [3.4.1](https://github.com/drag0sd0g/MariaAlpha/issues/97) | Implement program / basket trading engine | Execution Engine |
-| [3.4.3](https://github.com/drag0sd0g/MariaAlpha/issues/99) | Implement FIX protocol gateway (QuickFIX/J) for inbound algo orders | API Gateway |
 
 ### Phase 4: Advanced Platform Features
 
