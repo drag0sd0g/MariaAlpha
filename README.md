@@ -28,7 +28,7 @@ MariaAlpha is a working, end-to-end algorithmic trading engine:
 
 The end-to-end acceptance suite under `e2e-tests/` boots the full Docker Compose stack and traverses the complete Tick-to-Trade pipeline on every CI run.
 
-See [§11 of the Technical Design Document](docs/technical-design-document.md#11-roadmap) for the roadmap of additional capabilities not yet built (backtesting, cloud deployment, multi-broker integration via IBKR, Tokyo Stock Exchange microstructure, program/basket trading, FIX gateway, OAuth/RBAC, ML-driven SOR, and others).
+See [§11 of the Technical Design Document](docs/technical-design-document.md#11-roadmap) for the roadmap of additional capabilities not yet built (backtesting, multi-broker integration via IBKR, Tokyo Stock Exchange microstructure, program/basket trading, FIX gateway, OAuth/RBAC, ML-driven SOR, and others).
 
 ## Prerequisites
 
