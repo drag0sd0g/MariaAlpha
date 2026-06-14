@@ -62,9 +62,16 @@ class PeggedOrderE2ETest {
     // the progress endpoint returns 404. Either outcome is a valid pegged round-trip:
     //  (1) progress endpoint returns a snapshot with the expected fields, OR
     //  (2) progress endpoint returns 404 AND the order shows up in /api/orders in a terminal state.
+    //
+    // Budget 60s (not 20s): when the child is synthetically crossed on submit, the parent is
+    // FILLED+removed instantly, so this poll falls to branch (2), which depends on order-manager
+    // having consumed the FILLED event off `orders.lifecycle`. Early in a freshly-started shared
+    // stack the order-manager consumer group is still rebalancing/resetting offsets, so that
+    // cross-service propagation can take well over 20s under CI load. 60s matches the budget the
+    // rest of the suite (e.g. SimulatedHappyPathE2ETest) already uses for order-manager catch-up.
     boolean done =
         await()
-            .atMost(20, TimeUnit.SECONDS)
+            .atMost(60, TimeUnit.SECONDS)
             .pollInterval(Duration.ofMillis(500))
             .ignoreExceptions()
             .until(
