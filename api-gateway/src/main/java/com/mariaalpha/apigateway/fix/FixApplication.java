@@ -28,6 +28,7 @@ import quickfix.field.OrderID;
 import quickfix.field.OrderQty;
 import quickfix.field.OrigClOrdID;
 import quickfix.field.Side;
+import quickfix.field.Symbol;
 import quickfix.field.Text;
 import quickfix.field.TransactTime;
 import quickfix.fix44.ExecutionReport;
@@ -60,6 +61,9 @@ public class FixApplication extends quickfix.fix44.MessageCracker implements qui
   private static final char ORD_REJECTED = '8';
   private static final char CXL_REJ_RESPONSE_TO_CANCEL = '1';
   private static final String NO_ORDER_ID = "NONE";
+  // Fallback Symbol (tag 55) for reject reports built before the order's symbol could be read;
+  // ExecutionReport requires tag 55, so a placeholder keeps the message dictionary-valid.
+  private static final String NO_SYMBOL = "UNKNOWN";
 
   private final FixGatewayClient client;
   private final FixGatewayMetrics metrics;
@@ -127,17 +131,23 @@ public class FixApplication extends quickfix.fix44.MessageCracker implements qui
   /** Translate, forward, and build the resulting {@code ExecutionReport}. */
   public Message handleNewOrderSingle(NewOrderSingle nos, SessionID sessionId) {
     String clOrdId = "UNKNOWN";
+    String symbol = NO_SYMBOL;
     char sideChar = '1';
     try {
       clOrdId = nos.getClOrdID().getValue();
       sideChar = nos.getSide().getValue();
+      if (nos.isSetSymbol()) {
+        symbol = nos.getSymbol().getValue();
+      }
       var submission = FixOrderTranslator.translate(nos);
+      symbol = submission.symbol();
       var result = client.submitOrder(submission);
       if (!result.accepted()) {
         metrics.recordRejected();
         return executionReport(
             clOrdId,
             NO_ORDER_ID,
+            symbol,
             sideChar,
             submission.quantity(),
             EXEC_REJECTED,
@@ -149,6 +159,7 @@ public class FixApplication extends quickfix.fix44.MessageCracker implements qui
       return executionReport(
           clOrdId,
           result.downstreamOrderId(),
+          symbol,
           sideChar,
           submission.quantity(),
           EXEC_NEW,
@@ -159,6 +170,7 @@ public class FixApplication extends quickfix.fix44.MessageCracker implements qui
       return executionReport(
           clOrdId,
           NO_ORDER_ID,
+          symbol,
           sideChar,
           0,
           EXEC_REJECTED,
@@ -167,7 +179,7 @@ public class FixApplication extends quickfix.fix44.MessageCracker implements qui
     } catch (IllegalArgumentException e) {
       metrics.recordRejected();
       return executionReport(
-          clOrdId, NO_ORDER_ID, sideChar, 0, EXEC_REJECTED, ORD_REJECTED, e.getMessage());
+          clOrdId, NO_ORDER_ID, symbol, sideChar, 0, EXEC_REJECTED, ORD_REJECTED, e.getMessage());
     }
   }
 
@@ -175,12 +187,16 @@ public class FixApplication extends quickfix.fix44.MessageCracker implements qui
   public Message handleOrderCancelRequest(OrderCancelRequest ocr, SessionID sessionId) {
     String clOrdId = "UNKNOWN";
     String origClOrdId = "UNKNOWN";
+    String symbol = NO_SYMBOL;
     char sideChar = '1';
     try {
       clOrdId = ocr.getClOrdID().getValue();
       origClOrdId = ocr.getOrigClOrdID().getValue();
       if (ocr.isSetSide()) {
         sideChar = ocr.getSide().getValue();
+      }
+      if (ocr.isSetSymbol()) {
+        symbol = ocr.getSymbol().getValue();
       }
       var downstreamId = clOrdToDownstream.get(origClOrdId);
       if (downstreamId == null) {
@@ -193,7 +209,8 @@ public class FixApplication extends quickfix.fix44.MessageCracker implements qui
       clOrdToDownstream.remove(origClOrdId);
       metrics.recordCancelled();
       var er =
-          executionReport(clOrdId, downstreamId, sideChar, 0, EXEC_CANCELED, ORD_CANCELED, null);
+          executionReport(
+              clOrdId, downstreamId, symbol, sideChar, 0, EXEC_CANCELED, ORD_CANCELED, null);
       ((ExecutionReport) er).set(new OrigClOrdID(origClOrdId));
       return er;
     } catch (FieldNotFound e) {
@@ -206,6 +223,7 @@ public class FixApplication extends quickfix.fix44.MessageCracker implements qui
   private Message executionReport(
       String clOrdId,
       String orderId,
+      String symbol,
       char sideChar,
       int quantity,
       char execType,
@@ -221,6 +239,7 @@ public class FixApplication extends quickfix.fix44.MessageCracker implements qui
             new LeavesQty(execType == EXEC_NEW ? quantity : 0),
             new CumQty(0),
             new AvgPx(0));
+    report.set(new Symbol(symbol));
     report.set(new ClOrdID(clOrdId));
     report.set(new OrderQty(quantity));
     report.set(new TransactTime(LocalDateTime.now(ZoneOffset.UTC)));

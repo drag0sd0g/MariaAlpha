@@ -73,6 +73,9 @@ class FixApplicationTest {
     assertThat(report.getOrdStatus().getValue()).isEqualTo('0');
     assertThat(report.getOrderID().getValue()).isEqualTo("EXEC-1");
     assertThat(report.getClOrdID().getValue()).isEqualTo("c1");
+    // Symbol (tag 55) is required on a FIX 4.4 ExecutionReport — without it a strict client
+    // rejects the ack and never sees the order acknowledged.
+    assertThat(report.getSymbol().getValue()).isEqualTo("AAPL");
   }
 
   @Test
@@ -112,6 +115,7 @@ class FixApplicationTest {
 
     assertThat(report.getExecType().getValue()).isEqualTo('4');
     assertThat(report.getOrigClOrdID().getValue()).isEqualTo("c9");
+    assertThat(report.getSymbol().getValue()).isEqualTo("AAPL");
   }
 
   @Test
