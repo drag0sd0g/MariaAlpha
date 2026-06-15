@@ -7,11 +7,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * Recon-tailored fill projection — fill rows plus the parent order's client/exchange ids, which the
- * post-trade reconciliation engine needs to match against external venue activity. Mirrors {@link
- * com.mariaalpha.posttrade.model.FillForReconRecord} on the consumer side.
- */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record FillForReconResponse(
     UUID fillId,

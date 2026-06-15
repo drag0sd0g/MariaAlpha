@@ -136,7 +136,6 @@ public class OptionsEndToEndIntegrationTest {
 
   @Test
   void impliedVolEndpointRoundTripsThroughHttp() throws Exception {
-    // Step 1: price a known contract through the price endpoint.
     var pricingReq =
         new OptionPricingRequest("AAPL", 100.0, 100.0, 0.5, 0.35, 0.04, 0.0, OptionType.CALL);
     var pricingResp =
@@ -149,7 +148,6 @@ public class OptionsEndToEndIntegrationTest {
     var pricing =
         json.readValue(pricingResp.getResponse().getContentAsString(), OptionPricingResponse.class);
 
-    // Step 2: invert that premium back through the implied-vol endpoint — must recover σ.
     var ivReq =
         new ImpliedVolatilityRequest(
             "AAPL", 100.0, 100.0, 0.5, 0.04, 0.0, OptionType.CALL, pricing.price());

@@ -105,9 +105,6 @@ class TcaE2eIT {
         "AAPL",
         objectMapper.writeValueAsString(trade("AAPL", orderTs.plusSeconds(300), 180.04, 500)));
 
-    // MarketDataConsumer and OrderLifecycleConsumer run on separate listener threads — wait for
-    // all 3 ticks to land in the cache before publishing the lifecycle event so that
-    // ArrivalSnapshotService.captureIfAbsent() finds a tick and creates the arrival snapshot.
     await().atMost(Duration.ofSeconds(10)).until(() -> marketDataCache.size("AAPL") >= 3);
 
     publish(

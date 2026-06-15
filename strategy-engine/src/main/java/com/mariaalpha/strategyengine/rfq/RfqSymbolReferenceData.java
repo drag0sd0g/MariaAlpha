@@ -8,11 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/**
- * Symbol-keyed ADV / sector / beta lookup used by the RFQ pricing engine. Implementation parallels
- * the execution-engine's {@code SymbolReferenceData} — kept service-local because each service owns
- * its own config per the TDD §5.4 ownership rule.
- */
 @Component
 public class RfqSymbolReferenceData {
 

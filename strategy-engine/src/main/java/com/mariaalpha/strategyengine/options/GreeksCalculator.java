@@ -3,27 +3,6 @@ package com.mariaalpha.strategyengine.options;
 import com.mariaalpha.strategyengine.options.BlackScholesPricer.DiscountedTerms;
 import org.springframework.stereotype.Component;
 
-/**
- * Analytic first-order Black-Scholes-Merton Greeks (roadmap 3.2.2).
- *
- * <p>All formulas use the dividend-adjusted variant (continuous yield {@code q}). Vega and Rho are
- * reported per 1-percentage-point move in their underlying input so the displayed numbers match the
- * scale traders expect. Theta is reported per day using the {@link
- * OptionsPricingConfig#thetaDayCount()} convention.
- *
- * <pre>
- *   Δ_call = e^(−q·T)·Φ(d1)
- *   Δ_put  = e^(−q·T)·(Φ(d1) − 1)
- *   Γ      = e^(−q·T)·φ(d1) / (S·σ·√T)
- *   vega   = S·e^(−q·T)·φ(d1)·√T            (annualised, then ÷100 → per-1%-vol)
- *   Θ_call = −S·e^(−q·T)·φ(d1)·σ/(2·√T)             (÷ thetaDayCount → /day)
- *            − r·K·e^(−r·T)·Φ(d2) + q·S·e^(−q·T)·Φ(d1)
- *   Θ_put  = −S·e^(−q·T)·φ(d1)·σ/(2·√T)
- *            + r·K·e^(−r·T)·Φ(−d2) − q·S·e^(−q·T)·Φ(−d1)
- *   ρ_call =  K·T·e^(−r·T)·Φ(d2)             (annualised, then ÷100 → per-1%-rate)
- *   ρ_put  = −K·T·e^(−r·T)·Φ(−d2)
- * </pre>
- */
 @Component
 public class GreeksCalculator {
 
@@ -33,7 +12,6 @@ public class GreeksCalculator {
     this.config = config;
   }
 
-  /** Compute all five Greeks for {@code contract}. */
   public Greeks compute(OptionContract contract) {
     DiscountedTerms terms = DiscountedTerms.from(contract);
     double s = contract.spot();

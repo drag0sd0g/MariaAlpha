@@ -66,10 +66,8 @@ public class StrategyEvaluationServiceTest {
     underTest =
         new StrategyEvaluationService(
             router, regimeSelector, mlClient, gate, signalPublisher, metrics, tradingHoursService);
-    // Lenient because the regime-selector test overrides this and skips the router path.
     lenient().when(regimeSelector.selectFor(SYMBOL)).thenReturn(Optional.empty());
     lenient().when(router.getActiveStrategy(SYMBOL)).thenReturn(Optional.of(strategy));
-    // Most tests assume the market is open — the trading-hours-gate test overrides this.
     lenient().when(tradingHoursService.isMarketOpen(any(), any())).thenReturn(true);
   }
 
@@ -169,7 +167,6 @@ public class StrategyEvaluationServiceTest {
 
     when(strategy.name()).thenReturn("VWAP");
     when(strategy.evaluate(SYMBOL)).thenReturn(Optional.of(BUY_SIGNAL));
-    // recommendedSize=0.30 → scale = 0.30 / 0.20 = 1.5x → 100 * 1.5 = 150
     when(mlClient.getSignal(SYMBOL))
         .thenReturn(Optional.of(new MlSignalResult(Direction.LONG, 0.85, 0.30)));
 
@@ -183,7 +180,6 @@ public class StrategyEvaluationServiceTest {
 
   @Test
   void evaluateUsesRegimeSelectorWhenItReturnsAStrategy() {
-    // Regime-driven selection overrides whatever the manual router would say (FR-17).
     when(regimeSelector.selectFor(SYMBOL)).thenReturn(Optional.of(strategy));
     when(strategy.name()).thenReturn("MOMENTUM");
     when(strategy.evaluate(SYMBOL)).thenReturn(Optional.of(BUY_SIGNAL));
@@ -193,7 +189,6 @@ public class StrategyEvaluationServiceTest {
 
     verify(signalPublisher).publish(BUY_SIGNAL);
     verify(metrics).recordSignal("MOMENTUM", Side.BUY);
-    // Manual router should not be consulted when the regime selector returns a strategy.
     verify(router, never()).getActiveStrategy(SYMBOL);
   }
 

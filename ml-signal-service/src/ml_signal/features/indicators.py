@@ -44,7 +44,6 @@ def rsi(closes: NDArray[np.float64], period: int = 14) -> NDArray[np.float64]:
     gains = np.where(deltas > 0, deltas, 0.0)
     losses = np.where(deltas < 0, -deltas, 0.0)
 
-    # First averages: SMA over the first `period` changes
     avg_gain = float(np.mean(gains[:period]))
     avg_loss = float(np.mean(losses[:period]))
 
@@ -54,7 +53,6 @@ def rsi(closes: NDArray[np.float64], period: int = 14) -> NDArray[np.float64]:
         rs = avg_gain / avg_loss
         result[period] = 100.0 - 100.0 / (1.0 + rs)
 
-    # Wilder's smoothing for subsequent values
     for i in range(period, len(deltas)):
         avg_gain = (avg_gain * (period - 1) + gains[i]) / period
         avg_loss = (avg_loss * (period - 1) + losses[i]) / period
@@ -102,7 +100,6 @@ def atr(
     if n < 2:
         return result
 
-    # True Range: max(H-L, |H-prevC|, |L-prevC|)
     prev_close = np.roll(closes, 1)
     prev_close[0] = closes[0]
     tr = np.maximum(
@@ -111,14 +108,11 @@ def atr(
     )
 
     if n < period + 1:
-        # Not enough data for full ATR — return simple average of available TR
         result[-1] = float(np.mean(tr[1:]))
         return result
 
-    # First ATR: SMA of the first `period` true ranges (skip index 0)
     result[period] = float(np.mean(tr[1 : period + 1]))
 
-    # Wilder's smoothing
     for i in range(period + 1, n):
         result[i] = (result[i - 1] * (period - 1) + tr[i]) / period
 

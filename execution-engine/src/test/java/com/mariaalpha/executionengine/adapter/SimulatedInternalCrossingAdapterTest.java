@@ -61,7 +61,6 @@ class SimulatedInternalCrossingAdapterTest {
 
   @Test
   void syntheticOnSubmitFillsAtMidpoint() {
-    // crossProb=1.0 → adapter always asks engine to synthesize a counterparty on submit.
     adapter.start();
     adapter.submitOrder(instruction(Side.BUY, 100));
     await().atMost(Duration.ofSeconds(2)).until(() -> !reports.isEmpty());
@@ -87,7 +86,6 @@ class SimulatedInternalCrossingAdapterTest {
     adapter.start();
     adapter.submitOrder(instruction(Side.BUY, 100));
     adapter.matchTick();
-    // Reports dispatch is async on the adapter scheduler, matching other venue adapters.
     await().atMost(Duration.ofSeconds(2)).until(() -> !reports.isEmpty());
     assertThat(reports).hasSize(1);
     assertThat(adapter.pendingSize()).isZero();
@@ -129,7 +127,6 @@ class SimulatedInternalCrossingAdapterTest {
     adapter = new SimulatedInternalCrossingAdapter(seed(42, 0.0, 0.0), engine);
     adapter.onExecutionReport(reports::add);
     adapter.start();
-    // Resting SELL meets aggressing BUY → engine crosses at midpoint, both sides get a report.
     adapter.submitOrder(instruction(Side.SELL, 100));
     adapter.submitOrder(instruction(Side.BUY, 100));
     await().atMost(Duration.ofSeconds(2)).until(() -> reports.size() >= 2);

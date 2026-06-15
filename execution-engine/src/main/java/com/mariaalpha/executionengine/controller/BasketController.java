@@ -16,10 +16,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * REST surface for program/basket trading (roadmap 3.4.1). Reachable through the api-gateway's
- * existing {@code /api/execution/**} route, so no gateway change is required.
- */
 @RestController
 @RequestMapping("/api/execution/baskets")
 @Tag(name = "Basket", description = "Program/basket order submission and aggregate progress")

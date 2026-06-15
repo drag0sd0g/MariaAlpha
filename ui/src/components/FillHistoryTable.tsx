@@ -5,8 +5,6 @@ import type { Fill, Order } from "@/types/api";
 import { fmtMoney, fmtQty } from "@/lib/format";
 
 export default function FillHistoryTable() {
-  // Return a stable primitive key so useSyncExternalStore doesn't trigger an infinite re-render
-  // loop when Array.from always produces a new reference.
   const orderIdsKey = useOrderStore((s) => Array.from(s.orders.keys()).sort().join(","));
   const orderIds = orderIdsKey.length > 0 ? orderIdsKey.split(",") : [];
   const [fills, setFills] = useState<Fill[]>([]);

@@ -47,7 +47,6 @@ class BasketRegistryTest {
     basketWithLeg("b1", "leg-1");
 
     assertThat(registry.recordLegFill("leg-1", 100, true)).contains("b1");
-    // A duplicate/stray fill after completion is no longer attributed.
     assertThat(registry.recordLegFill("leg-1", 100, true)).isEmpty();
   }
 

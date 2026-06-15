@@ -5,7 +5,6 @@ import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.stereotype.Component;
 
-/** Per-component instrumentation for the trade-allocation engine (roadmap 3.4.2). */
 @Component
 public class AllocationMetrics {
 

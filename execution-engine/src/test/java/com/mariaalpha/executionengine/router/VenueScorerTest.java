@@ -29,7 +29,6 @@ class VenueScorerTest {
     var scorer = new VenueScorer(List.of(c1, c2, c3, c4, c5), config);
 
     var b = scorer.score(order(), venue(), null);
-    // 0.2*(0.5+1.0+0.0+0.5+1.0) = 0.6
     assertThat(b.weightedScore()).isCloseTo(0.6, within(1e-9));
     assertThat(b.criteria()).containsEntry("PriceImprovement", 0.5);
     assertThat(b.criteria()).containsEntry("Liquidity", 1.0);
@@ -43,7 +42,6 @@ class VenueScorerTest {
     var pi = stub("PriceImprovement", 0.5);
     var scorer = new VenueScorer(List.of(rogue, pi), config);
     var b = scorer.score(order(), venue(), null);
-    // RogueCriterion contributes 0 (no weight); PriceImprovement contributes 1.0*0.5 = 0.5
     assertThat(b.weightedScore()).isCloseTo(0.5, within(1e-9));
   }
 

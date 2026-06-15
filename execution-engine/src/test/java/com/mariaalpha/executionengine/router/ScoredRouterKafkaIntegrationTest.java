@@ -73,8 +73,6 @@ class ScoredRouterKafkaIntegrationTest {
     consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
     consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-    // Refresh topic metadata aggressively so we discover routing.decisions soon after the
-    // producer auto-creates it on first send (default metadata.max.age.ms is 5 min).
     consumerProps.put(ConsumerConfig.METADATA_MAX_AGE_CONFIG, 1000);
     consumer = new KafkaConsumer<>(consumerProps);
     consumer.subscribe(java.util.List.of("routing.decisions"));
@@ -147,12 +145,11 @@ class ScoredRouterKafkaIntegrationTest {
     var node = MAPPER.readTree(record.value());
 
     assertThat(node.get("orderId").asText()).isEqualTo(order.getOrderId());
-    assertThat(node.has("selectedVenue")).isFalse(); // legacy `venue` field is the canonical name
+    assertThat(node.has("selectedVenue")).isFalse();
     assertThat(node.get("venue").asText()).isIn("PRIMARY", "DARK_POOL_A", "INTERNAL_CROSS");
     assertThat(node.get("candidateScores").size()).isEqualTo(3);
     assertThat(node.get("weights").size()).isEqualTo(5);
     assertThat(node.get("marketSnapshot").get("bid").decimalValue()).isEqualByComparingTo("178.50");
-    // Each candidate has all 5 criteria
     for (JsonNode cs : node.get("candidateScores")) {
       assertThat(cs.get("criteria").size()).isEqualTo(5);
     }

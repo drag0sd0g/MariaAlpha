@@ -7,7 +7,6 @@ import io.micrometer.core.instrument.Timer;
 import java.util.concurrent.TimeUnit;
 import org.springframework.stereotype.Component;
 
-/** Per-component instrumentation for the options pricing module (roadmap 3.2.1 / 3.2.2). */
 @Component
 public class OptionsMetrics {
 

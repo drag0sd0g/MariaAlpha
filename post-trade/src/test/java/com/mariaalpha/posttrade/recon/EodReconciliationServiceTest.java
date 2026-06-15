@@ -57,7 +57,6 @@ class EodReconciliationServiceTest {
             new BigDecimal("10000"),
             new BigDecimal("100000"));
 
-    // upsertRun creates fresh runs; saveAll/save just echoes back the input.
     when(runRepository.findByReconDate(any())).thenReturn(Optional.empty());
     when(runRepository.save(any()))
         .thenAnswer(inv -> inv.getArgument(0, ReconciliationRunEntity.class));
@@ -124,7 +123,7 @@ class EodReconciliationServiceTest {
                     "AAPL",
                     Side.BUY,
                     new BigDecimal("180.05"),
-                    new BigDecimal("80"), // qty mismatch
+                    new BigDecimal("80"),
                     Instant.parse("2026-06-01T15:30:00Z"))));
 
     var run = service.runForDate(d, Source.MANUAL);

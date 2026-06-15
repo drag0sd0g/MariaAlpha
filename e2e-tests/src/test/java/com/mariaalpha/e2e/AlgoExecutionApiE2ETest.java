@@ -16,16 +16,6 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
-/**
- * Exercises the algorithmic-execution REST surface (roadmap 3.4.4): submit a parent order
- * programmatically, query it back, list, and cancel it. Lightweight on assertions — the wired
- * unit + controller tests cover the request/response shape; this test class proves the
- * end-to-end gateway → strategy-engine route + JSON serialisation work in the running stack.
- *
- * <p>Note: filled-quantity progress is intentionally not asserted here — that requires algoOrderId
- * propagation through the signal → execution → order-manager chain, which is a future-work item
- * captured in docs/strategies/algo-execution-api.md.
- */
 @Tag("e2e")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AlgoExecutionApiE2ETest {
@@ -47,7 +37,6 @@ class AlgoExecutionApiE2ETest {
   @AfterEach
   void cleanup() throws Exception {
     if (createdAlgoOrderId != null) {
-      // Best-effort cancel so a subsequent test (or test re-run) doesn't see a leftover binding.
       httpClient.send(
           HttpRequest.newBuilder()
               .uri(URI.create(baseUrl + "/api/algo/orders/" + createdAlgoOrderId))
@@ -58,7 +47,6 @@ class AlgoExecutionApiE2ETest {
           HttpResponse.BodyHandlers.discarding());
       createdAlgoOrderId = null;
     }
-    // Also unbind any symbol an algo might have routed (mirrors the SimulatedHappyPath pattern).
     for (String symbol : new String[] {"AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA"}) {
       try {
         httpClient.send(
@@ -70,7 +58,6 @@ class AlgoExecutionApiE2ETest {
                 .build(),
             HttpResponse.BodyHandlers.discarding());
       } catch (Exception ignored) {
-        // best-effort cleanup
       }
     }
   }
@@ -99,12 +86,10 @@ class AlgoExecutionApiE2ETest {
     assertThat(submitted.get("strategyName").asText()).isEqualTo("TWAP");
     createdAlgoOrderId = submitted.get("algoOrderId").asText();
 
-    // GET round-trips the same record.
     var fetched = httpGet("/api/algo/orders/" + createdAlgoOrderId, 200);
     assertThat(fetched.get("algoOrderId").asText()).isEqualTo(createdAlgoOrderId);
     assertThat(fetched.get("status").asText()).isEqualTo("ACTIVE");
 
-    // LIST contains the freshly-created order.
     var list = httpGet("/api/algo/orders", 200);
     assertThat(list.isArray()).isTrue();
     boolean found = false;
@@ -116,10 +101,9 @@ class AlgoExecutionApiE2ETest {
     }
     assertThat(found).as("listed algo orders must include the just-submitted one").isTrue();
 
-    // DELETE transitions to CANCELLED.
     var cancelled = httpDelete("/api/algo/orders/" + createdAlgoOrderId, 200);
     assertThat(cancelled.get("status").asText()).isEqualTo("CANCELLED");
-    createdAlgoOrderId = null; // already cancelled; the @AfterEach cleanup can be skipped.
+    createdAlgoOrderId = null;
   }
 
   @Test

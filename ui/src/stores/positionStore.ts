@@ -21,7 +21,6 @@ export const usePositionStore = create<PositionStore>((set) => ({
         avgEntryPrice: u.avgEntryPrice,
         realizedPnl: u.realizedPnl,
         unrealizedPnl: u.unrealizedPnl,
-        // PositionUpdate has no totalPnl; compute it.
         totalPnl: u.realizedPnl + u.unrealizedPnl,
         lastMarkPrice: u.lastMarkPrice,
         updatedAt: u.timestamp,

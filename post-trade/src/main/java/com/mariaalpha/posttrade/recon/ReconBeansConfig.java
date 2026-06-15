@@ -4,10 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * Spring wiring for the reconciliation engine. The {@link AlpacaActivitiesClient} bean is selected
- * at startup based on {@code post-trade.recon.mode}; the rest of the engine is mode-agnostic.
- */
 @Configuration
 public class ReconBeansConfig {
 

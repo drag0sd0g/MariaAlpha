@@ -76,7 +76,6 @@ public class RedisPositionCachePublisher {
           e.getMessage());
       writeFailuresTotal.increment();
     } catch (DataAccessException e) {
-      // Never let Redis hiccups fail a fill — Kafka is the authoritative path.
       LOG.warn(
           "Redis cache write failed for {}: {}; continuing without cache update",
           snapshot.symbol(),

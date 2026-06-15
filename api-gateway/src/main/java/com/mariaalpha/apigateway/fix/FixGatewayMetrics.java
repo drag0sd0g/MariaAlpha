@@ -4,7 +4,6 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.stereotype.Component;
 
-/** Counters for the inbound FIX gateway, scraped by Alloy at the api-gateway metrics endpoint. */
 @Component
 public class FixGatewayMetrics {
 

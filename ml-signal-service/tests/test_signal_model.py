@@ -23,7 +23,7 @@ def trained_model_path(tmp_path: Path) -> Path:
     """Train a tiny LightGBM model and save it."""
     rng = np.random.default_rng(42)
     X = rng.standard_normal((200, 15))
-    y = (X[:, 0] > 0).astype(int)  # simple rule: feature 0 > 0 → class 1
+    y = (X[:, 0] > 0).astype(int)
 
     clf = LGBMClassifier(n_estimators=10, num_leaves=4, verbose=-1)
     clf.fit(X, y)
@@ -49,9 +49,8 @@ class TestSignalModel:
         model = SignalModel(str(trained_model_path))
         assert model.is_loaded
 
-        # Feature 0 strongly positive → model should predict LONG (class 1)
         features = {name: 0.0 for name in FEATURE_NAMES}
-        features[FEATURE_NAMES[0]] = 5.0  # strong positive
+        features[FEATURE_NAMES[0]] = 5.0
         direction, confidence, pos_size, _ = model.predict(features)
         assert direction in (DIRECTION_LONG, DIRECTION_NEUTRAL, DIRECTION_SHORT)
         assert 0.0 <= confidence <= 1.0

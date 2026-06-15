@@ -78,14 +78,11 @@ class PrimaryVenueAdapterTest {
     var primary = new PrimaryVenueAdapter(delegate, sorConfig(List.of(primaryVenue())));
     primary.start();
     primary.shutdown();
-    // PrimaryVenueAdapter never invokes the wrapped adapter's lifecycle —
-    // ExchangeAdapter manages its own @PostConstruct/@PreDestroy.
     verifyNoInteractions(delegate);
   }
 
   @Test
   void skipsDisabledPrimaryEntries() {
-    // First entry is primary but disabled — adapter should fall back to next enabled match.
     var disabled =
         new Venue("OLD_PRIMARY", VenueType.LIT, 50, 0, 0, 1.0, 10000, 1.0, "primary", false);
     var enabled =

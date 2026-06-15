@@ -50,17 +50,16 @@ from ml_signal.model.regime_model import (  # noqa: E402
 )
 
 OUTPUT_PATH = Path(__file__).parent.parent.parent / "ml-models" / "regime_model.joblib"
-WINDOW = MIN_BARS_FOR_REGIME  # 60 bars per training sample
+WINDOW = MIN_BARS_FOR_REGIME
 DEFAULT_SAMPLES_PER_CLASS = 2_000
 
 
-# Per-class generator parameters. Drifts and vols are per-bar, in log space.
 @dataclass(frozen=True)
 class _GeneratorParams:
     drift: float
     sigma: float
     ar1: float
-    kind: str  # "gbm" or "ar1"
+    kind: str
 
 
 _GENERATOR_PARAMS: dict[int, _GeneratorParams] = {
@@ -80,14 +79,12 @@ def _generate_path(
 ) -> np.ndarray:
     """Generate a single synthetic close-price path of length n_bars under the regime."""
     params = _GENERATOR_PARAMS[regime]
-    # Sprinkle a small parameter jitter so the model sees variation within each class.
     drift = params.drift * float(rng.uniform(0.7, 1.3))
     sigma = params.sigma * float(rng.uniform(0.7, 1.3))
 
     if params.kind == "gbm":
         log_returns = rng.normal(loc=drift, scale=sigma, size=n_bars - 1)
     elif params.kind == "ar1":
-        # AR(1) returns with negative coefficient → mean-reverting behaviour.
         log_returns = np.zeros(n_bars - 1, dtype=np.float64)
         prev = 0.0
         for i in range(n_bars - 1):
@@ -122,7 +119,6 @@ def _build_dataset(
     X = np.array(feature_rows, dtype=np.float64)
     y = np.array(labels, dtype=np.int64)
 
-    # Shuffle so the train/val split sees all classes uniformly.
     perm = rng.permutation(len(y))
     return X[perm], y[perm]
 

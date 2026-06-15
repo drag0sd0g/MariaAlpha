@@ -18,18 +18,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-/**
- * Program/basket trading engine (roadmap 3.4.1). Fans a list of legs out through the standard
- * single-order pipeline ({@link OrderExecutionService#submitOrder}) so each leg gets the full risk
- * → SOR → venue treatment and emits its own {@code orders.lifecycle} events, while a {@link
- * BasketRegistry}/{@link com.mariaalpha.executionengine.basket.BasketCoordinator} pair tracks the
- * aggregate. The engine is broker- and market-agnostic — it sits entirely on top of the existing
- * execution pipeline.
- *
- * <p>Ordering matters: the basket state is registered and each leg is linked to it <em>before</em>
- * the leg is submitted, so a fill that races ahead of the synchronous {@code submitOrder} return is
- * still attributed to the basket.
- */
 @Service
 public class BasketTradingService {
 
@@ -50,7 +38,6 @@ public class BasketTradingService {
     if (request.legs() == null || request.legs().isEmpty()) {
       throw new IllegalArgumentException("Basket order requires at least one leg");
     }
-    // All-or-nothing validation: reject the whole request before any leg is sent to a venue.
     request.legs().forEach(BasketTradingService::validateLeg);
 
     var basketId = UUID.randomUUID().toString();
@@ -93,8 +80,6 @@ public class BasketTradingService {
             leg.tif(),
             null);
     var order = new Order(signal);
-    // Track the leg and link it to the basket BEFORE submission so a synchronous fill is
-    // attributed.
     state.addLeg(order.getOrderId(), leg.symbol(), leg.side(), leg.quantity());
     registry.linkLeg(order.getOrderId(), basketId);
 

@@ -13,10 +13,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Read-only introspection on the simulated internal crossing venue. Used by dashboards, the React
- * UI, and operators to inspect resting interest and verify spread capture in real time.
- */
 @RestController
 @RequestMapping("/api/execution/internal-crossing")
 @Tag(

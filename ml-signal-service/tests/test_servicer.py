@@ -118,7 +118,6 @@ class TestGetSignal:
     def test_with_features_returns_prediction(
         self, grpc_channel: grpc.Channel, feature_engine: FeatureEngine
     ) -> None:
-        # Inject features directly (bypass tick aggregation)
         rng = np.random.default_rng(42)
         features = {name: float(rng.standard_normal()) for name in FEATURE_NAMES}
         with feature_engine._lock:
@@ -140,7 +139,6 @@ class TestGetRegime:
         assert response.symbol == "AAPL"
         assert response.regime == signal_pb2.UNKNOWN
         assert response.confidence == 0.0
-        # Timestamp should be set even on the degenerate path.
         assert response.timestamp.seconds > 0
 
     def test_returns_classification_with_full_window(
@@ -155,7 +153,6 @@ class TestGetRegime:
         stub = signal_pb2_grpc.SignalServiceStub(grpc_channel)
         response = stub.GetRegime(signal_pb2.RegimeRequest(symbol="AAPL"))
         assert response.symbol == "AAPL"
-        # The fixture classifier maps every input to *some* regime — never UNKNOWN.
         assert response.regime in {
             signal_pb2.TRENDING_UP,
             signal_pb2.TRENDING_DOWN,

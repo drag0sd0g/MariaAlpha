@@ -15,10 +15,6 @@ public interface ReconciliationBreakRepository
 
   List<ReconciliationBreakEntity> findByOrderIdOrderByReconDateDesc(UUID orderId);
 
-  /**
-   * Returns the distinct reconciliation dates that produced at least one break, newest first. Used
-   * by the UI to populate the "recent runs" picker.
-   */
   @Query(
       """
       SELECT DISTINCT r.reconDate FROM ReconciliationBreakEntity r
@@ -26,11 +22,6 @@ public interface ReconciliationBreakRepository
       """)
   List<LocalDate> findRecentReconDates();
 
-  /**
-   * Idempotency support — recon results are keyed by {@code reconDate} (§7.3): re-running for the
-   * same date wipes prior breaks before writing new ones, so a partial earlier run can't leave
-   * stale rows.
-   */
   @Modifying
   long deleteByReconDate(LocalDate reconDate);
 }

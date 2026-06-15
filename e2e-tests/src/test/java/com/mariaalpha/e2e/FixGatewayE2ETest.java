@@ -97,12 +97,12 @@ class FixGatewayE2ETest {
     var nos =
         new NewOrderSingle(
             new ClOrdID(clOrdId),
-            new Side('1'), // BUY
+            new Side('1'),
             new TransactTime(LocalDateTime.now(ZoneOffset.UTC)),
-            new OrdType('2')); // LIMIT
+            new OrdType('2'));
     nos.set(new Symbol("GOOGL"));
     nos.set(new OrderQty(2));
-    nos.set(new Price(1.00)); // deep in book → rests, does not cross
+    nos.set(new Price(1.00));
     Session.sendToTarget(nos, SESSION);
 
     var ack =
@@ -111,10 +111,9 @@ class FixGatewayE2ETest {
             .pollInterval(java.time.Duration.ofMillis(500))
             .until(() -> app.reportFor(clOrdId, '0'), Optional::isPresent)
             .orElseThrow();
-    assertThat(ack.getOrdStatus().getValue()).isEqualTo('0'); // NEW
+    assertThat(ack.getOrdStatus().getValue()).isEqualTo('0');
     assertThat(ack.getSymbol().getValue()).isEqualTo("GOOGL");
 
-    // Cancel the resting order; the gateway resolves OrigClOrdID → the internal order id.
     var cancelClOrdId = clOrdId + "-cxl";
     var cancel =
         new OrderCancelRequest(
@@ -134,12 +133,10 @@ class FixGatewayE2ETest {
     assertThat(cancelled.getOrigClOrdID().getValue()).isEqualTo(clOrdId);
   }
 
-  /** QuickFIX/J client application that records logon state and inbound ExecutionReports. */
   private static final class CapturingApplication implements Application {
     private final AtomicBoolean loggedOn = new AtomicBoolean(false);
     private final List<ExecutionReport> reports = new CopyOnWriteArrayList<>();
 
-    /** First ExecutionReport matching the given ClOrdID and ExecType, if any. */
     Optional<ExecutionReport> reportFor(String clOrdId, char execType) {
       return reports.stream()
           .filter(
@@ -156,7 +153,6 @@ class FixGatewayE2ETest {
 
     @Override
     public void onCreate(SessionID sessionId) {
-      // no-op
     }
 
     @Override
@@ -171,17 +167,14 @@ class FixGatewayE2ETest {
 
     @Override
     public void toAdmin(Message message, SessionID sessionId) {
-      // no-op
     }
 
     @Override
     public void fromAdmin(Message message, SessionID sessionId) {
-      // no-op
     }
 
     @Override
     public void toApp(Message message, SessionID sessionId) {
-      // no-op
     }
 
     @Override

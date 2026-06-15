@@ -68,7 +68,6 @@ public class TickKafkaPublisher {
   private void publishTick(MarketTick tick) {
     try {
       var json = objectMapper.writeValueAsString(tick);
-      // records are keyed by symbol
       kafkaTemplate.send(config.ticksTopic(), tick.symbol(), json);
       Counter.builder(METRIC_NAME)
           .description("Total market data ticks received")

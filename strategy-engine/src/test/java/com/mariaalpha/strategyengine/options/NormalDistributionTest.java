@@ -14,7 +14,6 @@ class NormalDistributionTest {
 
   @Test
   void cdfTextbookValues() {
-    // A&S 26.2 reference values, accurate to the A&S 26.2.17 approximation budget (~7.5e-8)
     assertThat(NormalDistribution.cdf(1.0)).isCloseTo(0.8413447, within(1e-6));
     assertThat(NormalDistribution.cdf(-1.0)).isCloseTo(0.1586553, within(1e-6));
     assertThat(NormalDistribution.cdf(1.96)).isCloseTo(0.9750021, within(1e-6));

@@ -149,7 +149,6 @@ class ScoredSmartOrderRouterTest {
     var dark = venue("DARK_POOL_A", VenueType.DARK, true);
     var scorer = stubScorer(Map.of("PRIMARY", 0.4, "DARK_POOL_A", 0.8));
     var router = router(List.of(lit, dark), scorer);
-    // Mark DARK_POOL_A as unhealthy: drop it from the healthy set
     healthyVenues.remove("DARK_POOL_A");
     when(tracker.getMarketState(anyString())).thenReturn(market());
 

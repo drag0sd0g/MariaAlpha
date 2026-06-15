@@ -73,12 +73,10 @@ class OptionsControllerTest {
 
   @Test
   void impliedVolEndpointRejectsImpossiblePremiumAs422() {
-    // Premium above the no-arbitrage upper bound (forward spot) → 422 Unprocessable Entity, since
-    // the input is well-formed but the solver cannot satisfy it.
     var request =
         new ImpliedVolatilityRequest("AAPL", 100, 100, 1.0, 0.05, 0.0, OptionType.CALL, 105.0);
     assertThatThrownBy(() -> controller.impliedVolatility(request))
         .isInstanceOf(ResponseStatusException.class)
-        .hasMessageContaining("400"); // Falls into IllegalArgumentException → 400
+        .hasMessageContaining("400");
   }
 }

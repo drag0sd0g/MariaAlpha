@@ -23,22 +23,6 @@ import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.listener.Topic;
 import org.springframework.stereotype.Component;
 
-/**
- * Keeps the in-process {@link PositionTracker} in sync with the order-manager's authoritative
- * position book via the Redis cache:
- *
- * <ul>
- *   <li>Warms the tracker on startup by scanning {@code mariaalpha:position:*} keys.
- *   <li>Subscribes to pub/sub channel {@code mariaalpha.positions.updates} for incremental updates
- *       between fills.
- *   <li>Falls back to a direct {@code GET} on cache miss so a risk check never sees stale in-memory
- *       state.
- * </ul>
- *
- * Redis is a cache, not a system of record — every method swallows {@link DataAccessException}
- * after logging at WARN. A risk check whose lookup fails will see whatever the in-memory tracker
- * holds, which is at worst the last known good snapshot.
- */
 @Component
 @ConditionalOnProperty(prefix = "execution-engine.redis", name = "enabled", matchIfMissing = true)
 public class RedisPositionCacheClient {
@@ -110,10 +94,6 @@ public class RedisPositionCacheClient {
     }
   }
 
-  /**
-   * Best-effort lookup that consults Redis directly. Used as a fallback when the in-memory tracker
-   * is empty (e.g. between cache warm-up failure and the first pub/sub message).
-   */
   public PositionSnapshot fetch(String symbol) {
     if (symbol == null || symbol.isBlank()) {
       return null;

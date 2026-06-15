@@ -14,21 +14,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-/**
- * Looks up the desk's current net position in a single symbol from the Order Manager REST API. Used
- * by {@link RfqPricingEngine} to skew the mid for inventory.
- *
- * <p>Falls back to a flat position (zero net quantity) when:
- *
- * <ul>
- *   <li>the Order Manager returns 404 (symbol never traded yet);
- *   <li>the HTTP call times out or errors (so RFQ pricing degrades to symmetric quoting around mid
- *       rather than blocking on a downstream stall).
- * </ul>
- *
- * <p>The 500ms default timeout is small on purpose — RFQ pricing is a foreground UI call and the
- * trader sees the resulting quote within a few seconds.
- */
 @Component
 public class PositionLookup {
 
@@ -85,7 +70,6 @@ public class PositionLookup {
     }
   }
 
-  /** What the RFQ pricing engine needs to know about a symbol's current position. */
   public record PositionView(
       String symbol, BigDecimal netQuantity, BigDecimal lastMarkPrice, boolean available) {
 

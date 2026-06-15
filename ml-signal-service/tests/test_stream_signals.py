@@ -36,7 +36,6 @@ def model_and_engine(settings, tmp_path: Path) -> tuple[SignalModel, FeatureEngi
 @pytest.fixture
 def stream_setup(model_and_engine: tuple[SignalModel, FeatureEngine], tmp_path: Path):
     signal_model, feature_engine = model_and_engine
-    # StreamSignals doesn't touch the regime model, so an unloaded stub suffices.
     regime_model = RegimeModel(str(tmp_path / "regime-absent.joblib"))
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=4))
     servicer = SignalServicer(feature_engine, signal_model, regime_model)
@@ -61,17 +60,15 @@ class TestStreamSignals:
             try:
                 for resp in stub.StreamSignals(request, timeout=5):
                     responses.append(resp)
-                    break  # one response is enough
+                    break
             except grpc.RpcError:
                 pass
 
         reader = threading.Thread(target=stream_reader, daemon=True)
         reader.start()
 
-        # Give the stream time to register
         time.sleep(0.3)
 
-        # Trigger a feature update by injecting directly
         features = {name: 0.0 for name in FEATURE_NAMES}
         with feature_engine._lock:
             feature_engine._features["AAPL"] = features
@@ -100,9 +97,8 @@ class TestStreamSignals:
 
         time.sleep(0.3)
 
-        # Push AAPL features (should NOT reach the MSFT-only stream)
         features = {name: 0.0 for name in FEATURE_NAMES}
         feature_engine._notify_listeners("AAPL", features)
 
         reader.join(timeout=4)
-        assert len(responses) == 0  # MSFT filter should exclude AAPL
+        assert len(responses) == 0

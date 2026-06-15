@@ -40,7 +40,6 @@ class AlpacaExchangeAdapterTest {
 
   @Test
   void isHealthyReflectsWsState() {
-    // Before start(), adapter is not connected
     assertThat(adapter.isHealthy()).isFalse();
   }
 
@@ -51,12 +50,10 @@ class AlpacaExchangeAdapterTest {
     var listener =
         new AlpacaWebSocketListener(config, objectMapper, () -> callback::set, connected);
 
-    // Simulate onOpen
     var mockWs = mock(okhttp3.WebSocket.class);
     listener.onOpen(mockWs, mock(okhttp3.Response.class));
     assertThat(connected.get()).isTrue();
 
-    // Simulate fill message
     var json =
         """
         {
@@ -104,8 +101,6 @@ class AlpacaExchangeAdapterTest {
 
   @Test
   void webSocketFailureTriggersReconnect() {
-    // The reconnect Runnable is invoked so the adapter can schedule a backoff retry — without
-    // this, a single network blip silently drops every subsequent fill.
     var connected = new AtomicBoolean(true);
     var reconnectCount = new java.util.concurrent.atomic.AtomicInteger(0);
     var listener =
@@ -124,8 +119,6 @@ class AlpacaExchangeAdapterTest {
 
   @Test
   void abnormalCloseTriggersReconnectButCleanCloseDoesNot() {
-    // Code 1000 is the normal-shutdown reason code our PreDestroy sends. We must not reconnect
-    // when the close was intentional, but every other code (server kick, network drop) must.
     var connected = new AtomicBoolean(true);
     var reconnectCount = new java.util.concurrent.atomic.AtomicInteger(0);
     var listener =

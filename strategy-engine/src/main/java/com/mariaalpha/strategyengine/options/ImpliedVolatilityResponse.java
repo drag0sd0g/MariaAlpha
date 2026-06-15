@@ -1,6 +1,5 @@
 package com.mariaalpha.strategyengine.options;
 
-/** Response body for {@code POST /api/options/implied-volatility}. */
 public record ImpliedVolatilityResponse(
     String symbol,
     OptionType type,

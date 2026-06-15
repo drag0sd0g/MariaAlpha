@@ -31,7 +31,6 @@ describe("Reconciliation page", () => {
       expect(screen.getByText(/No reconciliation breaks recorded/)).toBeInTheDocument();
     });
     expect(screen.getByTestId("card-Total breaks")).toHaveTextContent("0");
-    // No run record yet → Matched falls back to em-dash
     expect(screen.getByTestId("card-Matched")).toHaveTextContent("—");
   });
 
@@ -83,9 +82,7 @@ describe("Reconciliation page", () => {
     expect(screen.getByTestId("card-High")).toHaveTextContent("1");
     expect(screen.getByTestId("recon-bytype-table")).toBeInTheDocument();
     expect(screen.getByTestId("recon-run-status")).toHaveTextContent("SUCCESS");
-    // externalFillsCount=1, breaks=1 → matched=0
     expect(screen.getByTestId("card-Matched")).toHaveTextContent("0");
-    // Description column is wired through
     expect(screen.getByText(/External fill not matched internally/)).toBeInTheDocument();
   });
 

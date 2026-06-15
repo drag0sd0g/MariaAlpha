@@ -22,11 +22,8 @@ def test_price_at_finds_closest_prior_observation():
     c.record("AAPL", 100.0, 99.0)
     c.record("AAPL", 110.0, 99.5)
     c.record("AAPL", 120.0, 100.0)
-    # Exactly on a tick.
     assert c.price_at("AAPL", 110.0) == 99.5
-    # In-between → use prior.
     assert c.price_at("AAPL", 115.0) == 99.5
-    # Past the last tick → use latest.
     assert c.price_at("AAPL", 200.0) == 100.0
 
 
@@ -45,7 +42,6 @@ def test_record_handles_out_of_order_ticks():
     c = MarketDataCache()
     c.record("AAPL", 100.0, 99.0)
     c.record("AAPL", 110.0, 99.5)
-    # Late tick at t=105 should slot between.
     c.record("AAPL", 105.0, 99.2)
     assert c.price_at("AAPL", 105.0) == 99.2
     assert c.price_at("AAPL", 110.0) == 99.5
@@ -55,8 +51,5 @@ def test_record_trims_history_when_max_exceeded():
     c = MarketDataCache(max_history_per_symbol=10)
     for i in range(15):
         c.record("AAPL", float(i), 100.0 + i)
-    # After trim, oldest entries should be gone but recent ones retained.
     assert c.latest("AAPL") == 100.0 + 14
-    # The exact retention depends on the trim policy (drops 25% on overflow).
-    # The latest tick is always preserved.
     assert c.price_at("AAPL", 14.0) == 100.0 + 14

@@ -9,23 +9,6 @@ import com.mariaalpha.executionengine.service.PositionTracker;
 import java.math.BigDecimal;
 import org.springframework.stereotype.Component;
 
-/**
- * Pre-trade sector concentration check.
- *
- * <p>Aggregates the absolute notional of every existing position by sector (looked up via {@link
- * SymbolReferenceData}), projects the incoming order onto that sector, and rejects when the
- * projection would push the sector past its configured ceiling. Each sector has its own ceiling via
- * {@code execution-engine.risk.sector-exposure-limits.<SECTOR>}; the default ceiling ({@code
- * default-sector-exposure-limit}) covers sectors not explicitly listed, including the synthetic
- * {@code UNKNOWN} sector that captures unmapped symbols.
- *
- * <p>The check skips itself if {@code defaultSectorExposureLimit ≤ 0} and the order's sector has no
- * explicit ceiling — this keeps the existing risk-chain wiring functional during the rollout before
- * reference-data and limits are configured.
- *
- * <p>BUYs grow the sector's gross exposure; SELLs shrink an existing long position toward zero,
- * which is always allowed (the check only fires when {@code projected > current}).
- */
 @Component
 @org.springframework.core.annotation.Order(6)
 public class SectorExposureCheck implements RiskCheck {
@@ -56,7 +39,6 @@ public class SectorExposureCheck implements RiskCheck {
     var sector = refData.sectorOf(order.getSymbol());
     long limit = limitFor(sector);
     if (limit <= 0) {
-      // Not configured for this sector and no default — risk check is disabled.
       return RiskCheckResult.pass(name());
     }
 
@@ -68,9 +50,6 @@ public class SectorExposureCheck implements RiskCheck {
 
     var sectorExposure = currentSectorExposure(sector);
     var orderNotional = market.lastTradePrice().multiply(BigDecimal.valueOf(order.getQuantity()));
-    // SELLs reduce exposure; only BUYs (and shorts increasing magnitude) push the projection past
-    // the limit. We compute the signed delta against the symbol's current position so a SELL that
-    // flattens a long is treated as a reduction.
     var projected =
         projectedSectorExposure(sector, order.getSymbol(), order.getSide(), orderNotional);
 

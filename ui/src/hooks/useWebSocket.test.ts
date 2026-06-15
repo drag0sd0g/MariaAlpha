@@ -3,9 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useWebSocket } from "./useWebSocket";
 import { useConnectionStore } from "@/stores/connectionStore";
 
-// ---------------------------------------------------------------------------
-// Fake WebSocket
-// ---------------------------------------------------------------------------
 
 interface FakeSocket {
   url: string;
@@ -58,15 +55,11 @@ class FakeWebSocket implements FakeSocket {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 beforeEach(() => {
   allSockets.length = 0;
   lastSocket = null;
   vi.stubGlobal("WebSocket", FakeWebSocket);
-  // Set env vars needed by buildWsUrl
   vi.stubGlobal("location", { protocol: "http:", host: "localhost:5173" });
   Object.assign(import.meta.env, {
     VITE_MARIAALPHA_API_KEY: "local-dev-key",

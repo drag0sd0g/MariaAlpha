@@ -57,7 +57,7 @@ class HttpAlpacaActivitiesClientTest {
             + "\"client_order_id\":\"c-1\",\"symbol\":\"AAPL\","
             + "\"side\":\"buy\",\"price\":\"180.05\",\"qty\":\"100\","
             + "\"transaction_time\":\"2026-06-01T15:30:00Z\"},"
-            + "{\"id\":\"act-2\"}]"; // missing required fields
+            + "{\"id\":\"act-2\"}]";
     var result = client.parseActivities(body);
     assertThat(result).hasSize(1);
     assertThat(result.get(0).externalFillId()).isEqualTo("act-1");

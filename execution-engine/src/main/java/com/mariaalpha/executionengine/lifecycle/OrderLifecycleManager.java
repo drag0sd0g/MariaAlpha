@@ -22,15 +22,9 @@ public class OrderLifecycleManager {
   private static final Set<OrderStatus> TERMINAL_STATUSES =
       Set.of(OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJECTED);
 
-  /**
-   * How long a terminal order stays queryable before eviction. Order-manager is the durable system
-   * of record; this in-memory map only needs to cover in-flight orders plus a comfortable window
-   * for REST lookups and late execution reports.
-   */
   private static final Duration TERMINAL_RETENTION = Duration.ofHours(6);
 
   private final ConcurrentHashMap<String, Order> orders = new ConcurrentHashMap<>();
-  // Secondary index so fill processing doesn't scan every tracked order per execution report.
   private final ConcurrentHashMap<String, String> orderIdByExchangeId = new ConcurrentHashMap<>();
   private final OrderEventPublisher publisher;
 
@@ -53,7 +47,6 @@ public class OrderLifecycleManager {
     publish(order, null, null);
   }
 
-  /** Index an order under its venue-assigned id so execution reports resolve in O(1). */
   public void registerExchangeOrderId(String exchangeOrderId, String orderId) {
     if (exchangeOrderId != null && orderId != null) {
       orderIdByExchangeId.put(exchangeOrderId, orderId);
@@ -71,7 +64,6 @@ public class OrderLifecycleManager {
       throw new IllegalStateTransitionException(orderId, currentStatus, newStatus);
     }
 
-    // Atomic CAS
     if (!order.compareAndSetStatus(currentStatus, newStatus)) {
       throw new IllegalStateTransitionException(orderId, currentStatus, newStatus);
     }
@@ -96,8 +88,6 @@ public class OrderLifecycleManager {
         return order;
       }
     }
-    // Fallback scan covers call sites that set the exchange id directly on the Order without
-    // registering the index entry.
     var found =
         orders.values().stream()
             .filter(order -> exchangeOrderId.equals(order.getExchangeOrderId()))
@@ -109,10 +99,6 @@ public class OrderLifecycleManager {
     return found;
   }
 
-  /**
-   * Evict terminal orders older than {@link #TERMINAL_RETENTION} so the in-memory map doesn't grow
-   * without bound on a long-running process.
-   */
   @Scheduled(fixedDelayString = "PT15M")
   void evictStaleTerminalOrders() {
     var cutoff = Instant.now().minus(TERMINAL_RETENTION);

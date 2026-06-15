@@ -35,7 +35,6 @@ public class AlpacaExchangeAdapter implements ExchangeAdapter {
 
   private static final Logger LOG = LoggerFactory.getLogger(AlpacaExchangeAdapter.class);
 
-  // Same backoff curve and cap as the market-data Alpaca adapter.
   static final long[] BACKOFF_MS = {1_000L, 2_000L, 4_000L, 8_000L, 16_000L};
   static final int MAX_RECONNECTS = BACKOFF_MS.length;
 
@@ -43,7 +42,7 @@ public class AlpacaExchangeAdapter implements ExchangeAdapter {
   private final ObjectMapper objectMapper;
   private final AlpacaOrderTypeMapper typeMapper;
   private final HttpClient httpClient;
-  private final OkHttpClient wsClient; // lightweight websocket client
+  private final OkHttpClient wsClient;
   private final AtomicBoolean connected = new AtomicBoolean(false);
   private final AtomicInteger reconnectAttempt = new AtomicInteger(0);
   private final ScheduledExecutorService reconnectScheduler =
@@ -166,8 +165,6 @@ public class AlpacaExchangeAdapter implements ExchangeAdapter {
     if (shuttingDown.get()) {
       return;
     }
-    // Retry forever with the backoff capped at the last rung — giving up permanently would
-    // silently drop every subsequent fill until the process is restarted.
     var attempt = reconnectAttempt.getAndIncrement();
     var delayMs = BACKOFF_MS[Math.min(attempt, BACKOFF_MS.length - 1)];
     LOG.warn("Alpaca trade_updates: scheduling reconnect attempt {} in {}ms", attempt + 1, delayMs);

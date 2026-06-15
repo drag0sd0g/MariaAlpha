@@ -22,10 +22,6 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-/**
- * Validates the schema migrations + JPA mappings for the recon engine work end-to-end on a real
- * Postgres. Pure JPA — no Spring beans for the orchestrator or downstream services.
- */
 @Tag("integration")
 @Testcontainers
 @DataJpaTest(
@@ -82,7 +78,7 @@ class ReconciliationRepositoryIT {
   void missingFillBreakAllowsNullOrderId() {
     var b = new ReconciliationBreakEntity();
     b.setReconDate(LocalDate.of(2026, 6, 4));
-    b.setOrderId(null); // 2.6.1 migration relaxed NOT NULL
+    b.setOrderId(null);
     b.setBreakType("MISSING_FILL");
     b.setSeverity("HIGH");
     b.setSymbol("AAPL");

@@ -150,7 +150,6 @@ class StrategyControllerTest {
     mockMvc
         .perform(get("/api/strategies/state"))
         .andExpect(status().isOk())
-        // routedSymbols are sorted for stable UI ordering
         .andExpect(jsonPath("$[0].symbol").value("AAPL"))
         .andExpect(jsonPath("$[1].symbol").value("MSFT"));
   }
@@ -164,7 +163,6 @@ class StrategyControllerTest {
         .perform(get("/api/strategies/state").param("symbol", "AAPL"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].activeStrategy").value("VWAP"))
-        // nullable fields omitted when empty (no JSON include)
         .andExpect(jsonPath("$[0].mlSignal").doesNotExist())
         .andExpect(jsonPath("$[0].mlRegime").doesNotExist());
   }

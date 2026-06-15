@@ -38,15 +38,6 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.KafkaContainer;
 
-/**
- * Wires the RFQ controller, pricing engine, market-state cache, position lookup (mocked) and Kafka
- * publisher into a Spring context. Drives the {@code /api/rfq/quote} + {@code /api/rfq/accept}
- * happy path, verifies the resulting OrderSignal lands on the {@code strategy.signals} topic.
- *
- * <p>The OM HTTP call is short-circuited by overriding the position-lookup base URL to a
- * non-routable address, so the engine falls back to "unavailable" — meaning flat position — which
- * is exactly what the test expects.
- */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 @Testcontainers
@@ -59,7 +50,6 @@ public class RfqEndToEndIntegrationTest {
   @DynamicPropertySource
   static void kafkaProperties(DynamicPropertyRegistry registry) {
     registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
-    // route OM lookups to a black-hole address so the engine sees a fall-back flat position
     registry.add("strategy-engine.rfq.order-manager-base-url", () -> "http://127.0.0.1:1");
     registry.add("strategy-engine.rfq.position-lookup-timeout-ms", () -> "100");
   }
@@ -71,7 +61,6 @@ public class RfqEndToEndIntegrationTest {
 
   @Test
   void quoteThenAcceptPublishesOrderSignalToStrategySignalsTopic() throws Exception {
-    // 1. prime book
     cache.onTick(
         new MarketTick(
             "AAPL",
@@ -87,7 +76,6 @@ public class RfqEndToEndIntegrationTest {
             DataSource.SIMULATED,
             false));
 
-    // 2. request quote
     var quoteResp =
         mvc.perform(
                 post("/api/rfq/quote")
@@ -99,7 +87,6 @@ public class RfqEndToEndIntegrationTest {
     var body = json.readValue(quoteResp.getResponse().getContentAsString(), RfqQuoteResponse.class);
     assertThat(body.bid().doubleValue()).isLessThan(body.ask().doubleValue());
 
-    // 3. accept BUY side at ask
     var props = new HashMap<String, Object>();
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
     props.put(ConsumerConfig.GROUP_ID_CONFIG, "rfq-test-" + UUID.randomUUID());

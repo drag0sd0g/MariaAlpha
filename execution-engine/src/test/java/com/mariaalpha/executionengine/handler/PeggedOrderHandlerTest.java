@@ -84,7 +84,6 @@ class PeggedOrderHandlerTest {
 
   @Test
   void rejectsBuyPriceCapTooLow() {
-    // BUY cap at 30 when reference is ~100 → "almost certainly a misconfiguration"
     var result =
         handler.validate(
             order(Side.BUY, 100, PegType.MIDPOINT, 0, new BigDecimal("30.00")),

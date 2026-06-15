@@ -36,9 +36,6 @@ class BasketTradingE2ETest {
 
   @Test
   void submitMarketBasketThroughGatewayReachesFilled() throws Exception {
-    // Retry the whole basket until every leg is accepted — early after stack start the
-    // execution-engine may not yet have a market-state snapshot for a symbol, which would reject a
-    // leg. Each retry creates a fresh (discarded) basket; once market data is warm all legs accept.
     var basket =
         await()
             .atMost(60, TimeUnit.SECONDS)
@@ -50,7 +47,6 @@ class BasketTradingE2ETest {
     assertThat(basket.get("totalLegs").asInt()).isEqualTo(2);
     assertThat(basket.get("acceptedLegs").asInt()).isEqualTo(2);
 
-    // MARKET legs cross on the simulated adapter; the basket coordinator aggregates the fills.
     var filled =
         await()
             .atMost(60, TimeUnit.SECONDS)
@@ -61,7 +57,6 @@ class BasketTradingE2ETest {
     assertThat(filled.get("filledLegs").asInt()).isEqualTo(2);
     assertThat(filled.get("filledQuantity").asInt()).isEqualTo(5);
 
-    // The basket appears in the list endpoint.
     var list = httpGet("/api/execution/baskets", 200);
     boolean found = false;
     for (var entry : list) {
@@ -88,7 +83,6 @@ class BasketTradingE2ETest {
     assertThat(resp.statusCode()).as("LIMIT leg without price → %s", resp.body()).isEqualTo(400);
   }
 
-  /** Submit a 2-leg MARKET basket; return the view only if every leg was accepted, else null. */
   private JsonNode submitFullyAcceptedBasket() throws Exception {
     var body =
         "{\"name\":\"e2e-rebalance\",\"legs\":["

@@ -18,18 +18,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/**
- * Time-Weighted Average Price execution strategy.
- *
- * <p>Splits the trading window {@code [startTime, endTime)} into {@code numSlices} equal-duration
- * intervals and distributes the parent quantity evenly across them. As the market clock (driven by
- * tick timestamps, not the wall clock) crosses into each slice, a single LIMIT child order is
- * emitted at the current best ask (buys) or best bid (sells). Any quantity still unexecuted when
- * the window closes is swept with a final MARKET order.
- *
- * <p>This mirrors {@link com.mariaalpha.strategyengine.strategy.vwap.VwapStrategy} but replaces the
- * historical volume profile with equal time slicing — see {@code docs/twap-strategy-explainer.md}.
- */
 @Component
 public class TwapStrategy implements TradingStrategy {
 
@@ -38,20 +26,16 @@ public class TwapStrategy implements TradingStrategy {
   static final ZoneId MARKET_ZONE = ZoneId.of("America/New_York");
   private static final int DEFAULT_NUM_SLICES = 12;
 
-  // Configuration parameters
   private volatile int targetQuantity;
   private Side side = Side.BUY;
   private LocalTime startTime = LocalTime.of(9, 30);
   private LocalTime endTime = LocalTime.of(16, 0);
   private volatile int numSlices = DEFAULT_NUM_SLICES;
 
-  // Derived schedule: equal-duration slices spanning [startTime, endTime)
   private final List<TwapSlice> slices = new ArrayList<>();
 
-  // Computed allocations: sliceIndex -> share count
   private final List<Integer> sliceAllocations = new ArrayList<>();
 
-  // Execution state: tracks which slices have emitted signals (at-most-once)
   private final ConcurrentHashMap<Integer, Boolean> sliceExecuted = new ConcurrentHashMap<>();
   private volatile MarketTick latestTick;
   private volatile boolean completed;
@@ -86,18 +70,15 @@ public class TwapStrategy implements TradingStrategy {
       return Optional.empty();
     }
 
-    // Past end time: sweep remaining quantity
     if (!marketTime.isBefore(endTime)) {
       return emitSweep(symbol);
     }
 
-    // Find current slice
     int sliceIndex = findSliceIndex(marketTime);
     if (sliceIndex < 0) {
       return Optional.empty();
     }
 
-    // Check if current slice already executed (at-most-once)
     if (sliceExecuted.putIfAbsent(sliceIndex, Boolean.TRUE) != null) {
       return Optional.empty();
     }
@@ -151,12 +132,6 @@ public class TwapStrategy implements TradingStrategy {
     resetExecutionState();
   }
 
-  /**
-   * Rebuilds the equal-duration slice schedule from {@code startTime}, {@code endTime}, and {@code
-   * numSlices}. Boundaries are computed in whole seconds from the window start so they never drift
-   * past {@code endTime}; the final boundary lands exactly on {@code endTime}. Produces no slices
-   * when the window is empty/inverted or {@code numSlices <= 0}.
-   */
   private void rebuildSchedule() {
     slices.clear();
     long totalSeconds = Duration.between(startTime, endTime).getSeconds();
@@ -172,10 +147,6 @@ public class TwapStrategy implements TradingStrategy {
     }
   }
 
-  /**
-   * Computes per-slice share allocations by dividing the target quantity equally. The last slice
-   * absorbs any rounding remainder so the allocations always sum to {@code targetQuantity}.
-   */
   private void computeAllocations() {
     sliceAllocations.clear();
     if (slices.isEmpty() || targetQuantity <= 0) {
@@ -190,26 +161,21 @@ public class TwapStrategy implements TradingStrategy {
     sliceAllocations.add(targetQuantity - allocated);
   }
 
-  /** Resets execution state for a fresh run. */
   private void resetExecutionState() {
     sliceExecuted.clear();
     latestTick = null;
     completed = false;
   }
 
-  /** Resolves the limit price from the latest tick based on side. */
   private BigDecimal resolveLimitPrice() {
     if (side == Side.BUY) {
-      // buy at the ask
       var ask = latestTick.askPrice();
       return ask.compareTo(BigDecimal.ZERO) > 0 ? ask : latestTick.price();
     }
-    // sell at the bid
     var bid = latestTick.bidPrice();
     return bid.compareTo(BigDecimal.ZERO) > 0 ? bid : latestTick.price();
   }
 
-  /** Computes the total remaining (unexecuted) quantity. */
   private int remainingQuantity() {
     int executed = 0;
     for (var entry : sliceExecuted.entrySet()) {
@@ -221,7 +187,6 @@ public class TwapStrategy implements TradingStrategy {
     return targetQuantity - executed;
   }
 
-  /** Finds the slice index for the given market time. Returns -1 if not in any slice. */
   private int findSliceIndex(LocalTime marketTime) {
     for (var i = 0; i < slices.size(); i++) {
       var slice = slices.get(i);
@@ -232,7 +197,6 @@ public class TwapStrategy implements TradingStrategy {
     return -1;
   }
 
-  /** Emits a MARKET sweep for any remaining unexecuted quantity. */
   private Optional<OrderSignal> emitSweep(String symbol) {
     if (completed) {
       return Optional.empty();

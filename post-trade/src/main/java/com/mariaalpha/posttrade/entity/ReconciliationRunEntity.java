@@ -10,11 +10,6 @@ import java.time.LocalDate;
 import java.util.Objects;
 import java.util.UUID;
 
-/**
- * One row per EOD reconciliation run. A run record exists regardless of whether breaks were found,
- * so the UI can tell "ran clean" from "never ran". Keyed by {@code reconDate} — re-running for the
- * same date upserts (see §7.3 idempotency).
- */
 @Entity
 @Table(name = "reconciliation_runs")
 public class ReconciliationRunEntity {

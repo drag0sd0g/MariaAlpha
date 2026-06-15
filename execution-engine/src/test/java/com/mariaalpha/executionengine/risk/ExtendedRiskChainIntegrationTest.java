@@ -21,11 +21,6 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.KafkaContainer;
 
-/**
- * Verifies that the sector / beta / ADV-participation risk checks are wired into the chain in the
- * expected order and the configured limits from {@code application.yml} (mode {@code simulated})
- * load via the standard {@code @ConfigurationProperties} path.
- */
 @SpringBootTest
 @Testcontainers
 @ActiveProfiles("simulated")
@@ -44,7 +39,6 @@ class ExtendedRiskChainIntegrationTest {
   @DynamicPropertySource
   static void props(DynamicPropertyRegistry registry) {
     registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
-    // No Redis container — the cache is exercised in RedisPositionCacheIntegrationTest.
     registry.add("execution-engine.redis.enabled", () -> "false");
     registry.add("management.health.redis.enabled", () -> "false");
     registry.add(
@@ -66,15 +60,12 @@ class ExtendedRiskChainIntegrationTest {
 
   @Test
   void chainIncludesExtendedChecks() {
-    // Inspect the chain by triggering every check on a passing order — each of the sector, beta,
-    // and ADV-participation checks must appear at least once in the bean container.
     var names = chainCheckNames();
     assertThat(names).contains("SectorExposure", "BetaExposure", "AdvParticipation");
   }
 
   @Test
   void chainRejectsOrderBreachingAdvParticipation() {
-    // AAPL ADV = 60M; 10% participation = 6M; an 8M-share parent breaches the cap.
     tracker.update(
         new MarketState(
             "AAPL",
@@ -95,10 +86,6 @@ class ExtendedRiskChainIntegrationTest {
                 Instant.now()));
     var result = chain.evaluate(order);
     assertThat(result.passed()).isFalse();
-    // MaxOrderNotional fires before ADV in the chain; assert it's at least one of the
-    // configured checks that gates a clearly-too-large order. We assert the failure reason names a
-    // known
-    // check rather than ADV specifically so the test stays robust if ordering shifts.
     assertThat(result.checkName())
         .as("expected a hard pre-trade reject, regardless of which check fires first")
         .isIn(
@@ -119,7 +106,6 @@ class ExtendedRiskChainIntegrationTest {
             new BigDecimal("178.54"),
             new BigDecimal("178.52"),
             Instant.now()));
-    // A 100-share AAPL order is well below every configured limit and the chain should pass.
     var order =
         new com.mariaalpha.executionengine.model.Order(
             new com.mariaalpha.executionengine.model.OrderSignal(
@@ -136,9 +122,6 @@ class ExtendedRiskChainIntegrationTest {
   }
 
   private Set<String> chainCheckNames() {
-    // RiskCheckChain doesn't expose the list directly. We use reflection to grab it for the test
-    // assertion — the cleanest alternative would have been a public accessor, but the production
-    // API doesn't need one.
     try {
       var field = RiskCheckChain.class.getDeclaredField("checks");
       field.setAccessible(true);

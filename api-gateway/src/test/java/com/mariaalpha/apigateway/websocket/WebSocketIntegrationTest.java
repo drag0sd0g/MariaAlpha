@@ -67,7 +67,6 @@ class WebSocketIntegrationTest {
                         .then())
             .subscribe();
 
-    // Wait for client to connect.
     Thread.sleep(2_000);
 
     producer.send(
@@ -87,9 +86,6 @@ class WebSocketIntegrationTest {
     var client = new ReactorNettyWebSocketClient();
     URI uri = URI.create("ws://localhost:" + port + "/ws/market-data");
 
-    // The WebFilter returns 401 before the upgrade completes. ReactorNettyWebSocketClient surfaces
-    // this as a failure on the Mono — assert that, otherwise a regression that lets the upgrade
-    // succeed without a key would silently pass.
     org.assertj.core.api.Assertions.assertThatThrownBy(
             () -> client.execute(uri, ws -> Mono.empty()).block(Duration.ofSeconds(5)))
         .isInstanceOf(Exception.class);

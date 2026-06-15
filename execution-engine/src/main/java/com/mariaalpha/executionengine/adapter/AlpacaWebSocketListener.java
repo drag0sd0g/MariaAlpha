@@ -26,11 +26,7 @@ public class AlpacaWebSocketListener extends WebSocketListener {
   private final ObjectMapper objectMapper;
   private final Supplier<Consumer<ExecutionReport>> reportCallbackSupplier;
   private final AtomicBoolean connected;
-  // Invoked on close (non-normal) or failure so the adapter can schedule a backoff reconnect.
-  // Optional — when null the listener falls back to log-only behavior (used in tests).
   private final Runnable reconnectTrigger;
-  // Invoked when the server-accepted onOpen handshake fires; lets the adapter reset its backoff
-  // counter so the next disconnect starts from the 1s rung again.
   private final Runnable onOpenSuccess;
 
   public AlpacaWebSocketListener(
@@ -132,8 +128,6 @@ public class AlpacaWebSocketListener extends WebSocketListener {
   public void onClosed(@NotNull WebSocket webSocket, int code, @NotNull String reason) {
     connected.set(false);
     LOG.warn("Alpaca WebSocket closed: {} {}", code, reason);
-    // 1000 is a clean shutdown initiated by us (PreDestroy). Anything else means the server or a
-    // network blip cut us off — reconnect or we silently stop receiving fills.
     if (code != 1000 && reconnectTrigger != null) {
       reconnectTrigger.run();
     }

@@ -12,24 +12,6 @@ import java.util.List;
 import java.util.Set;
 import org.springframework.stereotype.Component;
 
-/**
- * Pre-trade correlated-positions concentration check (roadmap 3.5.2).
- *
- * <p>Models the case where the standard sector / beta checks pass — gross exposure looks fine, the
- * portfolio's β is in the green — but the underlying mix has concentrated into a small set of
- * symbols whose returns historically move together. Two megacap-tech names plus a mega-cap chip
- * stock might span two sectors and present a normal β, yet a single drawdown in the AI trade would
- * take all three down at once.
- *
- * <p>Each {@link CorrelatedCluster} is a named list of symbols plus a $-cap on gross exposure
- * within that cluster. The check evaluates every cluster the order touches and rejects when the
- * projected gross within the cluster exceeds the cluster's cap (and would grow vs. the current
- * cluster gross — a SELL flattening a long inside the cluster always passes).
- *
- * <p>A symbol may appear in multiple clusters; each is evaluated independently. Symbols outside any
- * cluster are not constrained by this check. If the configured cluster list is empty the check
- * self-disables.
- */
 @Component
 @org.springframework.core.annotation.Order(10)
 public class CorrelatedPositionsCheck implements RiskCheck {
@@ -123,8 +105,6 @@ public class CorrelatedPositionsCheck implements RiskCheck {
       }
     }
     if (!orderSymbolSeen) {
-      // No existing position on the order's symbol; add it iff BUY (a fresh SELL would create a
-      // short that does grow the gross — handled in the same branch).
       var delta = side == Side.BUY ? orderNotional : orderNotional.negate();
       projected = projected.add(delta.abs());
     }

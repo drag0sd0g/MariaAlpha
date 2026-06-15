@@ -41,9 +41,6 @@ public class SimulatedRunner implements ApplicationRunner {
   public void run(ApplicationArguments args) {
     LOG.info("Starting simulated market data for symbols: {}", symbols);
     adapter.connect(symbols);
-    // Every @PostConstruct subscriber saw the pre-connect empty flux — re-subscribe them all now
-    // that the adapter is connected, or the book / readiness probe / Kafka publisher never see a
-    // single tick in this profile.
     publisher.startStreaming();
     orderBookManager.restart();
     tickReadinessIndicator.restart();

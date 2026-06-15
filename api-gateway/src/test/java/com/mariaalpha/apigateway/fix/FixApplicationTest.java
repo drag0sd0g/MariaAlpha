@@ -73,8 +73,6 @@ class FixApplicationTest {
     assertThat(report.getOrdStatus().getValue()).isEqualTo('0');
     assertThat(report.getOrderID().getValue()).isEqualTo("EXEC-1");
     assertThat(report.getClOrdID().getValue()).isEqualTo("c1");
-    // Symbol (tag 55) is required on a FIX 4.4 ExecutionReport — without it a strict client
-    // rejects the ack and never sees the order acknowledged.
     assertThat(report.getSymbol().getValue()).isEqualTo("AAPL");
   }
 
@@ -97,7 +95,7 @@ class FixApplicationTest {
             new Side('1'),
             new TransactTime(LocalDateTime.now(ZoneOffset.UTC)),
             new OrdType('1'));
-    nos.set(new OrderQty(100)); // no Symbol → FieldNotFound during translate
+    nos.set(new OrderQty(100));
 
     var report = (ExecutionReport) app.handleNewOrderSingle(nos, SESSION);
 
@@ -109,7 +107,7 @@ class FixApplicationTest {
   void cancelKnownOrder_returnsCanceledExecutionReport() throws Exception {
     when(client.submitOrder(any())).thenReturn(FixDownstreamResult.accepted("EXEC-9"));
     when(client.cancelOrder("EXEC-9")).thenReturn(FixDownstreamResult.accepted("EXEC-9"));
-    app.handleNewOrderSingle(limitOrder("c9"), SESSION); // registers c9 → EXEC-9
+    app.handleNewOrderSingle(limitOrder("c9"), SESSION);
 
     var report = (ExecutionReport) app.handleOrderCancelRequest(cancel("c9", "cxl9"), SESSION);
 

@@ -135,9 +135,6 @@ class PortfolioServiceTest {
 
   @Test
   void totalValueDoesNotDoubleCountUnrealizedPnl() {
-    // Buy 100 AAPL @ 150: cash 1,000,000 → 985,000. Mark rises to 160 → unrealized +1,000 and
-    // market value 16,000. Equity must be 985,000 + 16,000 = 1,001,000 (initial + unrealized),
-    // NOT 1,002,000 (which would count the unrealized gain twice).
     var order = new OrderEntity();
     order.setOrderId(UUID.randomUUID());
     var buy = newFill(order, "AAPL", Side.BUY, BigDecimal.valueOf(150), BigDecimal.valueOf(100));

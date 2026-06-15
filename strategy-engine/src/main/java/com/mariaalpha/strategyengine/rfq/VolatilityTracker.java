@@ -23,7 +23,6 @@ public class VolatilityTracker {
     this.cache = cache;
   }
 
-  /** Sample stdev of log returns, expressed in basis points (1 bp = 1e-4). */
   public double realizedVolBps(String symbol) {
     var history = cache.midHistory(symbol).orElse(new double[0]);
     if (history.length < 2) {

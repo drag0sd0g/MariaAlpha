@@ -11,23 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/**
- * FR-17 implementation: maps the current ML regime classification for a symbol to a strategy. The
- * selector is consulted by {@code StrategyEvaluationService} before falling back to the manually
- * bound strategy in {@link SymbolStrategyRouter}, and only returns a strategy when:
- *
- * <ol>
- *   <li>auto-select is enabled in config,
- *   <li>the ML service returns a regime (i.e. the gRPC call succeeded and the circuit breaker is
- *       closed),
- *   <li>the regime confidence meets the configured threshold,
- *   <li>the regime has a configured mapping (HIGH_VOLATILITY and UNKNOWN are unmapped by default),
- *   <li>and that mapped strategy is registered in the {@link StrategyRegistry}.
- * </ol>
- *
- * Any other case returns {@link Optional#empty()} so the caller falls through to the user's manual
- * binding.
- */
 @Component
 public class RegimeBasedStrategySelector {
 
@@ -51,7 +34,6 @@ public class RegimeBasedStrategySelector {
         regimeMap);
   }
 
-  /** Returns the strategy the regime model recommends for {@code symbol}, or empty. */
   public Optional<TradingStrategy> selectFor(String symbol) {
     if (!config.enabled()) {
       return Optional.empty();

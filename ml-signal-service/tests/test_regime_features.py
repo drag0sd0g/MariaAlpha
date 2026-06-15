@@ -44,14 +44,13 @@ class TestTrendingUp:
 
     def test_uptrend_signature(self) -> None:
         rng = np.random.default_rng(0)
-        # Strong drift + tiny noise → clean trend
         log_returns = rng.normal(loc=0.002, scale=0.0005, size=MIN_BARS_FOR_REGIME - 1)
         closes = 100.0 * np.exp(np.concatenate([[0.0], np.cumsum(log_returns)]))
         features = compute_regime_features_from_closes(closes)
         assert features is not None
         assert features["trend_strength"] > 0.001
         assert features["trend_r_squared"] > 0.8
-        assert features["price_distance_from_mean"] > 0.0  # ended above mean
+        assert features["price_distance_from_mean"] > 0.0
 
 
 class TestTrendingDown:
@@ -63,7 +62,7 @@ class TestTrendingDown:
         assert features is not None
         assert features["trend_strength"] < -0.001
         assert features["trend_r_squared"] > 0.8
-        assert features["price_distance_from_mean"] < 0.0  # ended below mean
+        assert features["price_distance_from_mean"] < 0.0
 
 
 class TestMeanReverting:
@@ -81,9 +80,7 @@ class TestMeanReverting:
         closes = 100.0 * np.exp(np.concatenate([[0.0], np.cumsum(log_returns)]))
         features = compute_regime_features_from_closes(closes)
         assert features is not None
-        # The mean-reversion score is -AR(1); a negative AR(1) ⇒ positive score.
         assert features["mean_reversion_score"] > 0.2
-        # The trend is weak → low R²
         assert features["trend_r_squared"] < 0.5
 
 
@@ -111,7 +108,6 @@ class TestNumericalEdgeCases:
         assert features is not None
         for name, value in features.items():
             assert np.isfinite(value), f"{name} = {value}"
-        # Constant series: no trend, no vol, no reversion signal
         assert features["trend_strength"] == pytest.approx(0.0, abs=1e-9)
         assert features["realized_vol"] == pytest.approx(0.0, abs=1e-9)
         assert features["return_dispersion"] == pytest.approx(0.0, abs=1e-9)

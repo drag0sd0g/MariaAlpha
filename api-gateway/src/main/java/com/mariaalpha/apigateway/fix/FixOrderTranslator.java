@@ -4,14 +4,6 @@ import java.math.BigDecimal;
 import quickfix.FieldNotFound;
 import quickfix.fix44.NewOrderSingle;
 
-/**
- * Pure translator from a FIX 4.4 {@code NewOrderSingle} to a {@link FixOrderSubmission}. No I/O, no
- * QuickFIX session state — every branch is unit-testable by constructing a {@code NewOrderSingle}.
- *
- * <p>Throws {@link IllegalArgumentException} for FIX values MariaAlpha does not support (unknown
- * side, unsupported order type / TIF, missing required price), which the caller turns into a
- * rejecting {@code ExecutionReport}.
- */
 public final class FixOrderTranslator {
 
   private FixOrderTranslator() {}
@@ -48,9 +40,6 @@ public final class FixOrderTranslator {
         clOrdId, symbol, side, orderType, quantity, limitPrice, stopPrice, tif);
   }
 
-  // Switch on the FIX wire chars directly rather than QuickFIX field constants, whose generated
-  // names drift between data-dictionary versions (e.g. OrdType '3' is "STOP" in some, renamed in
-  // others). The chars are fixed by the FIX 4.4 specification.
   static String mapSide(char fixSide) {
     return switch (fixSide) {
       case '1' -> "BUY";

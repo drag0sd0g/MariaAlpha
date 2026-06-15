@@ -11,15 +11,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Applies one order-lifecycle event: upserts the order, persists the fill (idempotently), updates
- * the position, and fans the snapshot out to Kafka/Redis.
- *
- * <p>Lives in its own bean (rather than as a {@code @Transactional} method on the Kafka consumer)
- * because Spring transactions are proxy-based: a listener calling a {@code @Transactional} method
- * on {@code this} bypasses the proxy and silently runs without a surrounding transaction. Routing
- * the call through this bean makes order + fill + position updates atomic.
- */
 @Service
 public class LifecycleEventHandler {
 

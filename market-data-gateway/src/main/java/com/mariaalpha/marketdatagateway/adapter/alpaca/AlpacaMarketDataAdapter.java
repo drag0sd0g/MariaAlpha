@@ -76,8 +76,6 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
         new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    // bridge imperative (WebSocket callback pushes data) to reactive (downstream consumers
-    // subscribe to a Flux)
     this.tickSink = Sinks.many().multicast().onBackpressureBuffer();
     this.webClient =
         WebClient.builder()
@@ -186,7 +184,6 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
     return allBars;
   }
 
-  /** Parses the JSON once, reads the type field, and dispatches to the appropriate handler. */
   @VisibleForTesting
   void handleMessage(String raw, WebSocketSession session, List<String> symbols) {
     try {
@@ -216,7 +213,6 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
     }
   }
 
-  /** Handles the auth handshake: connected → authenticate → authenticated → subscribe. */
   private void handleSuccess(JsonNode node, WebSocketSession session, List<String> symbols)
       throws JsonProcessingException {
     var control = objectMapper.treeToValue(node, AlpacaControl.class);
@@ -239,7 +235,6 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
     }
   }
 
-  /** Converts an Alpaca trade node into a MarketTick and pushes it to the sink. */
   private void handleTrade(JsonNode node) throws JsonProcessingException {
     var trade = objectMapper.treeToValue(node, AlpacaTrade.class);
     var tick =
@@ -260,7 +255,6 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
     tickSink.tryEmitNext(tick);
   }
 
-  /** Converts an Alpaca quote node into a MarketTick and pushes it to the sink. */
   private void handleQuote(JsonNode node) throws JsonProcessingException {
     var quote = objectMapper.treeToValue(node, AlpacaQuote.class);
     var tick =
@@ -281,7 +275,6 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
     tickSink.tryEmitNext(tick);
   }
 
-  /** Logs Alpaca error messages. */
   private void handleError(JsonNode node) throws JsonProcessingException {
     var control = objectMapper.treeToValue(node, AlpacaControl.class);
     LOG.error("Alpaca error — code: {}, message: {}", control.code(), control.message());
@@ -325,9 +318,6 @@ public class AlpacaMarketDataAdapter implements MarketDataAdapter {
 
   @VisibleForTesting
   void scheduleReconnect() {
-    // Retry forever with the backoff capped at the last rung — giving up permanently would
-    // leave the gateway tickless until the process is restarted. Last ticks are re-emitted as
-    // stale so downstream consumers know the feed is degraded while we reconnect.
     emitStaleTicks();
     reconnectCounter.increment();
     var attempt = reconnectAttempt.getAndIncrement();

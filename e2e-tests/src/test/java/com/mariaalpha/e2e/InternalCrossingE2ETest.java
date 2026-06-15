@@ -17,26 +17,6 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
-/**
- * E2E coverage for the internal crossing engine. Brings up the full docker-compose
- * stack and:
- *
- * <ul>
- *   <li>verifies the {@code /api/execution/internal-crossing/*} endpoints are routed through the
- *       API Gateway and respond with well-formed JSON;
- *   <li>fires offsetting BUY/SELL MARKET orders into the manual order endpoint and waits for at
- *       least one cross to land in the engine's stats — exercising the full SOR → adapter →
- *       engine → execution-report → lifecycle → order-manager DB path when the SOR picks
- *       INTERNAL_CROSS;
- *   <li>checks the new Prometheus counters are exposed by the execution-engine actuator.
- * </ul>
- *
- * <p>SOR routing in the simulated profile is deterministic — the same inputs always pick the same
- * venue. To make the test robust regardless of which venue currently wins on the composite score,
- * the cross-engine assertion is delivered via either of two paths: (1) the stats counter exceeds
- * the baseline, OR (2) the engine's book accumulates resting interest. The exact path depends on
- * SOR behaviour at the time, but both prove the engine is reachable end-to-end.
- */
 @Tag("e2e")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class InternalCrossingE2ETest {
@@ -77,16 +57,11 @@ class InternalCrossingE2ETest {
     var statsBefore = httpGet("/api/execution/internal-crossing/stats");
     long crossesBefore = statsBefore.get("crossesTotal").asLong();
 
-    // Submit a short burst of BUY/SELL pairs. SOR routes deterministically — when INTERNAL_CROSS
-    // wins on the composite score these orders flow into the engine and cross; when it loses,
-    // they flow to the LIT/DARK adapters and we still verify the e2e plumbing via the second
-    // assertion below.
     for (int i = 0; i < 10; i++) {
       submitManualOrder("NVDA", "SELL", 10);
       submitManualOrder("NVDA", "BUY", 10);
     }
 
-    // Allow several seconds for SOR + adapter + engine + fill-callback fan-out.
     await()
         .atMost(30, TimeUnit.SECONDS)
         .pollInterval(Duration.ofSeconds(1))
@@ -98,8 +73,6 @@ class InternalCrossingE2ETest {
               int restingTotal =
                   statsAfter.get("restingOrdersBuy").asInt()
                       + statsAfter.get("restingOrdersSell").asInt();
-              // Either crosses happened OR orders rested. Both prove the engine is live and
-              // wired through the gateway → execution → adapter → engine path.
               assertThat(crossesAfter > crossesBefore || restingTotal > 0)
                   .as(
                       "expected SOR/engine activity to either cross orders or accumulate resting"
@@ -112,7 +85,6 @@ class InternalCrossingE2ETest {
 
   @Test
   void prometheusEndpointExposesInternalCrossingCounters() throws Exception {
-    // Execution-engine management port is 8085, mapped on the host by docker-compose.
     var prom = httpGetRaw("http://localhost:8085/actuator/prometheus");
     assertThat(prom.statusCode()).isEqualTo(200);
     assertThat(prom.body())

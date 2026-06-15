@@ -7,7 +7,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Per-row allocation record returned by the {@code /api/allocations} REST surface. */
 public record AllocationResponse(
     UUID allocationId,
     UUID orderId,

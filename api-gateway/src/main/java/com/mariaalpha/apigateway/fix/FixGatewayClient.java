@@ -8,12 +8,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
-/**
- * Forwards translated FIX orders to execution-engine over HTTP. Called from QuickFIX/J worker
- * threads, so the reactive {@link WebClient} calls are {@code block()}ed (never on a Netty event
- * loop). execution-engine sits behind the api-gateway's auth at the edge; these are internal
- * service-to-service calls and carry no API key.
- */
 @Component
 public class FixGatewayClient {
 
@@ -25,7 +19,6 @@ public class FixGatewayClient {
     this.webClient = builder.baseUrl(properties.executionEngineUrl()).build();
   }
 
-  /** Submit a plain order to {@code POST /api/execution/orders}. */
   public FixDownstreamResult submitOrder(FixOrderSubmission order) {
     var body = new HashMap<String, Object>();
     body.put("symbol", order.symbol());
@@ -70,7 +63,6 @@ public class FixGatewayClient {
     }
   }
 
-  /** Cancel a previously-submitted order via {@code DELETE /api/execution/orders/{id}}. */
   public FixDownstreamResult cancelOrder(String downstreamOrderId) {
     try {
       webClient

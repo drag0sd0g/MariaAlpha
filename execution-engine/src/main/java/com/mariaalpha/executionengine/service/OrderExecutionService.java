@@ -208,13 +208,11 @@ public class OrderExecutionService {
       return;
     }
 
-    // Zero-quantity terminal event: IOC residual cancel, FOK kill, or generic exchange cancel.
     if (report.fillQuantity() == 0 && report.remainingQuantity() == 0) {
       var reason = report.reason() != null ? report.reason() : "exchange-cancel";
       try {
         lifecycleManager.transition(order.getOrderId(), OrderStatus.CANCELLED, null, reason);
       } catch (IllegalStateTransitionException e) {
-        // Already terminal (FILLED on prior partial, etc.) — log and continue.
         LOG.debug(
             "Skipping cancel transition for order {} ({})", order.getOrderId(), e.getMessage());
         return;
@@ -223,9 +221,7 @@ public class OrderExecutionService {
         case "ioc-residual-cancel" ->
             metrics.recordIocResidualCancelled(order.getSymbol(), order.getSide().name());
         case "fok-killed" -> metrics.recordFokKilled(order.getSymbol(), order.getSide().name());
-        default -> {
-          /* generic cancel — no dedicated counter */
-        }
+        default -> {}
       }
       return;
     }
@@ -246,8 +242,6 @@ public class OrderExecutionService {
     try {
       lifecycleManager.transition(order.getOrderId(), newStatus, fill, null);
     } catch (IllegalStateTransitionException e) {
-      // A fill can race a cancel (the venue filled before our cancel landed). The order is
-      // already terminal locally, but the fill is real — keep counting it below.
       LOG.warn(
           "Fill {} arrived for order {} already in terminal state: {}",
           fill.fillId(),

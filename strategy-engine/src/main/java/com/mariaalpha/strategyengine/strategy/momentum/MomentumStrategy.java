@@ -16,36 +16,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/**
- * Momentum / trend-following execution strategy.
- *
- * <p>Unlike {@link com.mariaalpha.strategyengine.strategy.vwap.VwapStrategy} and {@link
- * com.mariaalpha.strategyengine.strategy.twap.TwapStrategy} — which slice a fixed parent order
- * across a time window — Momentum is a <em>signal-generating</em> strategy. It watches the price
- * tape, maintains a fast and a slow Exponential Moving Average (EMA) plus a Relative Strength Index
- * (RSI) and an average-volume baseline, and opens a fixed-size position when a trend confirms,
- * flattening it when the trend reverses, momentum exhausts, or a stop-loss trips.
- *
- * <p>For the long case ({@code side = BUY}):
- *
- * <ul>
- *   <li><b>Entry</b> — the fast EMA crosses <em>above</em> the slow EMA, RSI is not overbought, and
- *       the triggering trade's volume exceeds {@code volumeMultiplier ×} the recent average. Emits
- *       a {@code LIMIT} BUY of {@code tradeQuantity} shares at the best ask.
- *   <li><b>Exit</b> — the fast EMA crosses <em>below</em> the slow EMA, OR RSI reaches overbought,
- *       OR price falls {@code stopLossPct}% below the entry price. Emits a {@code MARKET} SELL of
- *       {@code tradeQuantity} shares to flatten.
- * </ul>
- *
- * <p>The short case ({@code side = SELL}) is the mirror image: enter short on a bearish crossover
- * with RSI not oversold, exit on a bullish crossover, RSI oversold, or stop-loss.
- *
- * <p>Indicators are driven by {@link EventType#TRADE} ticks (the canonical "last price" tape);
- * {@link EventType#QUOTE} ticks only refresh the best bid/ask used to price child orders and the
- * mark used for the stop-loss. Like VWAP/TWAP the strategy's clock is the tick stream, never the
- * wall clock, so it is fully deterministic and replayable. See {@code
- * docs/momentum-strategy-explainer.md}.
- */
 @Component
 public class MomentumStrategy implements TradingStrategy {
 
@@ -65,7 +35,6 @@ public class MomentumStrategy implements TradingStrategy {
     SHORT
   }
 
-  // Configuration parameters
   private int fastPeriod = 20;
   private int slowPeriod = 50;
   private int rsiPeriod = 14;
@@ -77,10 +46,8 @@ public class MomentumStrategy implements TradingStrategy {
   private Side side = Side.BUY;
   private double stopLossPct = 2.0;
 
-  // 0 means "auto" — warm up for {@code slowPeriod} trades before acting on a crossover.
   private int warmupTrades = 0;
 
-  // Rolling indicator state
   private final Deque<Long> volumeWindow = new ArrayDeque<>();
   private boolean emaSeeded;
   private double fastEma;
@@ -97,7 +64,6 @@ public class MomentumStrategy implements TradingStrategy {
   private long tradesObserved;
   private boolean lastTradeVolumeConfirmed;
 
-  // Execution state
   private Cross pendingCross = Cross.NONE;
   private Position position = Position.FLAT;
   private double entryPrice;
@@ -118,7 +84,6 @@ public class MomentumStrategy implements TradingStrategy {
     }
   }
 
-  /** Folds one trade into the EMA / RSI / volume state and records any EMA crossover. */
   private void ingestTrade(MarketTick tick) {
     tradesObserved++;
     double price = tick.price().doubleValue();
@@ -127,7 +92,6 @@ public class MomentumStrategy implements TradingStrategy {
       updateRsi(price - prevPrice);
     }
 
-    // Volume confirmation compares this trade against the average of the *preceding* trades.
     lastTradeVolumeConfirmed = volumeConfirmed(tick.size());
     pushVolume(tick.size());
 
@@ -149,7 +113,6 @@ public class MomentumStrategy implements TradingStrategy {
       return Optional.empty();
     }
 
-    // A crossover is a one-shot event: consume it whether or not it produces a signal.
     Cross cross = pendingCross;
     pendingCross = Cross.NONE;
 
@@ -160,7 +123,6 @@ public class MomentumStrategy implements TradingStrategy {
     };
   }
 
-  /** Opens a position when the configured entry side's confirmation conditions all hold. */
   private Optional<OrderSignal> tryEnter(String symbol, Cross cross) {
     if (side == Side.BUY
         && cross == Cross.BULLISH
@@ -199,7 +161,6 @@ public class MomentumStrategy implements TradingStrategy {
     return Optional.empty();
   }
 
-  /** Flattens a long position on a reverse crossover, overbought RSI, or stop-loss. */
   private Optional<OrderSignal> tryExitLong(String symbol, Cross cross) {
     String reason = longExitReason(cross);
     if (reason == null) {
@@ -211,7 +172,6 @@ public class MomentumStrategy implements TradingStrategy {
     return Optional.of(buildSignal(symbol, Side.SELL, OrderType.MARKET, null));
   }
 
-  /** Covers a short position on a reverse crossover, oversold RSI, or stop-loss. */
   private Optional<OrderSignal> tryExitShort(String symbol, Cross cross) {
     String reason = shortExitReason(cross);
     if (reason == null) {
@@ -249,10 +209,6 @@ public class MomentumStrategy implements TradingStrategy {
     return null;
   }
 
-  /**
-   * Returns whether price has moved {@code stopLossPct}% against an open position. A non-positive
-   * {@code stopLossPct} disables the stop. The mark is the latest trade price or quote mid.
-   */
   private boolean stopLossTripped(boolean isLong) {
     if (stopLossPct <= 0.0 || entryPrice <= 0.0 || lastPrice <= 0.0) {
       return false;
@@ -320,12 +276,10 @@ public class MomentumStrategy implements TradingStrategy {
     resetState();
   }
 
-  /** Number of trades to observe before acting on a crossover (auto = {@code slowPeriod}). */
   private int effectiveWarmup() {
     return warmupTrades > 0 ? warmupTrades : Math.max(slowPeriod, 1);
   }
 
-  /** Wilder's RSI, identical in behaviour to the ML service's {@code indicators.rsi}. */
   private void updateRsi(double delta) {
     if (rsiPeriod <= 0) {
       rsi = NEUTRAL_RSI;
@@ -342,7 +296,7 @@ public class MomentumStrategy implements TradingStrategy {
         avgLoss = seedLossSum / rsiPeriod;
         rsi = computeRsi();
       } else {
-        rsi = NEUTRAL_RSI; // not enough data yet
+        rsi = NEUTRAL_RSI;
       }
       return;
     }
@@ -358,7 +312,6 @@ public class MomentumStrategy implements TradingStrategy {
     return 100.0 - 100.0 / (1.0 + avgGain / avgLoss);
   }
 
-  /** EMA with {@code alpha = 2 / (period + 1)}, seeded with the first observed price. */
   private void updateEmas(double price) {
     if (!emaSeeded) {
       fastEma = price;
@@ -372,15 +325,12 @@ public class MomentumStrategy implements TradingStrategy {
     slowEma = slowAlpha * price + (1.0 - slowAlpha) * slowEma;
   }
 
-  /**
-   * True when this trade's size confirms the move (> {@code volumeMultiplier ×} recent average).
-   */
   private boolean volumeConfirmed(long size) {
     if (volumeMultiplier <= 0.0) {
-      return true; // gate disabled
+      return true;
     }
     if (volumeWindow.isEmpty()) {
-      return false; // no baseline yet
+      return false;
     }
     double avg = volumeWindow.stream().mapToLong(Long::longValue).average().orElse(0.0);
     return size > volumeMultiplier * avg;
@@ -393,7 +343,6 @@ public class MomentumStrategy implements TradingStrategy {
     }
   }
 
-  /** Tracks the latest price: trade price for trades, quote mid (or last) for quotes. */
   private void updateLastPrice(MarketTick tick) {
     if (tick.eventType() == EventType.TRADE && tick.price().signum() > 0) {
       lastPrice = tick.price().doubleValue();
@@ -408,7 +357,6 @@ public class MomentumStrategy implements TradingStrategy {
     }
   }
 
-  /** Buy at the ask, sell at the bid, falling back to the last trade price. */
   private BigDecimal resolveLimitPrice(Side orderSide) {
     if (orderSide == Side.BUY) {
       var ask = latestTick.askPrice();
@@ -428,7 +376,6 @@ public class MomentumStrategy implements TradingStrategy {
     return BigDecimal.valueOf(value).setScale(4, RoundingMode.HALF_UP).doubleValue();
   }
 
-  /** Clears all rolling indicator and execution state for a fresh run. */
   private void resetState() {
     volumeWindow.clear();
     emaSeeded = false;

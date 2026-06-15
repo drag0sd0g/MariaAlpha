@@ -79,11 +79,6 @@ public class StrategyController {
         .orElse(ResponseEntity.notFound().build());
   }
 
-  /**
-   * Aggregated per-symbol state for the UI Strategy Control page. Returns one row per routed symbol
-   * when {@code symbol} is omitted, or just that symbol when provided. ML signal / regime fields
-   * are nullable so the UI can render "—" when the model is unavailable.
-   */
   @GetMapping("/state")
   public List<StrategyStateResponse> state(@RequestParam(required = false) String symbol) {
     if (symbol != null && !symbol.isBlank()) {

@@ -113,7 +113,6 @@ class FillRepositoryIntegrationTest {
     List<FillEntity> result = fillRepository.findFillsBetween(from, to);
     assertThat(result).hasSize(1);
     assertThat(result.get(0).getExchangeFillId()).isEqualTo("EX-F-INSIDE");
-    // JOIN FETCH means the parent order's clientOrderId is populated without a lazy lookup.
     assertThat(result.get(0).getOrder().getClientOrderId()).isEqualTo("c1");
   }
 

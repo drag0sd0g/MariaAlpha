@@ -50,10 +50,6 @@ public class OrderManagerClient {
     }
   }
 
-  /**
-   * Fetches every fill recorded on a given calendar date (by {@code filled_at}, UTC). Used by the
-   * EOD recon engine to assemble the internal side of the comparison.
-   */
   public List<FillForReconRecord> fetchFillsForDate(LocalDate date) {
     try {
       String body =

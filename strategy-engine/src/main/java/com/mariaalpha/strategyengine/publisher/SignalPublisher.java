@@ -45,9 +45,6 @@ public class SignalPublisher {
           signal.symbol(),
           signal.quantity(),
           signal.limitPrice());
-      // Roadmap 3.4.5 — fan out a SIGNAL_EMITTED event for any active algo order tracking
-      // this symbol so WebSocket subscribers see live progress. Done best-effort; signal
-      // publication is the source of truth, the algo-progress topic is a UI convenience.
       algoOrderRegistry
           .activeForSymbol(signal.symbol())
           .forEach(algo -> algoProgressPublisher.publishSignalEmitted(algo, signal));

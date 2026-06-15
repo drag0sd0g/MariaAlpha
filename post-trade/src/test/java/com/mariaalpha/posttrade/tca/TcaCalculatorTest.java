@@ -47,7 +47,6 @@ class TcaCalculatorTest {
     @Test
     @DisplayName("BUY paying above arrival yields positive slippage")
     void buyAboveArrival() {
-      // arrival=100, avgFill=100.10 → (100.10 - 100)/100 * 10000 = 10 bps
       TcaInputs in = inputs(Side.BUY, 1000, 100.00, 99.99, 100.01, 100.10, 0.0, 100.05);
       TcaComputation r = TcaCalculator.compute(in);
       assertThat(r.slippageBps()).isCloseTo(new BigDecimal("10.0000"), within(EPS));
@@ -56,7 +55,6 @@ class TcaCalculatorTest {
     @Test
     @DisplayName("BUY paying below arrival yields negative slippage (price improvement)")
     void buyBelowArrival() {
-      // arrival=100, avgFill=99.95 → -5 bps
       TcaInputs in = inputs(Side.BUY, 1000, 100.00, 99.99, 100.01, 99.95, 0.0, 99.97);
       TcaComputation r = TcaCalculator.compute(in);
       assertThat(r.slippageBps()).isCloseTo(new BigDecimal("-5.0000"), within(EPS));
@@ -65,7 +63,6 @@ class TcaCalculatorTest {
     @Test
     @DisplayName("SELL receiving below arrival yields positive slippage")
     void sellBelowArrival() {
-      // arrival=100, avgFill=99.90 → (100 - 99.90)/100 * 10000 = 10 bps
       TcaInputs in = inputs(Side.SELL, 1000, 100.00, 99.99, 100.01, 99.90, 0.0, 99.95);
       TcaComputation r = TcaCalculator.compute(in);
       assertThat(r.slippageBps()).isCloseTo(new BigDecimal("10.0000"), within(EPS));
@@ -116,11 +113,6 @@ class TcaCalculatorTest {
     @Test
     @DisplayName("BUY: IS = price slippage + commission, normalized")
     void buyIsWithCommission() {
-      // arrival=100, avgFill=100.10, qty=1000, commission=$20
-      // price component = (100.10-100)*1000 = 100
-      // total $ cost = 100 + 20 = 120
-      // notional = 100 * 1000 = 100000
-      // IS_bps = 120/100000 * 10000 = 12 bps
       TcaInputs in = inputs(Side.BUY, 1000, 100.00, 99.99, 100.01, 100.10, 20.0, 100.05);
       TcaComputation r = TcaCalculator.compute(in);
       assertThat(r.implShortfallBps()).isCloseTo(new BigDecimal("12.0000"), within(EPS));
@@ -129,11 +121,6 @@ class TcaCalculatorTest {
     @Test
     @DisplayName("SELL: price improvement almost offsets commission")
     void sellIsWithCommission() {
-      // signedCost(SELL, 50.02, 50.00) = (50.00 - 50.02) = -0.02
-      // priceComponent = -0.02 * 1000 = -20
-      // totalCost = -20 + 15 = -5
-      // notional = 50 * 1000 = 50000
-      // IS_bps = -5/50000 * 10000 = -1 bps
       TcaInputs in = inputs(Side.SELL, 1000, 50.00, 49.99, 50.01, 50.02, 15.0, 50.01);
       TcaComputation r = TcaCalculator.compute(in);
       assertThat(r.implShortfallBps()).isCloseTo(new BigDecimal("-1.0000"), within(EPS));
@@ -142,7 +129,6 @@ class TcaCalculatorTest {
     @Test
     @DisplayName("IS equals commission-bps when avgFill equals arrival")
     void isEqualsCommissionOnly() {
-      // IS_$ = 0 + 10 = 10; notional = 100000; IS_bps = 1 bps
       TcaInputs in = inputs(Side.BUY, 1000, 100.00, 99.99, 100.01, 100.00, 10.0, 100.00);
       TcaComputation r = TcaCalculator.compute(in);
       assertThat(r.implShortfallBps()).isCloseTo(new BigDecimal("1.0000"), within(EPS));
@@ -164,7 +150,6 @@ class TcaCalculatorTest {
     @Test
     @DisplayName("BUY above market VWAP is a cost")
     void buyAboveVwap() {
-      // vwap=100, avgFill=100.05 → 5 bps
       TcaInputs in = inputs(Side.BUY, 1000, 100.00, 99.99, 100.01, 100.05, 0.0, 100.00);
       TcaComputation r = TcaCalculator.compute(in);
       assertThat(r.vwapBenchmarkBps()).isCloseTo(new BigDecimal("5.0000"), within(EPS));
@@ -207,7 +192,6 @@ class TcaCalculatorTest {
     @Test
     @DisplayName("half of a 2c spread on a $100 mid is 1 bps")
     void twoCentSpreadOnHundredDollarMid() {
-      // (0.02 / 100) / 2 * 10000 = 1 bps
       TcaInputs in = inputs(Side.BUY, 1000, 100.00, 99.99, 100.01, 100.00, 0.0, 100.00);
       TcaComputation r = TcaCalculator.compute(in);
       assertThat(r.spreadCostBps()).isCloseTo(new BigDecimal("1.0000"), within(EPS));
@@ -224,7 +208,6 @@ class TcaCalculatorTest {
     @Test
     @DisplayName("wide spread on a penny stock yields many bps")
     void wideSpreadPennyStock() {
-      // mid=$1.00, spread=$0.02 → (0.02/1.00)/2 * 10000 = 100 bps
       TcaInputs in = inputs(Side.BUY, 1000, 1.00, 0.99, 1.01, 1.00, 0.0, 1.00);
       TcaComputation r = TcaCalculator.compute(in);
       assertThat(r.spreadCostBps()).isCloseTo(new BigDecimal("100.0000"), within(EPS));
@@ -259,13 +242,6 @@ class TcaCalculatorTest {
     @Test
     @DisplayName("consolidated textbook example: BUY 1000 AAPL with all four metrics")
     void buyTextbook() {
-      // arrival_mid=$180.00, bid=$179.98, ask=$180.02, avgFill=$180.05
-      // qty=1000, commission=$5, interval VWAP=$180.03
-      //
-      // slippage = (180.05 - 180.00)/180.00 * 10000 = 2.7778 bps
-      // IS = ((180.05-180)*1000 + 5)/(180*1000) * 10000 = 55/180000 * 10000 = 3.0556 bps
-      // vwap_bench = (180.05 - 180.03)/180.03 * 10000 = 1.1109 bps
-      // spread_cost = (0.04 / 180.00) / 2 * 10000 = 1.1111 bps
       TcaInputs in = inputs(Side.BUY, 1000, 180.00, 179.98, 180.02, 180.05, 5.0, 180.03);
       TcaComputation r = TcaCalculator.compute(in);
       assertThat(r.slippageBps()).isCloseTo(new BigDecimal("2.7778"), within(EPS));

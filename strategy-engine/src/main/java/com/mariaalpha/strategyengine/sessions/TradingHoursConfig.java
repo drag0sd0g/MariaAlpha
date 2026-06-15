@@ -11,21 +11,6 @@ import java.util.Set;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
-/**
- * Per-market trading-session schedule (roadmap 3.1.3 — multi-market trading hours).
- *
- * <p>A {@link MarketSchedule} carries a timezone (so each session's open / close are in local
- * time), a list of {@link SessionWindow}s (TSE has two — the morning Zenba and afternoon Goba, US
- * markets have one continuous session, LSE has one), a set of trading days, and an optional holiday
- * list.
- *
- * <p>Symbols pick their market via {@link #symbolOverrides()}; symbols not listed fall back to
- * {@link #defaultMarket()}. The {@link #enabled()} flag is a soft feature gate — when {@code false}
- * the service treats every market as 24/7 open, matching the pre-3.1.3 behaviour.
- *
- * <p>FX conversion is unrelated and lives separately (see {@code order-manager.currency} + {@code
- * CurrencyExposureService}).
- */
 @ConfigurationProperties(prefix = "strategy-engine.trading-hours")
 public record TradingHoursConfig(
     boolean enabled,
@@ -40,7 +25,6 @@ public record TradingHoursConfig(
     symbolOverrides = normaliseOverrides(symbolOverrides);
   }
 
-  /** Resolves the market name a symbol belongs to (override first, then default). */
   public String marketFor(String symbol) {
     if (symbol == null) {
       return defaultMarket;
@@ -62,7 +46,6 @@ public record TradingHoursConfig(
     return Map.copyOf(copy);
   }
 
-  /** A single market's session calendar. */
   public record MarketSchedule(
       ZoneId timezone,
       List<SessionWindow> sessions,
@@ -87,11 +70,6 @@ public record TradingHoursConfig(
     }
   }
 
-  /**
-   * One contiguous open-to-close window in the market's local time. TSE has two (Zenba / Goba),
-   * NYSE / NASDAQ / LSE have one; some venues (after-hours / extended trading) would have a third.
-   * Inclusive open, exclusive close — matches the convention every exchange API uses.
-   */
   public record SessionWindow(LocalTime open, LocalTime close) {
     public SessionWindow {
       if (open == null || close == null) {

@@ -15,30 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/**
- * Percentage-of-Volume (POV) execution strategy.
- *
- * <p>POV participates as a configurable fraction of the real-time traded volume on the tape: as the
- * market trades more shares the strategy emits child orders proportionally, so its participation
- * rate stays close to {@code participationRate} cumulatively across the window.
- *
- * <p>Bookkeeping is purely cumulative — no fixed time slicing. The strategy tracks the running
- * market volume seen since {@code startTime} (summing {@code size} from {@link EventType#TRADE}
- * ticks only; quotes carry no executed volume) and, on each tick, computes the desired
- * already-traded total as {@code targetExecuted = floor(participationRate × cumulativeVolume)},
- * capped by the parent {@code targetQuantity}. The delta vs. shares already emitted is the next
- * child clip. Clips smaller than {@code minClipSize} are deferred until volume builds; clips larger
- * than {@code maxClipSize} are capped so a single block print can't drag a parent off course.
- *
- * <p>Child orders are LIMIT at the best ask (BUY) / best bid (SELL) for price protection, mirroring
- * the other slicing strategies. Any quantity still outstanding when the window closes is swept with
- * a single MARKET order at {@code endTime}.
- *
- * <p>POV is the reactive counterpart to TWAP/VWAP/IS: those algorithms commit to a schedule up
- * front; POV adapts to whatever the tape actually does. Trade-off: lower information leakage and
- * better impact on slow days, but no completion guarantee within the window if liquidity dries up —
- * the end-of-window MARKET sweep is the safety valve.
- */
 @Component
 public class PovStrategy implements TradingStrategy {
 
@@ -49,7 +25,6 @@ public class PovStrategy implements TradingStrategy {
   private static final int DEFAULT_MIN_CLIP_SIZE = 1;
   private static final int DEFAULT_MAX_CLIP_SIZE = Integer.MAX_VALUE;
 
-  // Configuration parameters
   private volatile int targetQuantity;
   private volatile Side side = Side.BUY;
   private volatile LocalTime startTime = LocalTime.of(9, 30);
@@ -58,7 +33,6 @@ public class PovStrategy implements TradingStrategy {
   private volatile int minClipSize = DEFAULT_MIN_CLIP_SIZE;
   private volatile int maxClipSize = DEFAULT_MAX_CLIP_SIZE;
 
-  // Execution state — guarded by the strategy's intrinsic lock for atomic onTick/evaluate updates
   private long cumulativeMarketVolume;
   private long emittedQuantity;
   private volatile MarketTick latestTick;
@@ -98,7 +72,6 @@ public class PovStrategy implements TradingStrategy {
       return Optional.empty();
     }
 
-    // Past end time: sweep remaining quantity
     if (!marketTime.isBefore(endTime)) {
       return emitSweep(symbol);
     }
@@ -176,7 +149,6 @@ public class PovStrategy implements TradingStrategy {
     resetExecutionState();
   }
 
-  /** Resets execution state for a fresh run. */
   private void resetExecutionState() {
     cumulativeMarketVolume = 0L;
     emittedQuantity = 0L;
@@ -184,7 +156,6 @@ public class PovStrategy implements TradingStrategy {
     completed = false;
   }
 
-  /** Resolves the limit price from the latest tick based on side. */
   private BigDecimal resolveLimitPrice() {
     if (side == Side.BUY) {
       var ask = latestTick.askPrice();
@@ -194,7 +165,6 @@ public class PovStrategy implements TradingStrategy {
     return bid != null && bid.compareTo(BigDecimal.ZERO) > 0 ? bid : latestTick.price();
   }
 
-  /** Emits a MARKET sweep for any remaining unexecuted quantity. */
   private Optional<OrderSignal> emitSweep(String symbol) {
     if (completed) {
       return Optional.empty();

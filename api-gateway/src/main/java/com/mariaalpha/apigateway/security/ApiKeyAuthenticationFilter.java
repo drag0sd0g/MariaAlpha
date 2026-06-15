@@ -16,24 +16,13 @@ import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
-/**
- * Implemented as a {@link WebFilter} (not a Spring Cloud Gateway {@code GlobalFilter}) so it
- * intercepts every inbound HTTP request, including WebSocket upgrade {@code GET}s served by our own
- * {@code SimpleUrlHandlerMapping}. {@code GlobalFilter}s only run for routes resolved by {@code
- * RoutePredicateHandlerMapping}, which would let WS handshakes bypass auth.
- */
 @Component
 public class ApiKeyAuthenticationFilter implements WebFilter, Ordered {
 
-  /** Run before any handler mapping so we never open a backend connection on a 401. */
   public static final int ORDER = -100;
 
   private static final Logger LOG = LoggerFactory.getLogger(ApiKeyAuthenticationFilter.class);
 
-  /**
-   * AntPathMatcher is used here because it's designed specifically for path pattern matching rather
-   * than general-purpose regex
-   */
   private static final AntPathMatcher MATCHER = new AntPathMatcher();
 
   private static final String UNAUTHORIZED_BODY =

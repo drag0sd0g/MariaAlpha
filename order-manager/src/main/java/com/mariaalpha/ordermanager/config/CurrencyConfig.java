@@ -6,19 +6,6 @@ import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
-/**
- * Per-symbol currency reference data used by the currency-exposure aggregator (roadmap 3.5.3).
- *
- * <p>Each symbol that ever appears in a fill must resolve to one of the {@link #known()}
- * currencies; symbols not explicitly listed under {@link #overrides()} fall back to {@link
- * #defaultCurrency()}. Currency codes are normalised to uppercase ISO-4217 (e.g. {@code USD},
- * {@code EUR}, {@code JPY}). FX conversion is deliberately not part of this config — exposures are
- * reported in their native currency. A future ticket can add a rates map for portfolio-base
- * conversion.
- *
- * <p>The structure mirrors {@code execution-engine.risk.reference-data.*}: a tiny static config
- * works for the simulator's fixed universe; production deployments would back this with a feed.
- */
 @ConfigurationProperties(prefix = "order-manager.currency")
 public record CurrencyConfig(
     String defaultCurrency, Map<String, String> overrides, List<String> known) {
@@ -30,7 +17,6 @@ public record CurrencyConfig(
     known = normaliseList(known);
   }
 
-  /** Resolves the currency for {@code symbol}, defaulting when no override is configured. */
   public String currencyFor(String symbol) {
     if (symbol == null) {
       return defaultCurrency;

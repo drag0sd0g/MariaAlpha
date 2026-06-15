@@ -1,4 +1,3 @@
-// REST response types — match Java DTOs in order-manager and post-trade.
 
 export type Side = "BUY" | "SELL";
 export type OrderType = "MARKET" | "LIMIT" | "STOP" | "IOC" | "FOK" | "GTC" | "ICEBERG" | "PEGGED";
@@ -12,7 +11,6 @@ export type OrderStatus =
   | "CANCELLED"
   | "REJECTED";
 
-// PortfolioSummaryResponse.java
 export interface PortfolioSummary {
   totalValue: number;
   cashBalance: number;
@@ -22,10 +20,9 @@ export interface PortfolioSummary {
   unrealizedPnl: number;
   totalPnl: number;
   openPositions: number;
-  asOf: string; // ISO 8601
+  asOf: string;
 }
 
-// PositionResponse.java
 export interface Position {
   symbol: string;
   netQuantity: number;
@@ -59,7 +56,6 @@ export interface Order {
   fills?: Fill[];
 }
 
-// FillResponse.java
 export interface Fill {
   fillId: string;
   orderId?: string;
@@ -80,11 +76,11 @@ export interface SubmitOrderRequest {
   quantity: number;
   limitPrice?: number;
   stopPrice?: number;
-  displayQuantity?: number; // ICEBERG only
+  displayQuantity?: number;
   tif?: TimeInForce;
   clientOrderId?: string;
-  pegType?: PegType; // PEGGED only
-  pegOffsetBps?: number; // PEGGED only
+  pegType?: PegType;
+  pegOffsetBps?: number;
 }
 
 export interface PeggedProgress {
@@ -115,9 +111,7 @@ export interface SubmitOrderResponse {
   submittedAt: string;
 }
 
-// WS payload types — match Java records in market-data-gateway / order-manager / execution-engine.
 
-// MarketTick.java
 export type MarketTickEventType = "TRADE" | "QUOTE" | "BAR";
 export type MarketTickSource = "ALPACA" | "SIMULATED" | "IBKR";
 export interface MarketTick {
@@ -135,7 +129,6 @@ export interface MarketTick {
   stale: boolean;
 }
 
-// PositionSnapshot.java (note: schema differs from PositionResponse — no totalPnl)
 export interface PositionUpdate {
   symbol: string;
   netQuantity: number;
@@ -146,7 +139,6 @@ export interface PositionUpdate {
   timestamp: string;
 }
 
-// OrderEvent.java
 export interface OrderEvent {
   orderId: string;
   status: OrderStatus;
@@ -177,7 +169,6 @@ export interface WsFill {
   filledAt: string;
 }
 
-// RiskAlert.java
 export interface RiskAlert {
   symbol: string;
   alertType: string;

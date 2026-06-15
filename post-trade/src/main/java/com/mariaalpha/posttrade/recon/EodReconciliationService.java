@@ -19,20 +19,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Top-level orchestrator for end-of-day reconciliation. Implements the sequence diagram in §2.6.3:
- *
- * <pre>
- *   fetch internal fills(date)
- *   fetch external activities(date) via {@link AlpacaActivitiesClient}
- *   delete prior breaks for date (idempotency §7.3)
- *   compare → persist breaks, publish RECON_BREAK alerts, upsert run record
- * </pre>
- *
- * <p>The run record exists regardless of outcome — it's what tells the UI "ran clean" from "never
- * ran". On exceptions the run is persisted with status=FAILED + error message; this is so that the
- * scheduler doesn't silently re-attempt the same broken run forever.
- */
 @Service
 public class EodReconciliationService {
 
@@ -76,7 +62,6 @@ public class EodReconciliationService {
 
       List<ReconciliationBreak> breaks = comparator.compare(date, internal, external);
 
-      // §7.3 idempotency: clear any prior breaks for this date before writing the new ones.
       breakRepository.deleteByReconDate(date);
 
       List<ReconciliationBreakEntity> entities = new ArrayList<>(breaks.size());
@@ -86,7 +71,6 @@ public class EodReconciliationService {
         metrics.recordBreak(b.breakType().name(), b.severity().name());
       }
       breakRepository.saveAll(entities);
-      // Publish alerts after persistence so a Kafka outage can't cause a divergence between the
       // table and the alert stream (Kafka failures log but do not roll back the recon run).
       for (ReconciliationBreak b : breaks) {
         alertPublisher.publishBreak(b);

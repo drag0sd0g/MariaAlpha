@@ -15,13 +15,6 @@ import quickfix.SessionID;
 import quickfix.SessionSettings;
 import quickfix.SocketAcceptor;
 
-/**
- * Starts and stops the QuickFIX/J {@link SocketAcceptor} as part of the Spring lifecycle. No-op
- * when {@code mariaalpha.fix.enabled=false} (the default) — so unit tests and CI never open a
- * listen socket. Session settings are built programmatically (no .cfg file); the FIX 4.4 data
- * dictionary is loaded from the {@code quickfixj-messages-fix44} jar on the classpath. Uses an
- * in-memory message store (no disk).
- */
 @Component
 public class FixGatewayServer implements SmartLifecycle {
 

@@ -44,7 +44,7 @@ class MaxPositionPerSymbolCheckTest {
                 new BigDecimal("150"),
                 Instant.now()));
     when(positionTracker.getPositionNotional("AAPL")).thenReturn(new BigDecimal("200000"));
-    var order = createOrder("AAPL", 666); // 666 * $150 = $99,900 → total $299,900
+    var order = createOrder("AAPL", 666);
     assertThat(check.check(order).passed()).isTrue();
   }
 
@@ -59,7 +59,7 @@ class MaxPositionPerSymbolCheckTest {
                 new BigDecimal("150"),
                 Instant.now()));
     when(positionTracker.getPositionNotional("AAPL")).thenReturn(new BigDecimal("400000"));
-    var order = createOrder("AAPL", 1000); // 1000 * $150 = $150K → total $550K > $500K
+    var order = createOrder("AAPL", 1000);
     var result = check.check(order);
     assertThat(result.passed()).isFalse();
     assertThat(result.checkName()).isEqualTo("MaxPositionPerSymbol");

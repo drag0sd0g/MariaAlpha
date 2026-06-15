@@ -9,14 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/**
- * Per-symbol last-seen {@link MarketState}, plus a fan-out hook so components that need to react to
- * NBBO ticks (e.g. {@link com.mariaalpha.executionengine.pegged.PeggedCoordinator}) can register
- * without coupling themselves to {@code MarketDataConsumer}.
- *
- * <p>Listener invocation is best-effort: a listener that throws is logged and skipped — one bad
- * subscriber must never derail the tick fan-out to the others.
- */
 @Component
 public class MarketStateTracker {
 
@@ -44,7 +36,6 @@ public class MarketStateTracker {
     return states.get(symbol);
   }
 
-  /** Subscribe a listener that fires for every {@link #update(MarketState)} call. */
   public void subscribe(Consumer<MarketState> listener) {
     listeners.add(listener);
   }

@@ -7,13 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/**
- * Read-only access to the configured sub-account roster.
- *
- * <p>Validates the configuration at startup (positive weights, unique names) and exposes the
- * registered list in declaration order — important for {@link AllocationMethod#FIFO} which needs
- * stable ordering.
- */
 @Component
 public class SubAccountRegistry {
 
@@ -55,17 +48,14 @@ public class SubAccountRegistry {
         orderedAccounts.stream().map(SubAccount::name).toList());
   }
 
-  /** Configured sub-accounts in declaration order. Empty list when allocation is unconfigured. */
   public List<SubAccount> accounts() {
     return orderedAccounts;
   }
 
-  /** Allocation method to use when the request leaves it unspecified. */
   public AllocationMethod defaultMethod() {
     return defaultMethod;
   }
 
-  /** True iff the registry has at least one configured account. */
   public boolean isConfigured() {
     return !orderedAccounts.isEmpty();
   }

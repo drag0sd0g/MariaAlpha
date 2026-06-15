@@ -11,11 +11,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
-/**
- * Publishes one {@code RECON_BREAK} alert per break to {@code analytics.risk-alerts}, the same
- * topic the api-gateway forwards over {@code /ws/alerts}. The schema mirrors what the analytics
- * service emits for toxicity/drawdown alerts so the UI {@code AlertsBanner} can render either.
- */
 @Component
 public class RiskAlertPublisher {
 
@@ -34,7 +29,6 @@ public class RiskAlertPublisher {
     this.topic = kafkaConfig.riskAlertsTopic();
   }
 
-  // Visible for tests — bypasses KafkaConfig so unit tests can supply a topic literal.
   static RiskAlertPublisher forTest(
       KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper, String topic) {
     var p =

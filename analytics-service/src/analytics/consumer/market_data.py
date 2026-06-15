@@ -22,15 +22,12 @@ class MarketDataCache:
     def __init__(self, max_history_per_symbol: int = 4096) -> None:
         self._max = max_history_per_symbol
         self._lock = threading.RLock()
-        # symbol → sorted list of (epoch_seconds, price)
         self._history: dict[str, list[tuple[float, float]]] = {}
 
     def record(self, symbol: str, ts_seconds: float, price: float) -> None:
         with self._lock:
             history = self._history.setdefault(symbol, [])
-            # Most ticks arrive in order; guard against minor reordering.
             if history and ts_seconds < history[-1][0]:
-                # Insert via binary search to keep the list ordered.
                 import bisect
 
                 idx = bisect.bisect_left(history, (ts_seconds, price))
@@ -38,7 +35,6 @@ class MarketDataCache:
             else:
                 history.append((ts_seconds, price))
             if len(history) > self._max:
-                # Drop the oldest 25 % to amortise the trim cost.
                 trim = self._max // 4
                 self._history[symbol] = history[trim:]
 
@@ -57,7 +53,6 @@ class MarketDataCache:
             history = self._history.get(symbol)
             if not history:
                 return None
-            # Binary search for the rightmost entry with ts ≤ requested.
             import bisect
 
             idx = bisect.bisect_right(history, (ts_seconds, float("inf"))) - 1
@@ -103,10 +98,8 @@ class MarketDataConsumer:
                 price = tick.get("price")
                 symbol = tick.get("symbol")
                 ts = tick.get("timestamp")
-                # QUOTE ticks carry price=0 — only positive trade prices belong in the cache.
                 if price is None or symbol is None or float(price) <= 0:
                     continue
-                # ts is ISO-8601; for ts-keyed lookups we use epoch seconds.
                 ts_seconds = _iso_to_epoch(ts) if isinstance(ts, str) else time.time()
                 self._cache.record(symbol, ts_seconds, float(price))
             except Exception:
@@ -121,7 +114,6 @@ def _iso_to_epoch(iso: str) -> float:
     from datetime import datetime
 
     try:
-        # market-data-gateway emits ISO-8601 with optional 'Z' or offset.
         if iso.endswith("Z"):
             iso = iso[:-1] + "+00:00"
         return datetime.fromisoformat(iso).timestamp()

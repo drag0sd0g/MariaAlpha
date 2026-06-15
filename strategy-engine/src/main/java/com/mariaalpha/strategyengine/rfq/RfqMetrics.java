@@ -5,7 +5,6 @@ import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.stereotype.Component;
 
-/** Per-component instrumentation for the RFQ pricing engine (issues 2.4.1 + 2.4.2). */
 @Component
 public class RfqMetrics {
 

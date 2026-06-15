@@ -2,30 +2,9 @@ package com.mariaalpha.strategyengine.options;
 
 import org.springframework.stereotype.Component;
 
-/**
- * Black-Scholes-Merton European option pricer with a continuous dividend yield (FR roadmap 3.2.1).
- *
- * <p>The standard generalised formulas:
- *
- * <pre>
- *   d1 = (ln(S/K) + (r − q + σ²/2)·T) / (σ·√T)
- *   d2 = d1 − σ·√T
- *   Call = S·e^(−q·T)·Φ(d1) − K·e^(−r·T)·Φ(d2)
- *   Put  = K·e^(−r·T)·Φ(−d2) − S·e^(−q·T)·Φ(−d1)
- * </pre>
- *
- * <p>Setting {@code q = 0} recovers the original Black-Scholes equity formulas. The result is the
- * undiscounted theoretical fair value of one option contract on one unit of underlying — multiply
- * by the contract size (typically 100 shares) at the caller for a dollar premium.
- *
- * <p>The class is pure: it holds no state and is safe to call concurrently. It is registered as a
- * Spring {@link Component} so {@link OptionPricingService} and {@link GreeksCalculator} can be
- * autowired with it; the math is also reachable from tests via the public {@link #price} method.
- */
 @Component
 public class BlackScholesPricer {
 
-  /** Theoretical fair value of {@code contract}. */
   public double price(OptionContract contract) {
     DiscountedTerms terms = DiscountedTerms.from(contract);
     return switch (contract.type()) {
@@ -38,12 +17,6 @@ public class BlackScholesPricer {
     };
   }
 
-  /**
-   * Bundle of intermediate Black-Scholes terms shared by the pricer and {@link GreeksCalculator}.
-   *
-   * <p>Computing these once per contract keeps the Greek formulas readable and avoids recomputing
-   * {@code √T} or {@code e^(−q·T)} in every Greek getter.
-   */
   record DiscountedTerms(
       double d1,
       double d2,

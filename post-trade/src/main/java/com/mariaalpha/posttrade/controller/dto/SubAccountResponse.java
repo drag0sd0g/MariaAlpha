@@ -5,7 +5,6 @@ import com.mariaalpha.posttrade.allocation.SubAccountConfig.SubAccount;
 import com.mariaalpha.posttrade.allocation.SubAccountRegistry;
 import java.util.List;
 
-/** Roster of configured sub-accounts plus the registry-level default method. */
 public record SubAccountResponse(AllocationMethod defaultMethod, List<SubAccountRow> subAccounts) {
 
   public record SubAccountRow(String name, double weight) {}

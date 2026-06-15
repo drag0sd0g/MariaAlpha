@@ -4,7 +4,6 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.stereotype.Component;
 
-/** Per-component instrumentation for the pegged-order module (roadmap 3.2.3). */
 @Component
 public class PeggedMetrics {
 

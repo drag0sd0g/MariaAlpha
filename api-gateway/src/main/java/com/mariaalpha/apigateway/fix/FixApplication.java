@@ -36,23 +36,11 @@ import quickfix.fix44.NewOrderSingle;
 import quickfix.fix44.OrderCancelReject;
 import quickfix.fix44.OrderCancelRequest;
 
-/**
- * QuickFIX/J {@link quickfix.Application} for the inbound FIX 4.4 gateway (roadmap 3.4.3). Cracks
- * inbound application messages, forwards {@code NewOrderSingle}/{@code OrderCancelRequest} to
- * execution-engine via {@link FixGatewayClient}, and replies with an {@code ExecutionReport} (or
- * {@code OrderCancelReject}).
- *
- * <p>The message-handling logic lives in {@link #handleNewOrderSingle} / {@link
- * #handleOrderCancelRequest}, which build and <em>return</em> the response message without touching
- * a live session — so they are unit-testable by constructing FIX messages with a mocked client. The
- * {@code onMessage} overrides are thin: handle, then {@link Session#sendToTarget}.
- */
 @Component
 public class FixApplication extends quickfix.fix44.MessageCracker implements quickfix.Application {
 
   private static final Logger LOG = LoggerFactory.getLogger(FixApplication.class);
 
-  // FIX 4.4 wire values (kept as literals; see FixOrderTranslator for the rationale).
   private static final char EXEC_NEW = '0';
   private static final char EXEC_CANCELED = '4';
   private static final char EXEC_REJECTED = '8';
@@ -61,22 +49,16 @@ public class FixApplication extends quickfix.fix44.MessageCracker implements qui
   private static final char ORD_REJECTED = '8';
   private static final char CXL_REJ_RESPONSE_TO_CANCEL = '1';
   private static final String NO_ORDER_ID = "NONE";
-  // Fallback Symbol (tag 55) for reject reports built before the order's symbol could be read;
-  // ExecutionReport requires tag 55, so a placeholder keeps the message dictionary-valid.
   private static final String NO_SYMBOL = "UNKNOWN";
 
   private final FixGatewayClient client;
   private final FixGatewayMetrics metrics;
-  // ClOrdID → internal execution-engine order id, so an OrderCancelRequest (which carries the
-  // client's OrigClOrdID) can be resolved back to the downstream order to cancel.
   private final Map<String, String> clOrdToDownstream = new ConcurrentHashMap<>();
 
   public FixApplication(FixGatewayClient client, FixGatewayMetrics metrics) {
     this.client = client;
     this.metrics = metrics;
   }
-
-  // ---- Application lifecycle (admin) ---------------------------------------------------------
 
   @Override
   public void onCreate(SessionID sessionId) {
@@ -94,27 +76,19 @@ public class FixApplication extends quickfix.fix44.MessageCracker implements qui
   }
 
   @Override
-  public void toAdmin(Message message, SessionID sessionId) {
-    // no-op
-  }
+  public void toAdmin(Message message, SessionID sessionId) {}
 
   @Override
-  public void fromAdmin(Message message, SessionID sessionId) {
-    // no-op
-  }
+  public void fromAdmin(Message message, SessionID sessionId) {}
 
   @Override
-  public void toApp(Message message, SessionID sessionId) {
-    // no-op
-  }
+  public void toApp(Message message, SessionID sessionId) {}
 
   @Override
   public void fromApp(Message message, SessionID sessionId)
       throws FieldNotFound, IncorrectDataFormat, IncorrectTagValue, UnsupportedMessageType {
     crack(message, sessionId);
   }
-
-  // ---- Cracked application messages ----------------------------------------------------------
 
   @Override
   public void onMessage(NewOrderSingle message, SessionID sessionId) {
@@ -126,9 +100,6 @@ public class FixApplication extends quickfix.fix44.MessageCracker implements qui
     send(handleOrderCancelRequest(message, sessionId), sessionId);
   }
 
-  // ---- Pure(ish) handlers — return the response message, no session I/O ----------------------
-
-  /** Translate, forward, and build the resulting {@code ExecutionReport}. */
   public Message handleNewOrderSingle(NewOrderSingle nos, SessionID sessionId) {
     String clOrdId = "UNKNOWN";
     String symbol = NO_SYMBOL;
@@ -183,7 +154,6 @@ public class FixApplication extends quickfix.fix44.MessageCracker implements qui
     }
   }
 
-  /** Resolve the original order, forward a cancel, and build the {@code ExecutionReport}/reject. */
   public Message handleOrderCancelRequest(OrderCancelRequest ocr, SessionID sessionId) {
     String clOrdId = "UNKNOWN";
     String origClOrdId = "UNKNOWN";
@@ -217,8 +187,6 @@ public class FixApplication extends quickfix.fix44.MessageCracker implements qui
       return orderCancelReject(clOrdId, origClOrdId, "missing required field: " + e.field);
     }
   }
-
-  // ---- Message builders ----------------------------------------------------------------------
 
   private Message executionReport(
       String clOrdId,

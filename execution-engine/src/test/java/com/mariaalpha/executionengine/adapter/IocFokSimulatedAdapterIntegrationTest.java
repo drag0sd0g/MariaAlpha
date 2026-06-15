@@ -21,11 +21,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/**
- * Exercises the IOC and FOK behavioural specs against the in-process simulated adapter. The
- * simulator uses an infinite top-of-book approximation: marketable → full fill, non-marketable →
- * cancel-only report. Depth-aware partial fills are deferred to a future enhancement.
- */
 class IocFokSimulatedAdapterIntegrationTest {
 
   private SimulatedExchangeAdapter adapter;

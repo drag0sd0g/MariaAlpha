@@ -94,7 +94,6 @@ class SimulatedExchangeAdapterTest {
     Thread.sleep(200);
     assertThat(lastReport.get()).isNull();
 
-    // Trigger with price crossing stop
     adapter.onMarketUpdate(
         new MarketState(
             "AAPL",
@@ -128,7 +127,6 @@ class SimulatedExchangeAdapterTest {
     await()
         .atMost(Duration.ofSeconds(2))
         .untilAsserted(() -> assertThat(lastReport.get()).isNotNull());
-    // Ask = 150.50, slippage = 2bps = 0.0301 → fill at ~150.53
     assertThat(lastReport.get().fillPrice()).isGreaterThan(new BigDecimal("150.50"));
   }
 

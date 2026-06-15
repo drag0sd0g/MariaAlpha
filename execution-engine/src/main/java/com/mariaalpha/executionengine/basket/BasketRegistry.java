@@ -6,16 +6,6 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 
-/**
- * Thread-safe registry linking basket orders to their legs and routing fill events back to the
- * owning {@link BasketState}. Mirrors {@link
- * com.mariaalpha.executionengine.iceberg.ParentChildOrderRegistry}: a forward map (basketId →
- * state) and a reverse map (legOrderId → basketId) so an execution report carrying only a leg id
- * can be attributed to its basket in O(1).
- *
- * <p>Per-basket aggregation is delegated to the {@link BasketState} monitor; the registry only
- * guards the two top-level maps, which are {@link ConcurrentHashMap}.
- */
 @Component
 public class BasketRegistry {
 
@@ -26,7 +16,6 @@ public class BasketRegistry {
     baskets.put(state.basketId(), state);
   }
 
-  /** Link a working leg to its basket so later fills can be attributed. */
   public void linkLeg(String legOrderId, String basketId) {
     legToBasket.put(legOrderId, basketId);
   }
@@ -43,10 +32,6 @@ public class BasketRegistry {
     return baskets.values().stream().map(BasketState::toView).toList();
   }
 
-  /**
-   * Apply a leg fill if the leg belongs to a tracked basket. Returns the owning basket's id when
-   * the fill was attributed, otherwise empty (the order is not a basket leg).
-   */
   public Optional<String> recordLegFill(String legOrderId, int fillQuantity, boolean complete) {
     var basketId = legToBasket.get(legOrderId);
     if (basketId == null) {
@@ -62,7 +47,6 @@ public class BasketRegistry {
     return Optional.of(basketId);
   }
 
-  /** Diagnostics — count of currently-tracked baskets. */
   public int trackedBaskets() {
     return baskets.size();
   }

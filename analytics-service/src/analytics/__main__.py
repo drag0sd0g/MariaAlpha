@@ -64,7 +64,6 @@ def main() -> None:
     orders_consumer = OrdersConsumer(settings, matcher)
     threading.Thread(target=orders_consumer.run, name="orders-consumer", daemon=True).start()
 
-    # Periodic tick of the toxicity detector so horizon-based markouts are evaluated.
     def _toxicity_loop() -> None:
         while True:
             try:

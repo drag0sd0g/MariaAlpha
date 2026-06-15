@@ -17,17 +17,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/**
- * Owns the lifecycle of PEGGED parent orders (roadmap 3.2.3): translates each parent into a single
- * LIMIT child at the pegged price, and as NBBO ticks arrive, cancels and resubmits a fresh child
- * when the reference moves by more than {@link PeggedConfig#repegThresholdBps()}.
- *
- * <p>Hooked into {@link com.mariaalpha.executionengine.service.OrderExecutionService} the same way
- * {@link com.mariaalpha.executionengine.iceberg.IcebergCoordinator} is — {@link #onParentSubmit}
- * replaces the normal venue dispatch for PEGGED parents, and {@link #onChildFillIfApplicable} fires
- * after each child's fill event. NBBO subscription is established at startup via {@link
- * MarketStateTracker#subscribe}.
- */
 @Component
 public class PeggedCoordinator {
 
@@ -72,13 +61,6 @@ public class PeggedCoordinator {
     marketStateTracker.subscribe(this::onMarketStateUpdate);
   }
 
-  /**
-   * Called by {@code OrderExecutionService.processOrder} when it encounters a PEGGED parent.
-   * Computes the initial pegged price, submits the first LIMIT child, and transitions the parent to
-   * SUBMITTED.
-   *
-   * @return true if the first child was accepted by its venue, false if rejected.
-   */
   public boolean onParentSubmit(Order parent) {
     var marketState = marketStateTracker.getMarketState(parent.getSymbol());
     var reference =
@@ -102,10 +84,6 @@ public class PeggedCoordinator {
     return submitChild(parent, reference, price, false);
   }
 
-  /**
-   * Called after each child {@link ExecutionReport} is processed. No-op if the order is not a
-   * pegged child.
-   */
   public void onChildFillIfApplicable(Order child, ExecutionReport report) {
     if (child.getParentOrderId() == null) {
       return;
@@ -125,23 +103,15 @@ public class PeggedCoordinator {
     if (updated.parentComplete()) {
       finalizeParentFilled(parent);
     }
-    // If the child is complete but parent isn't, the next NBBO tick submits a fresh child
-    // through onMarketStateUpdate (unconditionally when no child is active — see maybeRepeg).
     // No immediate resubmit here — we don't have a fresh reference.
   }
 
-  /** Cascade a parent CANCELLED transition to the currently-active child, if any. */
   public void onParentCancelRequested(Order parent) {
     cancelActiveChild(parent.getOrderId());
     transition(parent, OrderStatus.CANCELLED, "pegged-parent-cancelled");
     registry.removeParent(parent.getOrderId());
   }
 
-  /**
-   * Listener for every {@link MarketState} update from {@link MarketStateTracker}. Walks the open
-   * pegged parents for this symbol; if the recomputed pegged price has moved past {@code
-   * repegThresholdBps}, cancels the active child and submits a fresh one.
-   */
   void onMarketStateUpdate(MarketState state) {
     if (state == null || registry.trackedParents() == 0) {
       return;
@@ -166,8 +136,6 @@ public class PeggedCoordinator {
 
   private void maybeRepeg(Order parent, MarketState state) {
     if (isTerminal(parent.getStatus())) {
-      // Parent was rejected/cancelled/filled outside the coordinator (e.g. first child rejected
-      // and OrderExecutionService transitioned the parent) — stop tracking it.
       registry.removeParent(parent.getOrderId());
       return;
     }
@@ -190,9 +158,6 @@ public class PeggedCoordinator {
       return;
     }
     boolean hasActiveChild = progress.activeChildOrderId() != null;
-    // With no active child (previous child filled completely but the parent still has remaining
-    // quantity), resubmit on the next tick regardless of how little the price moved — otherwise
-    // the residual would sit idle until the market moved a full repeg threshold.
     if (hasActiveChild
         && !priceCalculator.shouldRepeg(
             progress.lastSubmittedPrice(), newPrice, config.repegThresholdBps())) {
@@ -212,8 +177,6 @@ public class PeggedCoordinator {
 
   private boolean submitChild(
       Order parent, BigDecimal reference, BigDecimal limitPrice, boolean isRepeg) {
-    // Remaining quantity lives in the registry's PeggedProgress — child fills are applied to the
-    // child orders, never to the parent Order object, so parent.getFilledQuantity() is always 0.
     var remaining =
         registry.progress(parent.getOrderId()).map(PeggedProgress::remainingQuantity).orElse(0);
     if (remaining <= 0) {

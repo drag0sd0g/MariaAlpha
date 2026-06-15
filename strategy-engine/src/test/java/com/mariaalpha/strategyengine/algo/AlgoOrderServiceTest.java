@@ -49,8 +49,6 @@ class AlgoOrderServiceTest {
     assertThat(algo.status()).isEqualTo(AlgoOrder.Status.ACTIVE);
     assertThat(algo.symbol()).isEqualTo("AAPL");
     assertThat(algo.targetQuantity()).isEqualTo(100);
-    // Caller params are forwarded, enriched with the order's side (and targetQuantity when the
-    // caller didn't supply one) so the strategy can't run with a stale side from a prior order.
     verify(strategy).updateParameters(Map.of("targetQuantity", 100, "side", "BUY"));
     verify(router).setActiveStrategy("AAPL", "VWAP");
     verify(progressPublisher).publishLifecycle(algo, AlgoProgressEvent.EventType.CREATED);
@@ -102,7 +100,6 @@ class AlgoOrderServiceTest {
     when(strategyRegistry.get("VWAP")).thenReturn(Optional.of(strategy));
     var algo = service.submit(new AlgoOrderRequest("AAPL", Side.BUY, 100, "VWAP", Map.of()));
     service.cancel(algo.algoOrderId());
-    // Second cancel returns the already-terminal record but does not re-publish or re-unbind.
     var again = service.cancel(algo.algoOrderId());
     assertThat(again).isPresent();
     assertThat(again.get().status()).isEqualTo(AlgoOrder.Status.CANCELLED);

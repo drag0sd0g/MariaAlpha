@@ -79,9 +79,7 @@ class BasketStateTest {
   void fillNeverDowngradedByLateSubmissionOutcome() {
     var state = newBasket();
     state.addLeg("leg-1", "AAPL", Side.BUY, 100);
-    // Fill races ahead of the submitOrder return…
     state.recordFill("leg-1", 100, true);
-    // …then the synchronous "accepted" outcome lands — it must not clobber the FILLED status.
     state.recordSubmissionOutcome("leg-1", OrderStatus.SUBMITTED, null);
 
     var view = state.toView();

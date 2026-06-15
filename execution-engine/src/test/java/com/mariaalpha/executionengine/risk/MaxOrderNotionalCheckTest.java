@@ -40,7 +40,7 @@ class MaxOrderNotionalCheckTest {
                 new BigDecimal("151"),
                 new BigDecimal("150"),
                 Instant.now()));
-    var order = createOrder("AAPL", 333); // 333 * $150 = $49,950
+    var order = createOrder("AAPL", 333);
     assertThat(check.check(order).passed()).isTrue();
   }
 
@@ -54,7 +54,7 @@ class MaxOrderNotionalCheckTest {
                 new BigDecimal("151"),
                 new BigDecimal("150"),
                 Instant.now()));
-    var order = createOrder("AAPL", 1000); // 1000 * $150 = $150,000
+    var order = createOrder("AAPL", 1000);
     var result = check.check(order);
     assertThat(result.passed()).isFalse();
     assertThat(result.checkName()).isEqualTo("MaxOrderNotional");

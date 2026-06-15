@@ -8,11 +8,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-/**
- * Short-lived in-memory store of issued RFQ quotes so that the accept endpoint can validate quoteId
- * + freshness. Quotes are evicted on a best-effort basis when looked up after expiry — a dedicated
- * reaper is over-engineered for the volume this endpoint sees.
- */
 @Component
 public class RfqQuoteStore {
 
@@ -32,7 +27,6 @@ public class RfqQuoteStore {
     quotes.put(quote.quoteId(), quote);
   }
 
-  /** Returns the quote if present and not yet expired; evicts expired entries on the way out. */
   public Optional<RfqQuote> lookupActive(UUID quoteId) {
     var q = quotes.get(quoteId);
     if (q == null) {

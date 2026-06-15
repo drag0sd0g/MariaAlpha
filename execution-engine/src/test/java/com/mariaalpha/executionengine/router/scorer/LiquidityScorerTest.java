@@ -29,15 +29,13 @@ class LiquidityScorerTest {
 
   @Test
   void litFullCoverage() {
-    var ctx = ctxLit(100, /* topOfBook */ 10000, /* fillRate */ 0.95);
-    // coverage=min(1, 10000/100)=1; * 0.95 = 0.95
+    var ctx = ctxLit(100, 10000, 0.95);
     assertThat(scorer.score(ctx)).isCloseTo(0.95, within(1e-9));
   }
 
   @Test
   void litPartialCoverage() {
-    var ctx = ctxLit(10000, /* topOfBook */ 5000, /* fillRate */ 1.0);
-    // coverage=0.5; * 1.0 = 0.5
+    var ctx = ctxLit(10000, 5000, 1.0);
     assertThat(scorer.score(ctx)).isCloseTo(0.5, within(1e-9));
   }
 

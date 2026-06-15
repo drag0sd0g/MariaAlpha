@@ -56,7 +56,6 @@ class DailyLossMonitorTest {
 
   @Test
   void haltsOnLossBreachCritical() {
-    // Bought at $170, sold at $140 → realized loss = -$30 × 1000 = -$30K > $25K limit
     monitor.onFill(fill("AAPL", Side.BUY, "170.00", 1000));
     monitor.onFill(fill("AAPL", Side.SELL, "140.00", 1000));
 
@@ -66,7 +65,6 @@ class DailyLossMonitorTest {
 
   @Test
   void doesNotHaltWhenWithinLimit() {
-    // Small loss: bought at $150, sold at $149 → loss = -$1 × 100 = -$100
     monitor.onFill(fill("AAPL", Side.BUY, "150.00", 100));
     monitor.onFill(fill("AAPL", Side.SELL, "149.00", 100));
 
@@ -76,7 +74,6 @@ class DailyLossMonitorTest {
 
   @Test
   void shortCoverRealizesPnl() {
-    // Sold short at $150, covered at $160 → loss = -$10 × 500 = -$5000
     monitor.onFill(fill("TSLA", Side.SELL, "150.00", 500));
     monitor.onFill(fill("TSLA", Side.BUY, "160.00", 500));
 
@@ -85,12 +82,10 @@ class DailyLossMonitorTest {
 
   @Test
   void flipRealizesOnlyClosedPortion() {
-    // Long 100 @ $100; sell 300 @ $90 → realize -$10 × 100 = -$1000, now short 200 @ $90.
     monitor.onFill(fill("MSFT", Side.BUY, "100.00", 100));
     monitor.onFill(fill("MSFT", Side.SELL, "90.00", 300));
     assertThat(monitor.getDailyPnl()).isEqualByComparingTo(new BigDecimal("-1000"));
 
-    // Cover the short at $80 → +$10 × 200 = +$2000; total = +$1000.
     monitor.onFill(fill("MSFT", Side.BUY, "80.00", 200));
     assertThat(monitor.getDailyPnl()).isEqualByComparingTo(new BigDecimal("1000"));
   }

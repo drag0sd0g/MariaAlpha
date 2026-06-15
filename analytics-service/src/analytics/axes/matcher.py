@@ -42,7 +42,7 @@ class Axe:
     axe_id: str
     client_id: str
     symbol: str
-    side: str  # "BUY" or "SELL"
+    side: str
     quantity: int
     remaining: int
     limit_price: float | None
@@ -73,7 +73,7 @@ class IncomingLeg:
 
     order_id: str
     symbol: str
-    side: str  # "BUY" or "SELL"
+    side: str
     quantity: int
 
 
@@ -94,13 +94,10 @@ class AxeMatcher:
             clock = time.time
         self._clock = clock
         self._lock = threading.RLock()
-        # Keyed by axe_id so the matcher is robust to multiple axes per client/symbol.
         self._axes: dict[str, Axe] = {}
-        # Refresh index keyed by (client_id, symbol, side) → axe_id for fast refresh lookup.
         self._refresh_index: dict[tuple[str, str, str], str] = {}
         self._matched_total = 0
 
-    # -- writers ----------------------------------------------------------
 
     def publish(
         self,
@@ -124,8 +121,6 @@ class AxeMatcher:
             existing_id = self._refresh_index.get(key)
             if existing_id is not None and existing_id in self._axes:
                 axe = self._axes[existing_id]
-                # Refresh: keep the existing axe_id alive, bump quantity to max, reset TTL,
-                # boost confidence back to 1.0.
                 axe.quantity = max(axe.quantity, quantity)
                 axe.remaining = max(axe.remaining, quantity)
                 axe.limit_price = limit_price
@@ -159,7 +154,6 @@ class AxeMatcher:
             self._refresh_index.pop((axe.client_id, axe.symbol, axe.side), None)
             return True
 
-    # -- matching ---------------------------------------------------------
 
     def match(self, leg: IncomingLeg) -> list[MatchSuggestion]:
         """Return ranked match suggestions for an incoming order leg.
@@ -180,14 +174,10 @@ class AxeMatcher:
                 for a in self._axes.values()
                 if a.symbol == leg.symbol and a.side == opposing_side and a.remaining > 0
             ]
-            # Refresh-decay confidence so older axes score lower at match time.
             for axe in candidates:
                 ttl_remaining = max(0.0, axe.expires_at - now)
                 ttl_total = max(1.0, axe.expires_at - axe.published_at)
                 axe.confidence = max(0.0, min(1.0, ttl_remaining / ttl_total))
-            # Rank by the spec product (confidence × remaining). Tie-breakers:
-            # more refreshes (proves it's actively maintained) then older
-            # published_at (FIFO among equally-scored axes).
             candidates.sort(
                 key=lambda a: (
                     -(a.confidence * a.remaining),
@@ -206,8 +196,6 @@ class AxeMatcher:
                 axe.remaining -= take
                 remaining_to_match -= take
                 self._matched_total += take
-                # Spec score = confidence × axe-remaining-before-this-match.
-                # Reported on the suggestion so the UI can sort/group identically.
                 score = axe.confidence * axe_remaining_before
                 suggestions.append(
                     MatchSuggestion(
@@ -223,12 +211,10 @@ class AxeMatcher:
                     )
                 )
                 if axe.remaining == 0:
-                    # Fully consumed — drop the axe and its refresh-index entry.
                     self._axes.pop(axe.axe_id, None)
                     self._refresh_index.pop((axe.client_id, axe.symbol, axe.side), None)
         return suggestions
 
-    # -- read-only --------------------------------------------------------
 
     def snapshot(
         self, symbol: str | None = None, side: str | None = None
@@ -270,7 +256,6 @@ class AxeMatcher:
                 "matchedTotalShares": self._matched_total,
             }
 
-    # -- internals --------------------------------------------------------
 
     def _expire_locked(self, now: float) -> None:
         expired = [a.axe_id for a in self._axes.values() if a.expires_at <= now]

@@ -44,7 +44,7 @@ class TcaInput:
     order_id: str
     strategy: str
     symbol: str
-    side: str  # "BUY" or "SELL"
+    side: str
     quantity: float
     arrival_price: float
     realized_avg_price: float
@@ -52,7 +52,6 @@ class TcaInput:
     spread_cost_bps: float
     commission_total: float | None
     computed_at: datetime
-    # Optional decision-time mid for the timing component. None ⇒ timing contribution is 0.
     decision_mid_price: float | None = None
 
 
@@ -94,7 +93,6 @@ class PnlAttributionEngine:
         self._commission_bps = commission_bps
         self._lock = threading.RLock()
         self._rows: list[Attribution] = []
-        # (strategy, computed_at.date()) → component sum
         self._daily_totals: dict[tuple[str, date], dict[str, float]] = defaultdict(
             lambda: {
                 "spread": 0.0,
@@ -109,26 +107,18 @@ class PnlAttributionEngine:
 
     def attribute(self, tca: TcaInput) -> Attribution:
         signed_qty = tca.quantity if tca.side == "BUY" else -tca.quantity
-        # Spread cost is positive when we paid the bid/ask — by convention spread_cost_bps
-        # is reported as positive, so we negate it into "−" PnL (a cost).
         spread_usd = -(tca.spread_cost_bps / 10_000.0) * tca.arrival_price * tca.quantity
-        # Market drift between arrival and VWAP benchmark.
         market_usd = (tca.vwap_benchmark_price - tca.arrival_price) * signed_qty
-        # Timing: drift between decision-mid and arrival-mid, when available. Positive when
-        # the market moved with us between signal and execution-start.
         if tca.decision_mid_price is not None:
             timing_usd = (tca.arrival_price - tca.decision_mid_price) * signed_qty
         else:
             timing_usd = 0.0
-        # Commission: configurable bps haircut. Use the TCA-reported total when present;
-        # otherwise estimate.
         if tca.commission_total is not None:
             commission_usd = -abs(tca.commission_total)
         else:
             commission_usd = (
                 -(self._commission_bps / 10_000.0) * tca.realized_avg_price * tca.quantity
             )
-        # Realized PnL relative to VWAP benchmark (the desk benchmark we're attributing to).
         realized_pnl_usd = (tca.vwap_benchmark_price - tca.realized_avg_price) * signed_qty
         residual_usd = realized_pnl_usd - (spread_usd + timing_usd + market_usd + commission_usd)
 
@@ -159,7 +149,6 @@ class PnlAttributionEngine:
             totals["orders"] += 1
         return row
 
-    # -- snapshots --------------------------------------------------------
 
     def daily_summary(self, strategy: str | None = None) -> list[dict[str, object]]:
         """One row per (strategy, day) with summed component values."""

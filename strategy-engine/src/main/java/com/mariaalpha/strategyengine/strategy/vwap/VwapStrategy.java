@@ -24,17 +24,14 @@ public class VwapStrategy implements TradingStrategy {
   private static final String NAME = "VWAP";
   static final ZoneId MARKET_ZONE = ZoneId.of("America/New_York");
 
-  // Configuration parameters
   private volatile int targetQuantity;
   private Side side = Side.BUY;
   private LocalTime startTime = LocalTime.of(9, 30);
   private LocalTime endTime = LocalTime.of(16, 0);
   private List<TimeBin> volumeProfile = List.of();
 
-  // Computed allocations: binIndex -> share count
   private final List<Integer> binAllocations = new ArrayList<>();
 
-  // Execution state: tracks which bins have emitted signals
   private final ConcurrentHashMap<Integer, Boolean> binExecuted = new ConcurrentHashMap<>();
   private volatile MarketTick latestTick;
   private volatile boolean completed;
@@ -65,18 +62,15 @@ public class VwapStrategy implements TradingStrategy {
       return Optional.empty();
     }
 
-    // Past end time: sweep remaining quantity
     if (!marketTime.isBefore(endTime)) {
       return emitSweep(symbol);
     }
 
-    // Find current bin
     int binIndex = findBinIndex(marketTime);
     if (binIndex < 0) {
       return Optional.empty();
     }
 
-    // Check if current bin already executed (at-most-once)
     if (binExecuted.putIfAbsent(binIndex, Boolean.TRUE) != null) {
       return Optional.empty();
     }
@@ -145,10 +139,6 @@ public class VwapStrategy implements TradingStrategy {
     resetExecutionState();
   }
 
-  /**
-   * Computes per-bin share allocations from the volume profile. Last bin absorbs rounding
-   * remainder.
-   */
   private void computeAllocations() {
     binAllocations.clear();
     if (volumeProfile.isEmpty() || targetQuantity <= 0) {
@@ -163,26 +153,21 @@ public class VwapStrategy implements TradingStrategy {
     binAllocations.add(targetQuantity - allocated);
   }
 
-  /** Resets execution state for a fresh run. */
   private void resetExecutionState() {
     binExecuted.clear();
     latestTick = null;
     completed = false;
   }
 
-  /** Resolves the limit price from the latest tick based on side. */
   private BigDecimal resolveLimitPrice() {
     if (side == Side.BUY) {
-      // buy at the ask
       var ask = latestTick.askPrice();
       return ask.compareTo(BigDecimal.ZERO) > 0 ? ask : latestTick.price();
     }
-    // sell at the bid
     var bid = latestTick.bidPrice();
     return bid.compareTo(BigDecimal.ZERO) > 0 ? bid : latestTick.price();
   }
 
-  /** Computes the total remaining (unexecuted) quantity. */
   private int remainingQuantity() {
     int executed = 0;
     for (var entry : binExecuted.entrySet()) {
@@ -194,7 +179,6 @@ public class VwapStrategy implements TradingStrategy {
     return targetQuantity - executed;
   }
 
-  /** Finds the bin index for the given market time. Returns -1 if not in any bin. */
   private int findBinIndex(LocalTime marketTime) {
     for (var i = 0; i < volumeProfile.size(); i++) {
       var bin = volumeProfile.get(i);
@@ -205,7 +189,6 @@ public class VwapStrategy implements TradingStrategy {
     return -1;
   }
 
-  /** Emits a MARKET sweep for any remaining unexecuted quantity. */
   private Optional<OrderSignal> emitSweep(String symbol) {
     if (completed) {
       return Optional.empty();

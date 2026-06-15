@@ -84,8 +84,6 @@ public class ManualOrderService {
         peggedCoordinator.onParentCancelRequested(order);
         return true;
       }
-      // Cancel at the venue first — without this the order stays live at the exchange and a
-      // later fill would arrive for an order we consider CANCELLED.
       if (order.getExchangeOrderId() != null && order.getVenue() != null) {
         venueAdapters
             .get(order.getVenue())

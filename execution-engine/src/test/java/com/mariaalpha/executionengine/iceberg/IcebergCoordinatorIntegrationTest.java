@@ -27,11 +27,6 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.KafkaContainer;
 
-/**
- * End-to-end iceberg parent → multi-slice flow against the in-process simulated adapter and a
- * Testcontainers Kafka. Verifies that the coordinator submits each subsequent slice on child
- * completion and that the parent transitions through PARTIALLY_FILLED to FILLED.
- */
 @SpringBootTest
 @Testcontainers
 @ActiveProfiles("simulated")
@@ -51,7 +46,6 @@ class IcebergCoordinatorIntegrationTest {
   @DynamicPropertySource
   static void props(DynamicPropertyRegistry registry) {
     registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
-    // Make the simulator fill near-instantly so awaitility doesn't have to wait long
     registry.add("execution-engine.simulated.fill-latency-ms", () -> 5);
     registry.add("execution-engine.redis.enabled", () -> "false");
     registry.add("management.health.redis.enabled", () -> "false");
@@ -75,7 +69,6 @@ class IcebergCoordinatorIntegrationTest {
         .pollInterval(Duration.ofMillis(50))
         .until(() -> parent.getStatus() == OrderStatus.FILLED);
 
-    // The progress entry is removed on parent completion; the parent itself should be FILLED.
     assertThat(parent.getStatus()).isEqualTo(OrderStatus.FILLED);
     assertThat(registry.progress(parent.getOrderId())).isEmpty();
   }

@@ -2,18 +2,6 @@ package com.mariaalpha.strategyengine.options;
 
 import org.springframework.stereotype.Component;
 
-/**
- * Solves for the implied volatility that makes {@link BlackScholesPricer} reproduce an observed
- * market premium.
- *
- * <p>Strategy: Newton-Raphson seeded at {@code σ₀ = 0.20} using the analytic vega as the
- * derivative, with bisection on {@code [impliedVolLowerBound, impliedVolUpperBound]} as the
- * fallback. Newton is fast (quadratic) but unstable at low vega — the bisection guard ensures we
- * always return a value when one exists in the configured bracket.
- *
- * <p>Returned object carries the converged sigma plus the number of iterations and the method that
- * produced it, so the REST response can show "12 Newton steps, residual 4e-9" for transparency.
- */
 @Component
 public class ImpliedVolatilityCalculator {
 
@@ -27,17 +15,6 @@ public class ImpliedVolatilityCalculator {
     this.config = config;
   }
 
-  /**
-   * Solve {@code BlackScholes(σ; spot, strike, T, r, q, type) == marketPrice}.
-   *
-   * @param spot underlying spot price (S, &gt; 0)
-   * @param strike strike (K, &gt; 0)
-   * @param timeToExpiryYears years to expiry (T, &gt; 0)
-   * @param riskFreeRate continuously-compounded risk-free rate (r)
-   * @param dividendYield continuous dividend yield (q, &ge; 0)
-   * @param type CALL or PUT
-   * @param marketPrice observed premium to invert; must be strictly inside the no-arbitrage band
-   */
   public Result solve(
       double spot,
       double strike,
@@ -84,7 +61,6 @@ public class ImpliedVolatilityCalculator {
       if (Math.abs(residual) <= config.impliedVolTolerance()) {
         return new Result(sigma, iteration, Method.NEWTON, residual);
       }
-      // analytic vega (annualised, raw — not the per-1%-scaled form GreeksCalculator returns)
       BlackScholesPricer.DiscountedTerms terms = BlackScholesPricer.DiscountedTerms.from(trial);
       double vega = terms.discountedSpot() * NormalDistribution.pdf(terms.d1()) * terms.sqrtT();
       if (vega < 1.0e-8) {
@@ -159,10 +135,8 @@ public class ImpliedVolatilityCalculator {
             spot, strike, timeToExpiryYears, sigma, riskFreeRate, dividendYield, type));
   }
 
-  /** Implied-vol solver outcome. */
   public record Result(double impliedVolatility, int iterations, Method method, double residual) {}
 
-  /** Which solver produced the implied vol. */
   public enum Method {
     NEWTON,
     BISECTION

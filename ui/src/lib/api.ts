@@ -8,8 +8,6 @@ export class ApiError extends Error {
   }
 }
 
-// Runtime config (window.MA_CONFIG) is rendered into /config.js by the UI Helm
-// chart's init container. The Vite env vars are used as fallback for `npm run dev`.
 type MaConfig = { apiKey?: string; apiBaseUrl?: string };
 const runtimeConfig: MaConfig =
   (typeof window !== "undefined" && (window as unknown as { MA_CONFIG?: MaConfig }).MA_CONFIG) ||
@@ -37,7 +35,6 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     const body = await res.text().catch(() => "");
     throw new ApiError(res.status, path, body || res.statusText);
   }
-  // Some endpoints (DELETE) return 204 with no body.
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }

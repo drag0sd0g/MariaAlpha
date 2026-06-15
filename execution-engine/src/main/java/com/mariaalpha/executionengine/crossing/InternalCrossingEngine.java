@@ -25,21 +25,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-/**
- * In-process midpoint crossing engine. Matches offsetting BUY/SELL interest in the same symbol at
- * the NBBO midpoint, capturing the bid-ask spread without market impact. Resting orders are kept
- * FIFO per side (price-time priority degenerates to time priority because all crosses happen at the
- * same NBBO midpoint).
- *
- * <p>Concurrency model: every public mutation is serialized on {@code lock} so the book stays
- * consistent under concurrent submit / cancel / sweep traffic. The engine is intentionally simple —
- * internalization volumes in this simulator are well below the throughput that would warrant a
- * Disruptor-style single-writer loop (see TDD §Future Considerations).
- *
- * <p>{@link #cross(MidpointCross)} is invoked for every match — the {@link
- * com.mariaalpha.executionengine.adapter.SimulatedInternalCrossingAdapter} hooks into this stream
- * to publish {@code ExecutionReport}s through the regular fill pipeline.
- */
 @Component
 @Profile("simulated")
 public class InternalCrossingEngine {
@@ -67,27 +52,16 @@ public class InternalCrossingEngine {
     this.marketStateTracker = marketStateTracker;
   }
 
-  /**
-   * Subscribe a listener to every cross. Multiple subscribers (adapter, metrics, UI feed) coexist;
-   * the engine fans out in registration order.
-   */
   public void addCrossListener(CrossListener listener) {
     if (listener != null) {
       listeners.add(listener);
     }
   }
 
-  /** Used by tests to reset between cases. Production never removes listeners. */
   public void clearCrossListeners() {
     listeners.clear();
   }
 
-  /**
-   * Submit an order. Tries to cross against opposite-side resting interest at the current midpoint;
-   * any unfilled remainder rests in the book and is retried on subsequent submits or sweeps.
-   *
-   * @return the exchange-side identifier assigned to this order; never null.
-   */
   public String submit(Order order) {
     var exchangeId = "INT-" + UUID.randomUUID().toString().substring(0, 8);
     var resting = new RestingOrder(exchangeId, order, Instant.now());
@@ -106,7 +80,6 @@ public class InternalCrossingEngine {
     return exchangeId;
   }
 
-  /** Cancel a resting order. Returns true if it was present and removed. */
   public boolean cancel(String exchangeOrderId) {
     synchronized (lock) {
       var removed = byExchangeId.remove(exchangeOrderId);
@@ -119,15 +92,6 @@ public class InternalCrossingEngine {
     }
   }
 
-  /**
-   * Synthesize a counterparty for the resting order with the given exchange id. Used by the
-   * adapter's optional simulated-liquidity layer (controlled by the `cross-probability-on-submit` /
-   * `match-probability-per-tick` knobs) when there is no real offsetting interest in the book and
-   * the operator still wants the simulated venue to fill.
-   *
-   * <p>Returns the synthetic cross if the resting order is still alive and the midpoint is
-   * acceptable; otherwise empty.
-   */
   public Optional<MidpointCross> synthesizeCounterparty(String exchangeOrderId) {
     MidpointCross cross;
     synchronized (lock) {
@@ -140,9 +104,7 @@ public class InternalCrossingEngine {
         return Optional.empty();
       }
       var qty = resting.remaining();
-      cross =
-          buildCross(
-              resting, /* counterparty= */ null, /* counterpartyResting= */ null, midpoint, qty);
+      cross = buildCross(resting, null, null, midpoint, qty);
       resting.decrementRemaining(qty);
       removeIfFilled(resting);
     }
@@ -150,7 +112,6 @@ public class InternalCrossingEngine {
     return Optional.of(cross);
   }
 
-  /** Sweep the entire book and produce any newly-matchable crosses (e.g. after an NBBO update). */
   public List<MidpointCross> sweep() {
     List<MidpointCross> produced;
     synchronized (lock) {
@@ -167,7 +128,6 @@ public class InternalCrossingEngine {
     return produced;
   }
 
-  /** Snapshot statistics for monitoring. */
   public CrossingStats stats() {
     int restingBuy;
     int restingSell;
@@ -198,7 +158,6 @@ public class InternalCrossingEngine {
         symbols);
   }
 
-  /** Snapshot of recent crosses (most-recent-first), capped at the ring size. */
   public List<MidpointCross> recentCrosses() {
     synchronized (recent) {
       var copy = new ArrayList<>(recent);
@@ -207,7 +166,6 @@ public class InternalCrossingEngine {
     }
   }
 
-  /** Live book view by symbol — used by REST callers and tests. */
   public Map<String, BookSide> bookSnapshot() {
     synchronized (lock) {
       var snap = new java.util.LinkedHashMap<String, BookSide>();
@@ -222,25 +180,21 @@ public class InternalCrossingEngine {
     }
   }
 
-  /** Total resting size across all symbols/sides. Used for capacity gating. */
   public int totalResting() {
     synchronized (lock) {
       return book.values().stream().flatMap(m -> m.values().stream()).mapToInt(Deque::size).sum();
     }
   }
 
-  /** Returns true iff the given exchange id is still resting in the book. */
   public boolean isResting(String exchangeOrderId) {
     return byExchangeId.containsKey(exchangeOrderId);
   }
 
-  /** Remaining quantity for a resting order, or 0 if absent (already filled / cancelled). */
   public int remainingFor(String exchangeOrderId) {
     var resting = byExchangeId.get(exchangeOrderId);
     return resting == null ? 0 : resting.remaining();
   }
 
-  /** Exchange id of the oldest still-resting order in the given symbol (any side), if any. */
   public Optional<String> firstRestingOrderId(String symbol) {
     synchronized (lock) {
       var sides = book.get(symbol);
@@ -303,8 +257,6 @@ public class InternalCrossingEngine {
       if (matchQty <= 0) {
         break;
       }
-      // Side-of-aggressor convention: emit two CrossEvents per match (one per side).
-      // Use the most-recently-arrived order as the "aggressor" for reporting purposes.
       RestingOrder aggressor = buy.arrival().isAfter(sell.arrival()) ? buy : sell;
       RestingOrder counter = aggressor == buy ? sell : buy;
       produced.add(buildCross(aggressor, counter, counter, midpoint, matchQty));
@@ -375,8 +327,6 @@ public class InternalCrossingEngine {
     } else {
       internalCrossesTotal.incrementAndGet();
     }
-    // Spread captured ≈ (spread_bps / 10000) × midpoint × quantity, in dollar notional terms.
-    // We attribute the full spread to internalization on both sides of the cross.
     var captured =
         cross
             .spreadBps()
@@ -440,10 +390,8 @@ public class InternalCrossingEngine {
     return orders.stream().mapToInt(RestingOrder::remaining).sum();
   }
 
-  /** Snapshot of a symbol's book — depth and order counts on each side. */
   public record BookSide(int buyQty, int buyOrders, int sellQty, int sellOrders) {}
 
-  /** Subscription callback for crosses. */
   public interface CrossListener {
     void onCross(MidpointCross cross);
   }

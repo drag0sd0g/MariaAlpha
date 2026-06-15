@@ -51,7 +51,6 @@ public class OrderController {
       throw new ResponseStatusException(
           BAD_REQUEST, "'from' timestamp must be before 'to' timestamp");
     }
-    // Clamp caller-supplied limit to [1, MAX_LIMIT] to guard against invalid or abusive page sizes.
     int clamped = Math.clamp(limit, 1, MAX_LIMIT);
     return orderRepository
         .search(symbol, status, strategy, from, to, PageRequest.of(0, clamped))
@@ -60,12 +59,6 @@ public class OrderController {
         .toList();
   }
 
-  /**
-   * Returns every fill recorded on a calendar date (UTC). Powers the post-trade EOD reconciliation
-   * engine. Each row is enriched with the parent order's {@code clientOrderId} and {@code
-   * exchangeOrderId} so the consumer can match against external venue activity without a follow-up
-   * call.
-   */
   @GetMapping("/fills/by-date")
   public List<FillForReconResponse> fillsByDate(
       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {

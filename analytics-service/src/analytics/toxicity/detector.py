@@ -49,7 +49,7 @@ class FillRecord:
     order_id: str
     strategy: str
     symbol: str
-    side: str  # "BUY" or "SELL"
+    side: str
     fill_price: float
     fill_ts_seconds: float
 
@@ -100,23 +100,17 @@ class FlowToxicityDetector:
         self._min_obs = min_observations
         self._price_lookup = price_lookup
         self._alert_publisher = alert_publisher
-        # Default to ``time.monotonic`` lazily so tests can inject a fake clock without
-        # importing ``time`` at module load.
         if clock is None:
             import time
 
             clock = time.monotonic
         self._clock = clock
         self._lock = threading.RLock()
-        # Pending fills awaiting horizon measurement, keyed by horizon.
         self._pending: dict[int, list[FillRecord]] = {h: [] for h in horizons_seconds}
-        # Rolling stats keyed by (strategy, horizon).
         self._stats: dict[tuple[str, int], StrategyStats] = {}
-        # Alert de-dup: only one alert per (strategy, horizon) inside a cooldown window.
         self._last_alert_ts: dict[tuple[str, int], float] = {}
         self._alert_cooldown_seconds = 60.0
 
-    # -- ingestion --------------------------------------------------------
 
     def on_fill(self, fill: FillRecord) -> None:
         """Register a fill for later markout measurement at each horizon."""
@@ -136,7 +130,6 @@ class FlowToxicityDetector:
         with self._lock:
             for horizon in self._horizons:
                 pending = self._pending[horizon]
-                # Walk from the head; the list is ordered by fill_ts (append-only).
                 drained: list[FillRecord] = []
                 remaining: list[FillRecord] = []
                 for fill in pending:
@@ -189,7 +182,6 @@ class FlowToxicityDetector:
             except Exception:
                 logger.exception("toxicity_alert_publish_failed", strategy=strategy)
 
-    # -- snapshots --------------------------------------------------------
 
     def snapshot(self, strategy: str | None = None) -> list[dict[str, object]]:
         """Return per-(strategy, horizon) toxicity rows, sorted by mean markout descending."""

@@ -40,7 +40,6 @@ class ApiKeyMatcherTest {
 
   @Test
   void rejectsKeyOfDifferentLength() {
-    // MessageDigest.isEqual returns false for different lengths.
     assertThat(ApiKeyMatcher.matches("longerkey", "short")).isFalse();
   }
 }

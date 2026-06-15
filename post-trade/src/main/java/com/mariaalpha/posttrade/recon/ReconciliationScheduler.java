@@ -11,12 +11,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/**
- * Fires {@link EodReconciliationService#runForDate} on the cron defined in {@code
- * post-trade.recon.cron}. Disabled by default unless {@code post-trade.recon.enabled=true}; the
- * docker-compose stack runs with it on (in MIRROR mode), production deployments turn it on with
- * EXTERNAL mode + a 22:00 ET cron.
- */
 @Component
 @ConditionalOnProperty(prefix = "post-trade.recon", name = "enabled", havingValue = "true")
 public class ReconciliationScheduler {

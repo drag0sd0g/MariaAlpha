@@ -14,7 +14,7 @@ class TestEMA:
     def test_known_values(self) -> None:
         """EMA(3) with alpha = 0.5 and known hand-computed values."""
         values = np.array([10.0, 11.0, 12.0, 13.0, 14.0])
-        result = ema(values, period=3)  # alpha = 2/(3+1) = 0.5
+        result = ema(values, period=3)
         assert result[0] == pytest.approx(10.0)
         assert result[1] == pytest.approx(10.5)
         assert result[2] == pytest.approx(11.25)

@@ -25,8 +25,6 @@ class TwapStrategyTest {
 
   private static final String AAPL = "AAPL";
 
-  // Standard test window: 09:30-13:30, four equal one-hour slices.
-  //   slice 0: 09:30-10:30, slice 1: 10:30-11:30, slice 2: 11:30-12:30, slice 3: 12:30-13:30
   private static final LocalTime WINDOW_START = LocalTime.of(9, 30);
   private static final LocalTime WINDOW_END = LocalTime.of(13, 30);
   private static final int FOUR_SLICES = 4;
@@ -45,7 +43,6 @@ class TwapStrategyTest {
 
   @Test
   void defaultScheduleSpansTwelveSlices() {
-    // Constructor builds the default 09:30-16:00 schedule with 12 slices.
     var params = strategy.getParameters();
     assertThat(params.get("totalSlices")).isEqualTo(12);
     assertThat(params.get("numSlices")).isEqualTo(12);
@@ -53,7 +50,6 @@ class TwapStrategyTest {
 
   @Test
   void evaluateReturnsEmptyBeforeConfiguration() {
-    // Fresh strategy: schedule exists but targetQuantity is 0.
     assertThat(strategy.evaluate(AAPL)).isEmpty();
   }
 
@@ -84,7 +80,7 @@ class TwapStrategyTest {
   void evaluateDoesNotReemitForSameSlice() {
     configureStrategy(1000, Side.BUY, WINDOW_START, WINDOW_END, FOUR_SLICES);
     strategy.onTick(quoteTick(AAPL, etInstant(10, 0), "178.50", "178.54"));
-    strategy.evaluate(AAPL); // first call emits
+    strategy.evaluate(AAPL);
     strategy.onTick(quoteTick(AAPL, etInstant(10, 15), "178.50", "178.54"));
     assertThat(strategy.evaluate(AAPL)).isEmpty();
   }
@@ -93,11 +89,9 @@ class TwapStrategyTest {
   void evaluateEmitsForNextSliceWhenTimeAdvances() {
     configureStrategy(1000, Side.BUY, WINDOW_START, WINDOW_END, FOUR_SLICES);
 
-    // Slice 0
     strategy.onTick(quoteTick(AAPL, etInstant(10, 0), "178.50", "178.54"));
     strategy.evaluate(AAPL);
 
-    // Slice 1 (10:30-11:30)
     strategy.onTick(quoteTick(AAPL, etInstant(11, 0), "179.00", "179.04"));
     var signal = strategy.evaluate(AAPL);
     assertThat(signal).isPresent();
@@ -110,11 +104,9 @@ class TwapStrategyTest {
   void evaluateEmitsMarketSweepAtEndTime() {
     configureStrategy(1000, Side.BUY, WINDOW_START, WINDOW_END, FOUR_SLICES);
 
-    // Execute only slice 0 (250 shares)
     strategy.onTick(quoteTick(AAPL, etInstant(10, 0), "178.50", "178.54"));
     strategy.evaluate(AAPL);
 
-    // Jump past end time
     strategy.onTick(quoteTick(AAPL, etInstant(13, 35), "180.00", "180.04"));
 
     var signal = strategy.evaluate(AAPL);
@@ -129,14 +121,13 @@ class TwapStrategyTest {
   void sweepEmitsOnlyOnce() {
     configureStrategy(1000, Side.BUY, WINDOW_START, WINDOW_END, FOUR_SLICES);
     strategy.onTick(quoteTick(AAPL, etInstant(13, 35), "180.00", "180.04"));
-    assertThat(strategy.evaluate(AAPL)).isPresent(); // sweep
+    assertThat(strategy.evaluate(AAPL)).isPresent();
     strategy.onTick(quoteTick(AAPL, etInstant(13, 40), "180.00", "180.04"));
-    assertThat(strategy.evaluate(AAPL)).isEmpty(); // completed
+    assertThat(strategy.evaluate(AAPL)).isEmpty();
   }
 
   @Test
   void noSweepWhenFullyExecuted() {
-    // Single slice covering the whole window: it fully executes, so end-of-window has nothing left.
     configureStrategy(1000, Side.BUY, WINDOW_START, WINDOW_END, 1);
     strategy.onTick(quoteTick(AAPL, etInstant(10, 0), "178.50", "178.54"));
     assertThat(strategy.evaluate(AAPL)).get().extracting(OrderSignal::quantity).isEqualTo(1000);
@@ -174,7 +165,6 @@ class TwapStrategyTest {
 
   @Test
   void allocationRemainderGoesToLastSlice() {
-    // 1001 shares over 3 one-hour slices (09:30-12:30): 334, 334, 333.
     configureStrategy(1001, Side.BUY, WINDOW_START, LocalTime.of(12, 30), 3);
 
     int total = 0;
@@ -190,7 +180,6 @@ class TwapStrategyTest {
 
   @Test
   void fullTradingDaySimulation() {
-    // 10,000 shares, default 09:30-16:00 window, 13 thirty-minute slices.
     configureStrategy(10000, Side.BUY, LocalTime.of(9, 30), LocalTime.of(16, 0), 13);
     var signals = new ArrayList<OrderSignal>();
 
@@ -204,7 +193,6 @@ class TwapStrategyTest {
       }
     }
 
-    // EOD: tick at 16:00 triggers sweep if needed
     var closeTs = ZonedDateTime.of(baseDate, LocalTime.of(16, 0), MARKET_ZONE).toInstant();
     strategy.onTick(quoteTick(AAPL, closeTs, "178.50", "178.54"));
     strategy.evaluate(AAPL).ifPresent(signals::add);
@@ -212,7 +200,6 @@ class TwapStrategyTest {
     int totalQty = signals.stream().mapToInt(OrderSignal::quantity).sum();
     assertThat(totalQty).isEqualTo(10000);
 
-    // All 13 slices fire as LIMIT orders; nothing left for the sweep.
     var limitSignals = signals.stream().filter(s -> s.orderType() == OrderType.LIMIT).toList();
     assertThat(limitSignals).hasSize(13);
     assertThat(signals).allMatch(s -> s.symbol().equals(AAPL));
@@ -248,14 +235,11 @@ class TwapStrategyTest {
   void updateParametersResetsState() {
     configureStrategy(1000, Side.BUY, WINDOW_START, WINDOW_END, FOUR_SLICES);
 
-    // Execute slice 0
     strategy.onTick(quoteTick(AAPL, etInstant(10, 0), "178.50", "178.54"));
     assertThat(strategy.evaluate(AAPL)).isPresent();
 
-    // Reconfigure with a new target and side
     configureStrategy(2000, Side.SELL, WINDOW_START, WINDOW_END, FOUR_SLICES);
 
-    // Slice 0 should fire again (state was reset) with the new allocation
     strategy.onTick(quoteTick(AAPL, etInstant(10, 0), "178.50", "178.54"));
     var signal = strategy.evaluate(AAPL);
     assertThat(signal).isPresent();
@@ -267,12 +251,11 @@ class TwapStrategyTest {
   @Test
   void partialParameterUpdatePreservesOtherFields() {
     configureStrategy(1000, Side.BUY, WINDOW_START, WINDOW_END, FOUR_SLICES);
-    // Update only the target quantity; window and slice count must be retained.
     strategy.updateParameters(Map.of("targetQuantity", 800));
     strategy.onTick(quoteTick(AAPL, etInstant(10, 0), "178.50", "178.54"));
     var signal = strategy.evaluate(AAPL);
     assertThat(signal).isPresent();
-    assertThat(signal.get().quantity()).isEqualTo(200); // 800 / 4 slices
+    assertThat(signal.get().quantity()).isEqualTo(200);
   }
 
   @Test

@@ -73,11 +73,10 @@ class CurrencyExposureServiceTest {
     when(positionRepository.findAll()).thenReturn(List.of(aapl, sap, toyota));
 
     var resp = service.exposureByCurrency();
-    // Rows are sorted alphabetically (EUR, JPY, USD) for stable UI ordering.
     assertThat(resp.rows()).extracting(r -> r.currency()).containsExactly("EUR", "JPY", "USD");
-    assertThat(resp.rows().get(0).grossExposure()).isEqualByComparingTo("6000"); // EUR
-    assertThat(resp.rows().get(1).grossExposure()).isEqualByComparingTo("500000"); // JPY
-    assertThat(resp.rows().get(2).grossExposure()).isEqualByComparingTo("15000"); // USD
+    assertThat(resp.rows().get(0).grossExposure()).isEqualByComparingTo("6000");
+    assertThat(resp.rows().get(1).grossExposure()).isEqualByComparingTo("500000");
+    assertThat(resp.rows().get(2).grossExposure()).isEqualByComparingTo("15000");
     assertThat(resp.openPositions()).isEqualTo(3);
   }
 

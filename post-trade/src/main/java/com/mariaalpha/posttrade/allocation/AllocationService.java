@@ -8,14 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-/**
- * Orchestrates the allocation flow: pick the method (request override → registry default), run the
- * pure {@link AllocationCalculator}, persist the {@link AllocationEntity} rows, emit metrics.
- *
- * <p>Re-running allocation for the same {@code orderId} is idempotent: the prior rows are deleted
- * before the new ones are written, so re-allocating with a different method or after a re-fill is
- * safe. Tests assert this round-trip.
- */
 @Service
 public class AllocationService {
 
@@ -37,13 +29,6 @@ public class AllocationService {
     this.metrics = metrics;
   }
 
-  /**
-   * Allocate a parent order's fills across sub-accounts and persist the result. Returns the
-   * persisted rows in sub-account name order.
-   *
-   * @throws IllegalStateException if the sub-account registry is empty (no accounts configured)
-   * @throws IllegalArgumentException if {@code request} carries invalid quantity / price
-   */
   @Transactional
   public List<AllocationEntity> allocate(AllocationRequest request) {
     if (!registry.isConfigured()) {
@@ -71,11 +56,6 @@ public class AllocationService {
       return List.of();
     }
 
-    // Idempotent re-allocation: clear any prior rows for this parent before persisting.
-    // Force-flush the delete before the saveAll. Without this, Hibernate may batch the insert
-    // ahead of the delete in the action queue and trip the UNIQUE(order_id, sub_account) constraint
-    // when re-allocating the same parent — even though both ops are in the same @Transactional
-    // block. Manifested as a 500 on the e2e idempotency test.
     repository.deleteByOrderId(request.orderId());
     repository.flush();
 

@@ -26,12 +26,6 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.KafkaContainer;
 
-/**
- * End-to-end program/basket flow against the in-process simulated adapter and a Testcontainers
- * Kafka. Submits a two-leg basket and asserts that, as both legs fill, the basket aggregate
- * transitions to FILLED — exercising the {@code BasketTradingService} → pipeline → {@code
- * BasketCoordinator} loop.
- */
 @SpringBootTest
 @Testcontainers
 @ActiveProfiles("simulated")

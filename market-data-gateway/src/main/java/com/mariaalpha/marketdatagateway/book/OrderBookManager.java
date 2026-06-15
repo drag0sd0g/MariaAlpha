@@ -34,12 +34,6 @@ public class OrderBookManager {
     LOG.info("Order book manager started");
   }
 
-  /**
-   * Drops the current subscription and re-subscribes to the adapter's tick stream. Required in the
-   * simulated profile: the {@code @PostConstruct} subscription happens before the runner calls
-   * {@code adapter.connect()}, and the simulated adapter's pre-connect stream is an empty flux that
-   * completes immediately — without a re-subscribe the book would never see a tick.
-   */
   public void restart() {
     if (subscription != null && !subscription.isDisposed()) {
       subscription.dispose();
@@ -56,7 +50,6 @@ public class OrderBookManager {
     LOG.info("Order book manager stopped");
   }
 
-  /** Updates the in-memory book for the tick's symbol. */
   void onTick(MarketTick tick) {
     var updated =
         books.compute(
@@ -70,12 +63,10 @@ public class OrderBookManager {
     updateSink.tryEmitNext(updated);
   }
 
-  /** Returns the current snapshot for a symbol, or an empty entry if unknown. */
   public OrderBookEntry getSnapshot(String symbol) {
     return books.getOrDefault(symbol, OrderBookEntry.empty(symbol));
   }
 
-  /** Returns a reactive stream of book updates filtered to the requested symbols. */
   public Flux<OrderBookEntry> streamSnapshots(Set<String> symbols) {
     return updateSink.asFlux().filter(entry -> symbols.contains(entry.symbol()));
   }

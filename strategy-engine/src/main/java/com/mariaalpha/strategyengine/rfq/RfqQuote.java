@@ -4,11 +4,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * A two-way RFQ quote, including the per-component breakdown used to assemble it. The breakdown is
- * what makes inventory / volatility / ADV widening auditable — the UI surfaces it next to the
- * quote, and TCA replays it for the accepted-price reconstruction.
- */
 public record RfqQuote(
     UUID quoteId,
     String symbol,

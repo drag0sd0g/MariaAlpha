@@ -44,16 +44,11 @@ public class StrategyEvaluationService {
   }
 
   public void evaluate(MarketTick tick) {
-    // Roadmap 3.1.3 — drop ticks for markets that are closed at the tick's timestamp so
     // indicator-driven strategies (Momentum's EMAs / RSI) don't drift on out-of-hours quotes.
-    // The gate is a soft no-op when disabled in config, preserving pre-3.1.3 behaviour.
     if (!tradingHoursService.isMarketOpen(tick.symbol(), tick.timestamp())) {
       metrics.recordTickSuppressed(tick.symbol(), "market_closed");
       return;
     }
-    // FR-17: when regime auto-select is enabled and the ML service produces a high-confidence
-    // regime, route to the strategy the regime prescribes. Otherwise fall back to the manual
-    // SymbolStrategyRouter binding.
     var strategyOptional = regimeSelector.selectFor(tick.symbol());
     if (strategyOptional.isEmpty()) {
       strategyOptional = router.getActiveStrategy(tick.symbol());

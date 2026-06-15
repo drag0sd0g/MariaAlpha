@@ -133,7 +133,6 @@ class OrderBookManagerTest {
     executor.shutdown();
 
     var snapshot = manager.getSnapshot("AAPL");
-    // The book must have a valid state — lastPrice must be one of the submitted prices
     assertThat(snapshot.lastPrice().doubleValue()).isBetween(100.0, 100.0 + ticksPerThread);
     assertThat(snapshot.symbol()).isEqualTo("AAPL");
   }

@@ -21,11 +21,6 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
-/**
- * Integration test against a real Redis. Verifies the end-to-end flow: a producer writes a snapshot
- * to Redis + publishes the pub/sub event; the cache client warms and applies updates onto {@link
- * PositionTracker}.
- */
 @Tag("integration")
 @Testcontainers
 class RedisPositionCacheIntegrationTest {

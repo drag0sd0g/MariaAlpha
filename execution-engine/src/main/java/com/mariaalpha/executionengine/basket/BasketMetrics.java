@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 
-/** Micrometer instrumentation for program/basket orders, mirroring {@code IcebergMetrics}. */
 @Component
 public class BasketMetrics {
 

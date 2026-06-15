@@ -73,8 +73,6 @@ class PositionUpdatePublisherTest {
 
   @Test
   void publishSkipsWhenSerializationFails() {
-    // Serialization cannot actually fail for PositionSnapshot (all fields serializable);
-    // this test ensures no exception propagates even for a normal payload.
     PositionSnapshot snap =
         new PositionSnapshot(
             "GOOG",

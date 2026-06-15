@@ -22,7 +22,6 @@ class AllocationCalculatorTest {
 
   @Test
   void proRataNoRemainderSplitsCleanly() {
-    // 1000 shares across 50/30/20 → 500/300/200, no rounding
     var results =
         calculator.allocate(ACCOUNTS, AllocationMethod.PRO_RATA, new BigDecimal("1000"), AVG_PRICE);
     assertThat(results).hasSize(3);
@@ -39,7 +38,6 @@ class AllocationCalculatorTest {
 
   @Test
   void proRataRemainderGoesToHeaviestAccount() {
-    // 1003 shares: 501.5/301/200.6 floored to 501/300/200 = 1001. Remainder 2 → heaviest (HOUSE).
     var results =
         calculator.allocate(ACCOUNTS, AllocationMethod.PRO_RATA, new BigDecimal("1003"), AVG_PRICE);
     assertThat(results.get(0).allocatedQuantity()).isEqualByComparingTo("503");
@@ -73,7 +71,6 @@ class AllocationCalculatorTest {
 
   @Test
   void fifoFillsInDeclarationOrderUntilCapsReached() {
-    // 600 shares, caps 50/30/20 → HOUSE 50, HF_A 30, HF_B 20 = 100. Remainder 500 → last (HF_B).
     var results =
         calculator.allocate(ACCOUNTS, AllocationMethod.FIFO, new BigDecimal("600"), AVG_PRICE);
     assertThat(results).hasSize(3);

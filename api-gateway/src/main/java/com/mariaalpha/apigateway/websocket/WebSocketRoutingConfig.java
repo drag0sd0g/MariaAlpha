@@ -33,8 +33,6 @@ public class WebSocketRoutingConfig {
                           name, endpoint.topic(), endpoint.filterKey(), broadcaster)));
     }
     var mapping = new SimpleUrlHandlerMapping(map);
-    // Higher precedence than SCG's own RoutePredicateHandlerMapping so the WS upgrades
-    // we own are not accidentally routed to a backend.
     mapping.setOrder(Ordered.HIGHEST_PRECEDENCE + 1);
     return mapping;
   }

@@ -6,13 +6,6 @@ import com.mariaalpha.executionengine.model.Side;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-/**
- * Resting interest in the internal crossing book. Tracks the original `Order` plus mutable
- * `remaining` quantity so the engine can match in slices.
- *
- * <p>{@code priceAcceptable(midpoint)} encodes the limit-price gate: BUYs only cross at-or-below
- * their limit, SELLs only cross at-or-above. MARKET orders accept any non-null midpoint.
- */
 public final class RestingOrder {
 
   private final String exchangeOrderId;
@@ -59,10 +52,6 @@ public final class RestingOrder {
     remaining -= qty;
   }
 
-  /**
-   * True when {@code midpoint} is an acceptable cross price for this side. LIMIT/IOC/FOK/GTC orders
-   * must straddle their limit; MARKET orders accept any non-null midpoint.
-   */
   public boolean priceAcceptable(BigDecimal midpoint) {
     if (midpoint == null) {
       return false;

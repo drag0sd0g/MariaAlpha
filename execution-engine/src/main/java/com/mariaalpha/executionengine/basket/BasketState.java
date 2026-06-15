@@ -6,12 +6,6 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * The working state of one basket order: an ordered map of legs plus the metadata needed to render
- * a {@link BasketView}. Every accessor and mutator is {@code synchronized} on the instance, so the
- * registry can hand the same state object to both the submitting thread and the execution-report
- * thread without external locking.
- */
 public final class BasketState {
 
   private final String basketId;
@@ -41,10 +35,6 @@ public final class BasketState {
     }
   }
 
-  /**
-   * Apply a fill to a leg. Returns {@code true} if the leg was tracked and updated, {@code false}
-   * for an unknown leg id (no-op).
-   */
   public synchronized boolean recordFill(String legOrderId, int fillQuantity, boolean complete) {
     var leg = legs.get(legOrderId);
     if (leg == null) {

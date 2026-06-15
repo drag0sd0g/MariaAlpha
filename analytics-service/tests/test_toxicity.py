@@ -23,7 +23,6 @@ def _make_detector(
         return clock_value[0]
 
     def price_lookup(symbol: str, ts: float) -> float | None:
-        # Find the closest pre-recorded horizon price for this symbol/ts.
         return price_at_horizon.get((symbol, ts))
 
     det = FlowToxicityDetector(
@@ -44,7 +43,6 @@ def test_buy_followed_by_drop_is_adverse_selection_positive_markout():
     assert det.tick() == 1
     snap = det.snapshot()
     assert snap[0]["strategy"] == "VWAP"
-    # Buy at 100, price fell to 99 → markout = +100bps (we were picked off).
     assert snap[0]["meanMarkoutBps"] == pytest.approx(100.0)
     assert snap[0]["toxic"] is True
 
@@ -55,7 +53,6 @@ def test_sell_followed_by_rally_is_adverse_selection_positive_markout():
     clock[0] = 61.0
     det.tick()
     snap = det.snapshot()
-    # Sell at 100, price rose to 101 → markout = +100bps.
     assert snap[0]["meanMarkoutBps"] == pytest.approx(100.0)
 
 
@@ -65,7 +62,6 @@ def test_buy_followed_by_rally_is_favourable_negative_markout():
     clock[0] = 61.0
     det.tick()
     snap = det.snapshot()
-    # Buy at 100, price rose to 101 → markout = -100bps (favourable).
     assert snap[0]["meanMarkoutBps"] == pytest.approx(-100.0)
     assert snap[0]["toxic"] is False
 
@@ -73,7 +69,7 @@ def test_buy_followed_by_rally_is_favourable_negative_markout():
 def test_pending_fill_below_horizon_not_consumed():
     det, clock = _make_detector({("AAPL", 60.0): 99.0})
     det.on_fill(FillRecord("o1", "VWAP", "AAPL", "BUY", 100.0, 0.0))
-    clock[0] = 30.0  # not yet at the 60s horizon
+    clock[0] = 30.0
     assert det.tick() == 0
     assert det.pending_count() == 1
     clock[0] = 60.0
@@ -82,10 +78,10 @@ def test_pending_fill_below_horizon_not_consumed():
 
 
 def test_missing_horizon_price_skips_fill_silently():
-    det, clock = _make_detector({})  # no horizon price for anything
+    det, clock = _make_detector({})
     det.on_fill(FillRecord("o1", "VWAP", "AAPL", "BUY", 100.0, 0.0))
     clock[0] = 60.0
-    det.tick()  # should not raise; should not record a stat
+    det.tick()
     assert det.snapshot() == []
 
 
@@ -101,7 +97,6 @@ def test_alert_fires_when_threshold_breached_after_min_observations():
         det.on_fill(FillRecord(order_id, "VWAP", "AAPL", "BUY", 100.0, fill_ts))
     clock[0] = 100.0
     det.tick()
-    # 100bps mean markout, threshold 10bps → exactly one alert (cooldown blocks dupes).
     assert len(alerts) == 1
     assert alerts[0]["alertType"] == "FLOW_TOXICITY"
     assert alerts[0]["strategy"] == "VWAP"

@@ -39,7 +39,6 @@ class OptionsPricingE2ETest {
 
   @Test
   void priceEndpointReturnsTextbookHullValueThroughGateway() throws Exception {
-    // Hull Ch.15 worked example. Strategy-engine should reach 4.76 ± 0.01 through the gateway path.
     var body =
         "{\"symbol\":\"AAPL\",\"spot\":42.0,\"strike\":40.0,\"timeToExpiryYears\":0.5,"
             + "\"volatility\":0.20,\"riskFreeRate\":0.10,\"dividendYield\":0.0,\"type\":\"CALL\"}";
@@ -61,7 +60,6 @@ class OptionsPricingE2ETest {
 
   @Test
   void putCallParityHoldsThroughGateway() throws Exception {
-    // Generalised parity with q = 0: C − P = S − K·e^(−rT)
     var callBody =
         "{\"symbol\":\"AAPL\",\"spot\":100.0,\"strike\":95.0,\"timeToExpiryYears\":1.0,"
             + "\"volatility\":0.30,\"riskFreeRate\":0.04,\"dividendYield\":0.0,\"type\":\"CALL\"}";

@@ -45,7 +45,6 @@ def create_app(
         docs_url="/openapi.json",
     )
 
-    # --- platform endpoints ---------------------------------------------
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -53,8 +52,6 @@ def create_app(
 
     @app.get("/actuator/health")
     def actuator_health() -> dict[str, str]:
-        # Mimic Spring Boot Actuator so the API Gateway's AggregateDownstreamHealthIndicator —
-        # which pings every downstream's ``/actuator/health`` — gets a recognised 200.
         return {"status": "UP"}
 
     @app.get("/ready")
@@ -72,7 +69,6 @@ def create_app(
             AXES_ACTIVE.labels(symbol=str(row["symbol"]), side=str(row["side"])).set(1)
         return generate_latest()
 
-    # --- 2.2.4 flow toxicity --------------------------------------------
 
     @app.get("/v1/analytics/flow/toxicity")
     def get_flow_toxicity(strategy: str | None = None) -> dict[str, Any]:
@@ -82,7 +78,6 @@ def create_app(
             "horizonsSeconds": list(settings.toxicity_horizons_seconds),
         }
 
-    # --- 2.2.5 PnL attribution ------------------------------------------
 
     @app.get("/v1/analytics/pnl/attribution")
     def get_pnl_attribution(strategy: str | None = None) -> dict[str, Any]:
@@ -101,7 +96,6 @@ def create_app(
     def get_strategy_distribution(strategy: str) -> dict[str, Any]:
         return attribution.strategy_distribution(strategy)
 
-    # --- 2.2.6 axe matching ---------------------------------------------
 
     @app.post("/v1/analytics/axes", status_code=201)
     def publish_axe(req: AxePublishRequest) -> dict[str, Any]:

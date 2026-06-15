@@ -19,7 +19,6 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/** Behavioural tests for the matching engine in isolation (no Spring, no adapter, no scheduler). */
 class InternalCrossingEngineTest {
 
   private MarketStateTracker tracker;
@@ -74,11 +73,10 @@ class InternalCrossingEngineTest {
   @Test
   void fifoTimePriorityAcrossSeveralRestingOrders() {
     var sell1 = engine.submit(market("AAPL", Side.SELL, 40));
-    sleepMillis(2); // ensure distinct arrival times
+    sleepMillis(2);
     var sell2 = engine.submit(market("AAPL", Side.SELL, 40));
     engine.submit(market("AAPL", Side.BUY, 60));
 
-    // First cross consumes sell1 entirely (40), second cross consumes 20 from sell2.
     assertThat(crosses).hasSize(2);
     assertThat(crosses.get(0).quantity()).isEqualTo(40);
     assertThat(crosses.get(0).counterpartyExchangeOrderId()).isEqualTo(sell1);
@@ -98,7 +96,6 @@ class InternalCrossingEngineTest {
   void buyLimitBelowMidpointDoesNotCross() {
     engine.submit(market("AAPL", Side.SELL, 100));
     engine.submit(limit("AAPL", Side.BUY, 100, new BigDecimal("178.50")));
-    // BUY limit 178.50 < midpoint 178.52 → BUY accepts only ≤ limit. No cross.
     assertThat(crosses).isEmpty();
     assertThat(engine.stats().restingOrdersBuy()).isEqualTo(1);
     assertThat(engine.stats().restingOrdersSell()).isEqualTo(1);
@@ -108,17 +105,14 @@ class InternalCrossingEngineTest {
   void sellLimitAboveMidpointDoesNotCross() {
     engine.submit(limit("AAPL", Side.SELL, 100, new BigDecimal("178.55")));
     engine.submit(market("AAPL", Side.BUY, 100));
-    // SELL limit 178.55 > midpoint 178.52 → SELL accepts only ≥ limit. No cross.
     assertThat(crosses).isEmpty();
   }
 
   @Test
   void sweepAfterFavourableNbboShiftCrossesPreviouslyStalledOrders() {
-    // Both sides limit at 178.55 — initial midpoint 178.52 is below the SELL's floor.
     engine.submit(limit("AAPL", Side.SELL, 100, new BigDecimal("178.55")));
     engine.submit(limit("AAPL", Side.BUY, 100, new BigDecimal("178.55")));
     assertThat(crosses).isEmpty();
-    // Market widens upward so midpoint hits 178.55.
     tracker.update(
         new MarketState(
             "AAPL",
@@ -136,7 +130,7 @@ class InternalCrossingEngineTest {
   void cancelRemovesRestingOrder() {
     var sellId = engine.submit(market("AAPL", Side.SELL, 100));
     assertThat(engine.cancel(sellId)).isTrue();
-    assertThat(engine.cancel(sellId)).isFalse(); // idempotent
+    assertThat(engine.cancel(sellId)).isFalse();
     engine.submit(market("AAPL", Side.BUY, 100));
     assertThat(crosses).isEmpty();
   }
@@ -157,7 +151,7 @@ class InternalCrossingEngineTest {
         new MarketState(
             "MSFT",
             new BigDecimal("100.10"),
-            new BigDecimal("100.00"), // inverted bid > ask
+            new BigDecimal("100.00"),
             new BigDecimal("100.05"),
             Instant.now()));
     engine.submit(market("MSFT", Side.SELL, 50));
@@ -188,9 +182,9 @@ class InternalCrossingEngineTest {
   @Test
   void statsTrackInternalAndSyntheticCrossesSeparately() {
     engine.submit(market("AAPL", Side.SELL, 100));
-    engine.submit(market("AAPL", Side.BUY, 100)); // internal cross
+    engine.submit(market("AAPL", Side.BUY, 100));
     var solo = engine.submit(market("AAPL", Side.BUY, 50));
-    engine.synthesizeCounterparty(solo); // synthetic
+    engine.synthesizeCounterparty(solo);
 
     var stats = engine.stats();
     assertThat(stats.crossesTotal()).isEqualTo(2);
@@ -202,8 +196,6 @@ class InternalCrossingEngineTest {
 
   @Test
   void bookSnapshotReturnsLiveDepth() {
-    // SELL 50 crosses the first BUY 100 → leftover BUY remaining=50 in order 1, plus BUY 200 from
-    // order 2. SELL fully consumed.
     engine.submit(market("AAPL", Side.BUY, 100));
     engine.submit(market("AAPL", Side.BUY, 200));
     engine.submit(market("AAPL", Side.SELL, 50));
@@ -257,7 +249,6 @@ class InternalCrossingEngineTest {
       pool.shutdownNow();
     }
 
-    // Every BUY (per orders × 10 shares) should be fully matched against every SELL.
     assertThat(crosses.stream().mapToInt(MidpointCross::quantity).sum()).isEqualTo(per * 10);
     assertThat(engine.totalResting()).isZero();
   }

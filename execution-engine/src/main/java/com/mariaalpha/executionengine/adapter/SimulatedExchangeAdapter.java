@@ -56,12 +56,10 @@ public class SimulatedExchangeAdapter implements ExchangeAdapter {
     switch (order.getOrderType()) {
       case MARKET -> scheduleFill(exchangeId, order, marketState, config.fillLatencyMs());
       case LIMIT, GTC -> handleLimitOrder(exchangeId, order, marketState);
-      case STOP -> pendingOrders.put(exchangeId, instruction); // wait for trigger
+      case STOP -> pendingOrders.put(exchangeId, instruction);
       case IOC -> handleIocOrder(exchangeId, order, marketState);
       case FOK -> handleFokOrder(exchangeId, order, marketState);
       case ICEBERG -> {
-        // Iceberg parents never reach the adapter directly — IcebergCoordinator intercepts
-        // upstream of submitOrder. If we somehow land here, the order is rejected.
         return new OrderAck(
             order.getOrderId(),
             "",
@@ -107,10 +105,6 @@ public class SimulatedExchangeAdapter implements ExchangeAdapter {
     return true;
   }
 
-  /**
-   * Called by the MarketDataConsumer whenever a new tick arrives. Checks if any pending STOP orders
-   * should be triggered.
-   */
   public void onMarketUpdate(MarketState newState) {
     pendingOrders.forEach(
         (exchangeId, instruction) -> {
@@ -219,11 +213,7 @@ public class SimulatedExchangeAdapter implements ExchangeAdapter {
       emitCancelReport(exchangeId, "ioc-residual-cancel");
       return;
     }
-    // Simulator: infinite top-of-book — assume the limit fills fully against the current
-    // bid/ask snapshot. Depth-aware partial fills are a future enhancement.
     scheduleFill(exchangeId, order, marketState, config.fillLatencyMs());
-    // No residual to cancel in this approximation; depth-aware variant will emit
-    // a delayed "ioc-residual-cancel" for any unfilled portion.
   }
 
   private void handleFokOrder(String exchangeId, Order order, MarketState marketState) {

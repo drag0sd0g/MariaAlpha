@@ -20,10 +20,6 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
-/**
- * Integration test that exercises the publisher against a real Redis, verifying the SET + TTL +
- * PUBLISH path end-to-end.
- */
 @Tag("integration")
 @Testcontainers
 class RedisPositionCacheIntegrationTest {

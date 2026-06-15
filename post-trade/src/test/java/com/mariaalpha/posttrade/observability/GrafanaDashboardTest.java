@@ -19,20 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-/**
- * Sanity-checks every provisioned Grafana dashboard (issues 2.6.2 / 2.6.3 / 2.6.4):
- *
- * <ul>
- *   <li>parses as JSON
- *   <li>declares a stable {@code uid} and a recent {@code schemaVersion}
- *   <li>has unique panel ids inside one dashboard, and a unique uid across the set
- *   <li>every PromQL expression references a Prometheus metric that this codebase actually
- *       registers — so a renamed metric breaks the build instead of silently producing a "No data"
- *       panel in production
- *   <li>the Helm-chart copies (`charts/.../files/grafana-dashboards/`) match the compose-mounted
- *       originals byte-for-byte (no drift between local and k8s deployments)
- * </ul>
- */
 class GrafanaDashboardTest {
 
   private static final Path REPO_ROOT = repoRoot();
@@ -42,8 +28,6 @@ class GrafanaDashboardTest {
       REPO_ROOT.resolve("charts/mariaalpha/files/grafana-dashboards");
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
-  // Metrics whose names are produced by Prometheus / infrastructure itself, not registered in our
-  // source. Allow-list them so the test doesn't false-positive on standard infrastructure queries.
   private static final Set<String> INFRA_METRICS =
       Set.of(
           "up",
@@ -52,7 +36,6 @@ class GrafanaDashboardTest {
           "process_cpu_seconds_total",
           "process_resident_memory_bytes");
 
-  // Metric suffixes Micrometer/Prometheus appends automatically.
   private static final List<String> SYNTHETIC_SUFFIXES =
       List.of(
           "_total",
@@ -133,12 +116,6 @@ class GrafanaDashboardTest {
         .isEmpty();
   }
 
-  /**
-   * Histogram-class instruments (python Histogram, Micrometer DistributionSummary/Timer/summary
-   * helper) expose `_bucket`/`_sum`/`_count`/`_max` time series only — Prometheus has no sample at
-   * the bare metric name. Catch dashboards that query a histogram by its bare name (renders "No
-   * data" silently in production).
-   */
   @ParameterizedTest(name = "{0} histogram-class metrics are queried with a suffix")
   @MethodSource("dashboardFiles")
   void histogramQueriesUseSuffix(Path file) throws IOException {
@@ -206,7 +183,6 @@ class GrafanaDashboardTest {
     if (registered.contains(metric)) {
       return true;
     }
-    // Try stripping known Prometheus/Micrometer suffixes.
     for (String suffix : SYNTHETIC_SUFFIXES) {
       if (metric.endsWith(suffix)) {
         String stripped = metric.substring(0, metric.length() - suffix.length());
@@ -218,16 +194,9 @@ class GrafanaDashboardTest {
     return false;
   }
 
-  /**
-   * Walks every Java + Python file once and harvests {@code mariaalpha.*} / {@code mariaalpha_*}
-   * literals. Cheap (~50 ms on this repo) and avoids hard-coding a list that goes stale on every
-   * new metric.
-   */
   static Set<String> collectRegisteredMetrics() throws IOException {
     Set<String> out = new HashSet<>();
-    // Dotted Micrometer names → convert to underscores (Prometheus format).
     Pattern dotted = Pattern.compile("\"(mariaalpha\\.[a-zA-Z0-9._]+)\"");
-    // Underscored Prometheus names (python prometheus_client / micrometer with raw names).
     Pattern underscored = Pattern.compile("\"(mariaalpha_[a-zA-Z0-9_]+)\"");
     Path[] scanRoots =
         new Path[] {
@@ -273,18 +242,6 @@ class GrafanaDashboardTest {
     }
   }
 
-  /**
-   * Histogram-class instruments expose only `_bucket`/`_sum`/`_count`/`_max` series in Prometheus —
-   * never the bare name. Returns the set of bare names for which a bare-name query is invalid:
-   *
-   * <ul>
-   *   <li>python {@code Histogram("mariaalpha_x_y", ...)} → {@code mariaalpha_x_y}
-   *   <li>Java {@code DistributionSummary.builder("mariaalpha.x.y")} → {@code mariaalpha_x_y}
-   *   <li>Java {@code summary("mariaalpha.x.y", ...)} → {@code mariaalpha_x_y}
-   *   <li>Java {@code Timer.builder("mariaalpha.x.ms")} → {@code mariaalpha_x_ms_seconds} (the
-   *       Micrometer Prometheus exporter always appends {@code _seconds} to Timer names)
-   * </ul>
-   */
   static Set<String> collectHistogramBaseNames() throws IOException {
     Set<String> out = new HashSet<>();
     Pattern pyHistogram =
@@ -355,8 +312,6 @@ class GrafanaDashboardTest {
       m = javaTimer.matcher(content);
       while (m.find()) {
         String base = m.group(1).replace('.', '_');
-        // Micrometer's Prometheus exporter always appends `_seconds` to Timer names (even when
-        // the metric author named the Timer in milliseconds).
         out.add(base.endsWith("_seconds") ? base : base + "_seconds");
       }
     } catch (IOException e) {
@@ -365,7 +320,6 @@ class GrafanaDashboardTest {
   }
 
   private static Path repoRoot() {
-    // Tests run from each module's directory (e.g. post-trade/). Walk up until we find the marker.
     Path p = Paths.get(System.getProperty("user.dir")).toAbsolutePath();
     while (p != null && !Files.exists(p.resolve("settings.gradle.kts"))) {
       p = p.getParent();
