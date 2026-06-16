@@ -195,9 +195,16 @@ public class PeggedCoordinator {
     VenueAdapter adapter = adapterOpt.get();
     child.setVenue(adapter.venueName());
     lifecycleManager.registerOrder(child);
+    // Link child -> parent in the registry BEFORE submitting to the venue. An INTERNAL_CROSS venue
+    // crosses synthetically and fires the fill callback on another thread before submitOrder
+    // returns; onChildFillIfApplicable drops fills whose child->parent link isn't registered yet,
+    // which would leave the parent hung at SUBMITTED. Rolled back below if the venue rejects.
+    registry.recordChildSubmitted(
+        parent.getOrderId(), child.getOrderId(), reference, limitPrice, isRepeg);
     var instruction = limitHandler.toExecutionInstruction(child);
     var ack = adapter.submitOrder(instruction);
     if (!ack.accepted()) {
+      registry.recordChildCancelled(parent.getOrderId(), child.getOrderId());
       LOG.warn(
           "Pegged child {} rejected by venue {}: {}",
           child.getOrderId(),
@@ -208,8 +215,6 @@ public class PeggedCoordinator {
     }
     child.setExchangeOrderId(ack.exchangeOrderId());
     lifecycleManager.registerExchangeOrderId(ack.exchangeOrderId(), child.getOrderId());
-    registry.recordChildSubmitted(
-        parent.getOrderId(), child.getOrderId(), reference, limitPrice, isRepeg);
     transition(child, OrderStatus.SUBMITTED, null);
     if (parent.getStatus() == OrderStatus.NEW) {
       transition(parent, OrderStatus.SUBMITTED, null);
