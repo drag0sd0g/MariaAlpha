@@ -141,19 +141,23 @@ class SimulatedHappyPathE2ETest {
 
         var position = awaitPositionAtLeast("AMZN", new BigDecimal("40"), 45);
 
-        assertThat(netQuantity(position)).as("AMZN net quantity should be 40 after the IS slice fires")
-                .isEqualByComparingTo(new BigDecimal("40"));
+        // The shared compose stack accumulates positions across e2e classes (e.g. BasketTradingE2ETest
+        // also buys AMZN), so gate on >= the 40-share IS parent rather than an exact net quantity.
+        assertThat(netQuantity(position)).as("AMZN net quantity should reach the 40-share IS parent")
+                .isGreaterThanOrEqualTo(new BigDecimal("40"));
 
-        var avgEntry = new BigDecimal(position.get("avgEntryPrice").asText());
-        assertThat(avgEntry).as("avgEntryPrice within CSV bid/ask span ± slippage")
-                .isBetween(new BigDecimal("185.00"), new BigDecimal("185.50"));
-
-        var orders = httpGetAndCheck("/api/orders?symbol=AMZN");
+        // Filter to IS orders so a stray AMZN order from another class (e.g. a basket leg) can't be
+        // picked up as orders.get(0) and fail the strategy assertion.
+        var orders = httpGetAndCheck("/api/orders?symbol=AMZN&strategy=IS&status=FILLED");
         assertThat(orders.isArray()).isTrue();
         assertThat(orders.size()).isGreaterThanOrEqualTo(1);
         var order = orders.get(0);
         assertThat(order.get("status").asText()).isEqualTo("FILLED");
         assertThat(order.get("strategy").asText()).isEqualTo("IS");
+
+        var avgEntry = new BigDecimal(order.get("avgFillPrice").asText());
+        assertThat(avgEntry).as("IS fill price within CSV bid/ask span ± slippage")
+                .isBetween(new BigDecimal("185.00"), new BigDecimal("185.50"));
     }
 
     @Test
