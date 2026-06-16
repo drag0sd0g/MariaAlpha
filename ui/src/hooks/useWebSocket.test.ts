@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useWebSocket } from "./useWebSocket";
 import { useConnectionStore } from "@/stores/connectionStore";
 
-
 interface FakeSocket {
   url: string;
   readyState: number;
@@ -54,7 +53,6 @@ class FakeWebSocket implements FakeSocket {
     this.onclose?.({ code, wasClean: code === 1000 } as CloseEvent);
   }
 }
-
 
 beforeEach(() => {
   allSockets.length = 0;

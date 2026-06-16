@@ -1,4 +1,3 @@
-
 export type Side = "BUY" | "SELL";
 export type OrderType = "MARKET" | "LIMIT" | "STOP" | "IOC" | "FOK" | "GTC" | "ICEBERG" | "PEGGED";
 export type PegType = "MIDPOINT" | "PRIMARY" | "MARKET";
@@ -110,7 +109,6 @@ export interface SubmitOrderResponse {
   status: OrderStatus;
   submittedAt: string;
 }
-
 
 export type MarketTickEventType = "TRADE" | "QUOTE" | "BAR";
 export type MarketTickSource = "ALPACA" | "SIMULATED" | "IBKR";

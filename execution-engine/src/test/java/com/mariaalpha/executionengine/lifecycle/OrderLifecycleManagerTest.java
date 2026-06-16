@@ -141,6 +141,7 @@ class OrderLifecycleManagerTest {
               manager.transition(order.getOrderId(), OrderStatus.FILLED, null, null);
               successCount.incrementAndGet();
             } catch (Exception ignored) {
+              // only one thread wins the FILLED transition; the losers throw
             }
           });
     }

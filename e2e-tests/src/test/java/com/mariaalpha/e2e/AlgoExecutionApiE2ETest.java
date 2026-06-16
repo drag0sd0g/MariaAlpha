@@ -58,6 +58,7 @@ class AlgoExecutionApiE2ETest {
                 .build(),
             HttpResponse.BodyHandlers.discarding());
       } catch (Exception ignored) {
+        // best-effort cleanup
       }
     }
   }
