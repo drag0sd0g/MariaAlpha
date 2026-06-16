@@ -195,10 +195,6 @@ public class PeggedCoordinator {
     VenueAdapter adapter = adapterOpt.get();
     child.setVenue(adapter.venueName());
     lifecycleManager.registerOrder(child);
-    // Link child -> parent in the registry BEFORE submitting to the venue. An INTERNAL_CROSS venue
-    // crosses synthetically and fires the fill callback on another thread before submitOrder
-    // returns; onChildFillIfApplicable drops fills whose child->parent link isn't registered yet,
-    // which would leave the parent hung at SUBMITTED. Rolled back below if the venue rejects.
     registry.recordChildSubmitted(
         parent.getOrderId(), child.getOrderId(), reference, limitPrice, isRepeg);
     var instruction = limitHandler.toExecutionInstruction(child);
