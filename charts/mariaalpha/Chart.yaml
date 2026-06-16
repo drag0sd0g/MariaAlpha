@@ -88,7 +88,10 @@ dependencies:
     version: "v1.x.x"
     repository: https://charts.jetstack.io
     condition: cert-manager.enabled
+  # The legacy HTTP chart repo (bitnami-labs.github.io/sealed-secrets) was retired; the
+  # chart is now distributed via OCI. For OCI deps `repository` is the registry path and
+  # the chart name is appended from `name`, i.e. oci://registry-1.docker.io/bitnamicharts/sealed-secrets.
   - name: sealed-secrets
     version: "2.x.x"
-    repository: https://bitnami-labs.github.io/sealed-secrets
+    repository: oci://registry-1.docker.io/bitnamicharts
     condition: sealed-secrets.enabled
