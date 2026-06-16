@@ -248,7 +248,7 @@ graph TB
     ADJMID --> BASE[+ base half-spread]
     BASE --> VOLW[+ vol widening]
     VOLW --> ADVW[+ ADV widening]
-    ADVW --> QUOTE[bid = adjMid × (1 − total_half_spread)<br/>ask = adjMid × (1 + total_half_spread)]
+    ADVW --> QUOTE["bid = adjMid × (1 − total_half_spread)<br/>ask = adjMid × (1 + total_half_spread)"]
 ```
 
 | Concept | Logic | Sign convention |
@@ -658,7 +658,7 @@ sequenceDiagram
     loop Each time bin
         SE->>ML: GetSignal(AAPL)
         ML-->>SE: LONG, conf=0.82 (§5)
-        SE->>SE: Strategy says BUY; ML confirms<br/>(§5.1 gate logic)
+        SE->>SE: Strategy says BUY, ML confirms<br/>(§5.1 gate logic)
         SE->>EE: OrderSignal (child slice)
 
         EE->>RC: Pre-trade risk (§7)
