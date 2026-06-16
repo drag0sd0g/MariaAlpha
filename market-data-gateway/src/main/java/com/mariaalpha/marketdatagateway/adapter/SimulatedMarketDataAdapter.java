@@ -44,7 +44,6 @@ public class SimulatedMarketDataAdapter implements MarketDataAdapter {
     this.resourceLoader = resourceLoader;
   }
 
-  /** Loads tick data from the CSV and subscribes to the given symbols. */
   @Override
   public void connect(List<String> symbols) {
     this.subscribedSymbols = Set.copyOf(symbols);
@@ -53,7 +52,6 @@ public class SimulatedMarketDataAdapter implements MarketDataAdapter {
     LOG.info("Loaded {} ticks from {}, subscribed to {}", ticks.size(), config.csvPath(), symbols);
   }
 
-  /** Stops the adapter; any in-progress replay will terminate. */
   @Override
   public void disconnect() {
     this.connected = false;
@@ -70,10 +68,6 @@ public class SimulatedMarketDataAdapter implements MarketDataAdapter {
     return subscribedSymbols == null ? List.of() : List.copyOf(subscribedSymbols);
   }
 
-  /**
-   * Returns a Flux that replays ticks for subscribed symbols, paced by the configured speed
-   * multiplier (0 = no delay).
-   */
   @Override
   public Flux<MarketTick> streamTicks() {
     if (!connected || ticks == null) {
@@ -86,32 +80,25 @@ public class SimulatedMarketDataAdapter implements MarketDataAdapter {
     Flux<MarketTick> singlePass =
         config.speedMultiplier() <= 0 ? Flux.fromIterable(filtered) : replayWithDelay(filtered);
     if (config.loopDelayMs() > 0) {
-      // Loop the CSV replay with a pause between iterations so strategies configured
-      // after startup still receive ticks. Stops immediately when disconnect() is called.
       singlePass =
           singlePass.repeatWhen(
               n ->
                   n.delayElements(Duration.ofMillis(config.loopDelayMs()))
                       .takeWhile(ignored -> connected));
     }
-    // The replay sleeps between ticks — keep it off the subscriber's thread so callers
-    // (ApplicationRunner, health indicators) aren't blocked for the duration of a pass.
     return singlePass.subscribeOn(Schedulers.boundedElastic());
   }
 
-  /** Returns only ticks whose symbol matches the subscription list. */
   private List<MarketTick> filterBySubscribedSymbols() {
     return ticks.stream().filter(tick -> subscribedSymbols.contains(tick.symbol())).toList();
   }
 
-  /** Not supported — historical bars are fetched via the Alpaca adapter. */
   @Override
   public List<HistoricalBar> getHistoricalBars(
       String symbol, LocalDate from, LocalDate to, BarTimeframe timeframe) {
     throw new UnsupportedOperationException("Historical bars not supported by simulated adapter");
   }
 
-  /** Reads and parses the CSV file into an ordered list of ticks. */
   private List<MarketTick> loadTicks() {
     var resource = resourceLoader.getResource(config.csvPath());
     try (var reader =
@@ -129,7 +116,6 @@ public class SimulatedMarketDataAdapter implements MarketDataAdapter {
     }
   }
 
-  /** Parses a single CSV row into a MarketTick. */
   private MarketTick parseLine(String line) {
     var parts = CSV_DELIMITER.split(line, -1);
     if (parts.length != 10) {
@@ -150,7 +136,6 @@ public class SimulatedMarketDataAdapter implements MarketDataAdapter {
         false);
   }
 
-  /** Emits ticks with inter-tick delays derived from CSV timestamps. */
   private Flux<MarketTick> replayWithDelay(List<MarketTick> filtered) {
     return Flux.create(
         sink -> {
@@ -165,7 +150,6 @@ public class SimulatedMarketDataAdapter implements MarketDataAdapter {
         });
   }
 
-  /** Sleeps for the scaled time delta between consecutive ticks. */
   private void sleepBetweenTicks(List<MarketTick> filtered, int index) {
     if (index >= filtered.size() - 1) {
       return;

@@ -46,12 +46,6 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
-/**
- * Full-stack reconciliation integration test: real Postgres + Kafka via Testcontainers, real Spring
- * context, mocked {@link OrderManagerClient} and {@link AlpacaActivitiesClient}. Exercises the
- * persistence path (breaks + run record), the Kafka publish path ({@code analytics.risk-alerts}),
- * and the {@code POST /api/recon/run} controller wiring.
- */
 @Tag("integration")
 @Testcontainers
 @DirtiesContext(classMode = ClassMode.AFTER_CLASS)
@@ -59,8 +53,8 @@ import org.testcontainers.utility.DockerImageName;
     classes = {Application.class, EodReconciliationIT.TestConfig.class},
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
-      "post-trade.recon.enabled=false", // disable scheduler — tests trigger manually
-      "post-trade.recon.mode=EXTERNAL", // exercise the alpaca client path (mocked)
+      "post-trade.recon.enabled=false",
+      "post-trade.recon.mode=EXTERNAL",
       "post-trade.recon.price-tolerance-bps=1.0",
       "post-trade.recon.quantity-tolerance=0.001",
       "post-trade.recon.high-severity-notional=10000",
@@ -109,7 +103,7 @@ class EodReconciliationIT {
     LocalDate d = LocalDate.of(2026, 6, 1);
     var internal = internalFill("alpaca-1", "AAPL", "180.05", "100");
     when(orderManagerClient.fetchFillsForDate(d)).thenReturn(List.of(internal));
-    stubExternal.set(List.of(extFromInternal(internal))); // perfect match — no breaks
+    stubExternal.set(List.of(extFromInternal(internal)));
 
     var run = service.runForDate(d, Source.MANUAL);
 
@@ -124,7 +118,7 @@ class EodReconciliationIT {
     LocalDate d = LocalDate.of(2026, 6, 2);
     when(orderManagerClient.fetchFillsForDate(d))
         .thenReturn(List.of(internalFill("alpaca-1", "AAPL", "180.05", "100")));
-    stubExternal.set(List.of()); // alpaca silent
+    stubExternal.set(List.of());
 
     try (var consumer = riskAlertConsumer()) {
       consumer.subscribe(List.of("analytics.risk-alerts"));
@@ -156,14 +150,12 @@ class EodReconciliationIT {
   @Test
   void rerunningSameDateOverwritesPriorBreaks() {
     LocalDate d = LocalDate.of(2026, 6, 3);
-    // First run: 1 break (extra fill — alpaca silent)
     when(orderManagerClient.fetchFillsForDate(d))
         .thenReturn(List.of(internalFill("alpaca-1", "AAPL", "180.05", "100")));
     stubExternal.set(List.of());
     service.runForDate(d, Source.MANUAL);
     assertThat(breakRepository.findByReconDateOrderBySeverityDesc(d)).hasSize(1);
 
-    // Second run: same internal, but alpaca now reports it → 0 breaks
     stubExternal.set(List.of(extFromInternal(internalFill("alpaca-1", "AAPL", "180.05", "100"))));
     when(orderManagerClient.fetchFillsForDate(d))
         .thenReturn(List.of(internalFill("alpaca-1", "AAPL", "180.05", "100")));
@@ -171,7 +163,6 @@ class EodReconciliationIT {
 
     assertThat(rerun.getBreaksCount()).isEqualTo(0);
     assertThat(breakRepository.findByReconDateOrderBySeverityDesc(d)).isEmpty();
-    // Only one run row should exist for that date
     assertThat(runRepository.findByReconDate(d)).isPresent();
   }
 
@@ -180,8 +171,7 @@ class EodReconciliationIT {
     LocalDate d = LocalDate.of(2026, 6, 4);
     when(orderManagerClient.fetchFillsForDate(d)).thenReturn(List.of());
 
-    // Force the stub Alpaca client to throw
-    stubExternal.set(null); // null is sentinel for "throw" in our test stub below
+    stubExternal.set(null);
 
     var run = service.runForDate(d, Source.SCHEDULED);
 

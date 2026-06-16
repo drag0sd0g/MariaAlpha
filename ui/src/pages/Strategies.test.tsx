@@ -30,7 +30,6 @@ describe("Strategies page", () => {
       expect(screen.getByTestId("row-AAPL")).toBeInTheDocument();
     });
     const row = screen.getByTestId("row-AAPL");
-    // "VWAP" appears in the active-strategy cell + the switch <select> option list
     expect(within(row).getAllByText("VWAP").length).toBeGreaterThan(0);
     expect(within(row).getByText(/LONG/)).toBeInTheDocument();
     expect(within(row).getByText(/TRENDING_UP/)).toBeInTheDocument();
@@ -52,7 +51,6 @@ describe("Strategies page", () => {
         <Strategies />
       </MemoryRouter>,
     );
-    // Wait for default-symbol rows to appear (the merge with DEFAULT_SYMBOLS)
     await waitFor(() => {
       expect(screen.getByTestId("row-MSFT")).toBeInTheDocument();
     });
@@ -80,7 +78,6 @@ describe("Strategies page", () => {
       expect(screen.getByTestId("row-TSLA")).toBeInTheDocument();
     });
     const row = screen.getByTestId("row-TSLA");
-    // 4 cells with em-dash content: strategy filled, signal empty, regime empty
     expect(within(row).getAllByText("—").length).toBeGreaterThanOrEqual(2);
   });
 });

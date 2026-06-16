@@ -87,14 +87,11 @@ class PeggedCoordinatorIntegrationTest {
 
   @Test
   void parentRepegsOnNbboMove() {
-    // Use SELL side with the PRIMARY peg so the simulator won't immediately cross — we want the
-    // order to rest at the ask until we move the market, then re-peg.
     seedMarket("MSFT", "415.00", "415.20");
     var parent = createParent("MSFT", Side.SELL, 50, PegType.PRIMARY, 0);
 
     service.submitOrder(parent);
 
-    // First child registers
     await()
         .atMost(Duration.ofSeconds(5))
         .pollInterval(Duration.ofMillis(50))
@@ -107,7 +104,6 @@ class PeggedCoordinatorIntegrationTest {
     var beforeRepeg = registry.progress(parent.getOrderId()).orElseThrow();
     assertThat(beforeRepeg.repegsTotal()).isZero();
 
-    // Move the NBBO ask by ~30 bps (415.20 → 416.40) — well above the 5 bps repeg threshold
     seedMarket("MSFT", "416.20", "416.40");
 
     await()

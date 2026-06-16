@@ -15,7 +15,6 @@ from ml_signal.metrics import INFERENCE_DURATION, MODEL_INFO
 
 logger = structlog.get_logger()
 
-# Direction constants matching proto enum values
 DIRECTION_NEUTRAL = 0
 DIRECTION_LONG = 1
 DIRECTION_SHORT = 2
@@ -53,7 +52,6 @@ class SignalModel:
             if self._model is None:
                 return DIRECTION_NEUTRAL, 0.0, 0.0, features
 
-        # Build feature array in the correct order
         feature_array = np.array(
             [[features.get(name, 0.0) for name in self._feature_names]],
             dtype=np.float64,
@@ -64,7 +62,6 @@ class SignalModel:
                 return DIRECTION_NEUTRAL, 0.0, 0.0, features
             proba = self._model.predict_proba(feature_array)[0]
 
-        # proba[1] = P(positive return)
         prob_up = float(proba[1])
 
         if prob_up > 0.55:
@@ -77,7 +74,6 @@ class SignalModel:
             direction = DIRECTION_NEUTRAL
             confidence = 0.5
 
-        # Position size: scale with confidence, max 10% of capital
         position_size = min(0.10, max(0.0, (confidence - 0.5) * 0.2))
 
         return direction, confidence, position_size, features

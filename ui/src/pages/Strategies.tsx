@@ -17,8 +17,6 @@ interface StrategyState {
   };
 }
 
-// Static seed list — covers the simulator universe; users can still
-// type any other symbol into the "Bind new symbol" form.
 const DEFAULT_SYMBOLS = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA"];
 
 const directionClass = (d: string): string => {
@@ -59,7 +57,6 @@ export default function Strategies() {
   const fetchState = useCallback(async () => {
     try {
       const states = await api<StrategyState[]>("/api/strategies/state");
-      // Merge with DEFAULT_SYMBOLS to always show simulator universe even if unrouted
       const known = new Set(states.map((s) => s.symbol));
       const merged = [
         ...states,

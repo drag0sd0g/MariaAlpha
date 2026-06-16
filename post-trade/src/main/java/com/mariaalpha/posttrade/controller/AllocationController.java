@@ -19,16 +19,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * REST surface for the trade-allocation engine (roadmap 3.4.2).
- *
- * <ul>
- *   <li>{@code GET /api/allocations/sub-accounts} — list the configured roster.
- *   <li>{@code POST /api/allocations/run} — allocate a parent order across sub-accounts.
- *   <li>{@code GET /api/allocations/order/{orderId}} — fetch allocations for a parent.
- *   <li>{@code GET /api/allocations/sub-account/{name}} — fetch allocations for a sub-account.
- * </ul>
- */
 @RestController
 @RequestMapping("/api/allocations")
 public class AllocationController {

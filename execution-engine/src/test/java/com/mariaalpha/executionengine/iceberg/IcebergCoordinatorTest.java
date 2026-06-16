@@ -197,7 +197,6 @@ class IcebergCoordinatorTest {
         new ExecutionReport(
             "EX-1", new BigDecimal("150.00"), 1000, 0, "PRIMARY", Instant.now(), null));
 
-    // After slice 1 fills, slice 2 was submitted; capture and fill it
     var secondChild = capturedChildren.get(1);
     coordinator.onChildFillIfApplicable(
         secondChild,
@@ -223,7 +222,6 @@ class IcebergCoordinatorTest {
         new ExecutionReport(
             "EX-2", new BigDecimal("150.00"), 1000, 0, "PRIMARY", Instant.now(), null));
 
-    // Third slice should be size 500
     assertThat(capturedChildren).hasSize(3);
     assertThat(capturedChildren.get(2).getQuantity()).isEqualTo(500);
   }

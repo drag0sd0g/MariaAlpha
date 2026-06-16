@@ -51,9 +51,6 @@ public class MarketDataConsumer {
     }
   }
 
-  // Prefer the last traded price as the most direct mark. Fall back to the mid-price
-  // (bid + ask) / 2 when only quote data is available (e.g. pre-market or illiquid symbols).
-  // Returns null if neither is present, in which case the mark price cache is left unchanged.
   private BigDecimal pickPrice(MarketTickEvent tick) {
     if (tick.price() != null) {
       return tick.price();

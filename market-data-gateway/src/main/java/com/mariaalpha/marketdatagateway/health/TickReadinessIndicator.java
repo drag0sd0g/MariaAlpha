@@ -29,11 +29,6 @@ public class TickReadinessIndicator implements HealthIndicator {
     subscribeForFirstTick();
   }
 
-  /**
-   * Drops the current subscription and re-arms the first-tick latch. Required in the simulated
-   * profile, where the {@code @PostConstruct} subscription fires before the runner calls {@code
-   * adapter.connect()} and therefore observes an empty, immediately-completing flux.
-   */
   public void restart() {
     if (subscription != null && !subscription.isDisposed()) {
       subscription.dispose();

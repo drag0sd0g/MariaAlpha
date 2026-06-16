@@ -17,15 +17,6 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
-/**
- * E2E coverage for the analytics-service (issues 2.2.4 / 2.2.5 / 2.2.6). Brings up the full
- * docker-compose stack and verifies the analytics REST surface is reachable through the API
- * gateway, exercising axe-publish + match-suggest and Prometheus metrics scraping.
- *
- * <p>The flow-toxicity and PnL-attribution endpoints both require Kafka traffic ({@code
- * analytics.tca}, {@code market-data.ticks}) before they have data to report; we only assert the
- * endpoints are reachable and return the documented empty-state JSON.
- */
 @Tag("e2e")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AnalyticsServiceE2ETest {
@@ -87,7 +78,6 @@ class AnalyticsServiceE2ETest {
     var publishJson = MAPPER.readTree(publishResp.body());
     assertThat(publishJson.get("axeId").asText()).isEqualTo(axeId);
 
-    // Within a short window the listing endpoint should report the axe back.
     await()
         .atMost(5, TimeUnit.SECONDS)
         .pollInterval(Duration.ofMillis(250))
@@ -102,7 +92,6 @@ class AnalyticsServiceE2ETest {
 
   @Test
   void prometheusMetricsExposedOnDirectPort() throws Exception {
-    // The Alloy scraper reaches the service directly on port 8095. Verify the surface is up.
     var resp =
         httpClient.send(
             HttpRequest.newBuilder()

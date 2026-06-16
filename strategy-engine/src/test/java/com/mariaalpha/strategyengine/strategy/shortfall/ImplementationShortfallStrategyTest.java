@@ -25,8 +25,6 @@ class ImplementationShortfallStrategyTest {
 
   private static final String AAPL = "AAPL";
 
-  // Standard test window: 09:30-13:30, four equal one-hour slices.
-  //   slice 0: 09:30-10:30, slice 1: 10:30-11:30, slice 2: 11:30-12:30, slice 3: 12:30-13:30
   private static final LocalTime WINDOW_START = LocalTime.of(9, 30);
   private static final LocalTime WINDOW_END = LocalTime.of(13, 30);
   private static final int FOUR_SLICES = 4;
@@ -46,7 +44,6 @@ class ImplementationShortfallStrategyTest {
 
   @Test
   void defaultScheduleSpansTwelveSlicesWithDefaultUrgency() {
-    // Constructor builds the default 09:30-16:00 schedule with 12 slices and urgency 0.5.
     var params = strategy.getParameters();
     assertThat(params.get("totalSlices")).isEqualTo(12);
     assertThat(params.get("numSlices")).isEqualTo(12);
@@ -55,7 +52,6 @@ class ImplementationShortfallStrategyTest {
 
   @Test
   void evaluateReturnsEmptyBeforeConfiguration() {
-    // Fresh strategy: schedule exists but targetQuantity is 0.
     assertThat(strategy.evaluate(AAPL)).isEmpty();
   }
 
@@ -68,7 +64,6 @@ class ImplementationShortfallStrategyTest {
 
   @Test
   void firstSliceIsFrontLoaded() {
-    // 1000 shares, 4 one-hour slices, urgency 0.5 → front-loaded [413, 263, 180, 144].
     configureStrategy(1000, Side.BUY, WINDOW_START, WINDOW_END, FOUR_SLICES, URGENCY);
     strategy.onTick(quoteTick(AAPL, etInstant(10, 0), "178.50", "178.54"));
 
@@ -88,19 +83,18 @@ class ImplementationShortfallStrategyTest {
     configureStrategy(1000, Side.BUY, WINDOW_START, WINDOW_END, FOUR_SLICES, URGENCY);
 
     var quantities = new ArrayList<Integer>();
-    quantities.add(emitSlice(10)); // slice 0
-    quantities.add(emitSlice(11)); // slice 1
-    quantities.add(emitSlice(12)); // slice 2 (12:00 is inside slice 2: 11:30-12:30)
-    quantities.add(emitSlice(13)); // slice 3 (13:00 is inside slice 3: 12:30-13:30)
+    quantities.add(emitSlice(10));
+    quantities.add(emitSlice(11));
+    quantities.add(emitSlice(12));
+    quantities.add(emitSlice(13));
 
     assertThat(quantities).containsExactly(413, 263, 180, 144);
-    assertThat(quantities).isSortedAccordingTo((a, b) -> Integer.compare(b, a)); // strictly desc
+    assertThat(quantities).isSortedAccordingTo((a, b) -> Integer.compare(b, a));
     assertThat(quantities.stream().mapToInt(Integer::intValue).sum()).isEqualTo(1000);
   }
 
   @Test
   void urgencyZeroDegradesToTwapEqualSlicing() {
-    // urgency 0 → uniform 1/N allocation, identical to TWAP.
     configureStrategy(1000, Side.BUY, WINDOW_START, WINDOW_END, FOUR_SLICES, 0.0);
 
     var quantities = new ArrayList<Integer>();
@@ -127,7 +121,7 @@ class ImplementationShortfallStrategyTest {
     int aggressive = emitSlice(10);
 
     assertThat(aggressive).isGreaterThan(gentle);
-    assertThat(aggressive).isEqualTo(865); // [865, 117, 16, 2]
+    assertThat(aggressive).isEqualTo(865);
     assertThat(gentle).isEqualTo(413);
   }
 
@@ -135,7 +129,7 @@ class ImplementationShortfallStrategyTest {
   void evaluateDoesNotReemitForSameSlice() {
     configureStrategy(1000, Side.BUY, WINDOW_START, WINDOW_END, FOUR_SLICES, URGENCY);
     strategy.onTick(quoteTick(AAPL, etInstant(10, 0), "178.50", "178.54"));
-    strategy.evaluate(AAPL); // first call emits
+    strategy.evaluate(AAPL);
     strategy.onTick(quoteTick(AAPL, etInstant(10, 15), "178.50", "178.54"));
     assertThat(strategy.evaluate(AAPL)).isEmpty();
   }
@@ -144,11 +138,9 @@ class ImplementationShortfallStrategyTest {
   void evaluateEmitsForNextSliceWhenTimeAdvances() {
     configureStrategy(1000, Side.BUY, WINDOW_START, WINDOW_END, FOUR_SLICES, URGENCY);
 
-    // Slice 0
     strategy.onTick(quoteTick(AAPL, etInstant(10, 0), "178.50", "178.54"));
     assertThat(strategy.evaluate(AAPL)).get().extracting(OrderSignal::quantity).isEqualTo(413);
 
-    // Slice 1 (10:30-11:30) — smaller, front-loaded allocation
     strategy.onTick(quoteTick(AAPL, etInstant(11, 0), "179.00", "179.04"));
     var signal = strategy.evaluate(AAPL);
     assertThat(signal).isPresent();
@@ -161,17 +153,15 @@ class ImplementationShortfallStrategyTest {
   void evaluateEmitsMarketSweepAtEndTime() {
     configureStrategy(1000, Side.BUY, WINDOW_START, WINDOW_END, FOUR_SLICES, URGENCY);
 
-    // Execute only slice 0 (413 shares)
     strategy.onTick(quoteTick(AAPL, etInstant(10, 0), "178.50", "178.54"));
     strategy.evaluate(AAPL);
 
-    // Jump past end time
     strategy.onTick(quoteTick(AAPL, etInstant(13, 35), "180.00", "180.04"));
 
     var signal = strategy.evaluate(AAPL);
     assertThat(signal).isPresent();
     var orderSignal = signal.get();
-    assertThat(orderSignal.quantity()).isEqualTo(587); // 1000 - 413
+    assertThat(orderSignal.quantity()).isEqualTo(587);
     assertThat(orderSignal.orderType()).isEqualTo(OrderType.MARKET);
     assertThat(orderSignal.limitPrice()).isNull();
   }
@@ -180,14 +170,13 @@ class ImplementationShortfallStrategyTest {
   void sweepEmitsOnlyOnce() {
     configureStrategy(1000, Side.BUY, WINDOW_START, WINDOW_END, FOUR_SLICES, URGENCY);
     strategy.onTick(quoteTick(AAPL, etInstant(13, 35), "180.00", "180.04"));
-    assertThat(strategy.evaluate(AAPL)).isPresent(); // sweep
+    assertThat(strategy.evaluate(AAPL)).isPresent();
     strategy.onTick(quoteTick(AAPL, etInstant(13, 40), "180.00", "180.04"));
-    assertThat(strategy.evaluate(AAPL)).isEmpty(); // completed
+    assertThat(strategy.evaluate(AAPL)).isEmpty();
   }
 
   @Test
   void noSweepWhenFullyExecuted() {
-    // Single slice covering the whole window: it fully executes, so end-of-window has nothing left.
     configureStrategy(1000, Side.BUY, WINDOW_START, WINDOW_END, 1, URGENCY);
     strategy.onTick(quoteTick(AAPL, etInstant(10, 0), "178.50", "178.54"));
     assertThat(strategy.evaluate(AAPL)).get().extracting(OrderSignal::quantity).isEqualTo(1000);
@@ -225,7 +214,6 @@ class ImplementationShortfallStrategyTest {
 
   @Test
   void allocationRemainderGoesToLastSlice() {
-    // 1001 shares over 3 one-hour slices (09:30-12:30), urgency 0.5 → 449, 308, 244 (sum 1001).
     configureStrategy(1001, Side.BUY, WINDOW_START, LocalTime.of(12, 30), 3, URGENCY);
 
     int total = 0;
@@ -238,7 +226,6 @@ class ImplementationShortfallStrategyTest {
 
   @Test
   void fullTradingDaySimulation() {
-    // 10,000 shares, default 09:30-16:00 window, 12 thirty-two-and-a-half-minute slices.
     configureStrategy(10000, Side.BUY, LocalTime.of(9, 30), LocalTime.of(16, 0), 12, URGENCY);
     var signals = new ArrayList<OrderSignal>();
 
@@ -252,7 +239,6 @@ class ImplementationShortfallStrategyTest {
       }
     }
 
-    // EOD: tick at 16:00 triggers sweep if needed
     var closeTs = ZonedDateTime.of(baseDate, LocalTime.of(16, 0), MARKET_ZONE).toInstant();
     strategy.onTick(quoteTick(AAPL, closeTs, "178.50", "178.54"));
     strategy.evaluate(AAPL).ifPresent(signals::add);
@@ -260,13 +246,11 @@ class ImplementationShortfallStrategyTest {
     int totalQty = signals.stream().mapToInt(OrderSignal::quantity).sum();
     assertThat(totalQty).isEqualTo(10000);
 
-    // All 12 slices fire as LIMIT orders; nothing left for the sweep.
     var limitSignals = signals.stream().filter(s -> s.orderType() == OrderType.LIMIT).toList();
     assertThat(limitSignals).hasSize(12);
     assertThat(signals).allMatch(s -> s.symbol().equals(AAPL));
     assertThat(signals).allMatch(s -> s.side() == Side.BUY);
 
-    // Front-loading: the first slice's clip dwarfs the last.
     assertThat(limitSignals.getFirst().quantity()).isGreaterThan(limitSignals.getLast().quantity());
   }
 
@@ -304,31 +288,27 @@ class ImplementationShortfallStrategyTest {
   void updateParametersResetsState() {
     configureStrategy(1000, Side.BUY, WINDOW_START, WINDOW_END, FOUR_SLICES, URGENCY);
 
-    // Execute slice 0
     strategy.onTick(quoteTick(AAPL, etInstant(10, 0), "178.50", "178.54"));
     assertThat(strategy.evaluate(AAPL)).isPresent();
 
-    // Reconfigure with a new target and side
     configureStrategy(2000, Side.SELL, WINDOW_START, WINDOW_END, FOUR_SLICES, 0.0);
 
-    // Slice 0 should fire again (state was reset) with the new (now uniform) allocation
     strategy.onTick(quoteTick(AAPL, etInstant(10, 0), "178.50", "178.54"));
     var signal = strategy.evaluate(AAPL);
     assertThat(signal).isPresent();
     var orderSignal = signal.get();
-    assertThat(orderSignal.quantity()).isEqualTo(500); // 2000 / 4 at urgency 0
+    assertThat(orderSignal.quantity()).isEqualTo(500);
     assertThat(orderSignal.side()).isEqualTo(Side.SELL);
   }
 
   @Test
   void partialUrgencyUpdatePreservesOtherFields() {
     configureStrategy(1000, Side.BUY, WINDOW_START, WINDOW_END, FOUR_SLICES, URGENCY);
-    // Update only urgency to 0 (uniform); window, side, target, slice count must be retained.
     strategy.updateParameters(Map.of("urgency", 0.0));
     strategy.onTick(quoteTick(AAPL, etInstant(10, 0), "178.50", "178.54"));
     var signal = strategy.evaluate(AAPL);
     assertThat(signal).isPresent();
-    assertThat(signal.get().quantity()).isEqualTo(250); // 1000 / 4 slices, now uniform
+    assertThat(signal.get().quantity()).isEqualTo(250);
     assertThat(signal.get().side()).isEqualTo(Side.BUY);
   }
 
@@ -349,7 +329,6 @@ class ImplementationShortfallStrategyTest {
     assertThat(strategy.evaluate(AAPL)).isEmpty();
   }
 
-  /** Feeds a quote tick at {@code hour}:00 ET and returns the emitted slice quantity. */
   private int emitSlice(int hour) {
     strategy.onTick(quoteTick(AAPL, etInstant(hour, 0), "178.50", "178.54"));
     return strategy.evaluate(AAPL).orElseThrow().quantity();

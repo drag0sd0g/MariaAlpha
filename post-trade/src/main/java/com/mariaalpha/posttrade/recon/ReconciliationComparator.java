@@ -13,12 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Pure comparator that turns two lists of fills (internal vs. external) into a list of breaks. No
- * I/O, no Spring — drives unit-test coverage of every break-type / severity combination from
- * fixtures. Matching is per-order: fills are aggregated by {@code exchangeOrderId} (falling back to
- * {@code clientOrderId}) and the resulting (qty, vwap) pair is compared between sides.
- */
 public final class ReconciliationComparator {
 
   private static final MathContext MC = new MathContext(20, RoundingMode.HALF_UP);
@@ -46,7 +40,6 @@ public final class ReconciliationComparator {
 
     List<ReconciliationBreak> breaks = new ArrayList<>();
 
-    // Anything internal but missing externally = EXTRA_FILL
     for (var entry : internalByKey.entrySet()) {
       if (!externalByKey.containsKey(entry.getKey())) {
         Aggregate a = entry.getValue();
@@ -73,7 +66,6 @@ public final class ReconciliationComparator {
       }
     }
 
-    // Anything external but missing internally = MISSING_FILL
     for (var entry : externalByKey.entrySet()) {
       if (!internalByKey.containsKey(entry.getKey())) {
         Aggregate a = entry.getValue();
@@ -100,7 +92,6 @@ public final class ReconciliationComparator {
       }
     }
 
-    // Both sides present — compare quantity and price.
     for (var entry : internalByKey.entrySet()) {
       Aggregate ext = externalByKey.get(entry.getKey());
       if (ext == null) {
@@ -166,7 +157,7 @@ public final class ReconciliationComparator {
     for (InternalFill f : fills) {
       String key = matchKey(f.exchangeOrderId(), f.clientOrderId());
       if (key == null) {
-        continue; // can't aggregate without a key — drop defensively
+        continue;
       }
       Aggregate agg =
           map.computeIfAbsent(
@@ -246,7 +237,6 @@ public final class ReconciliationComparator {
     if (diffBps == null) {
       return Severity.LOW;
     }
-    // 10x tolerance = HIGH; 100x = CRITICAL. Otherwise MEDIUM.
     BigDecimal high = priceToleranceBps.multiply(BigDecimal.TEN);
     BigDecimal critical = priceToleranceBps.multiply(BigDecimal.valueOf(100));
     if (diffBps.compareTo(critical) >= 0) {
@@ -285,7 +275,7 @@ public final class ReconciliationComparator {
     final String symbol;
     final Side side;
     BigDecimal qty;
-    BigDecimal notional; // sum(price * qty)
+    BigDecimal notional;
     BigDecimal vwap;
 
     Aggregate(UUID orderId, String symbol, Side side, BigDecimal qty, BigDecimal notional) {

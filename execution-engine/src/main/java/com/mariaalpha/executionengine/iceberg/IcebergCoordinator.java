@@ -13,16 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/**
- * Owns the lifecycle of ICEBERG parent orders: slices them into LIMIT children, submits each
- * subsequent child as the previous one fills, transitions the parent through PARTIALLY_FILLED →
- * FILLED, and cascades a parent cancel to the currently-active child.
- *
- * <p>Hooked into {@link com.mariaalpha.executionengine.service.OrderExecutionService} through two
- * call sites: {@code onParentSubmit} replaces the normal {@code venueAdapter.submitOrder} call for
- * ICEBERG parents, and {@code onChildFillIfApplicable} is called from {@code onExecutionReport}
- * after the child's own lifecycle event has been published.
- */
 @Component
 public class IcebergCoordinator {
 
@@ -53,12 +43,6 @@ public class IcebergCoordinator {
     this.metrics = metrics;
   }
 
-  /**
-   * Called by {@code OrderExecutionService.processOrder} when it encounters an ICEBERG parent.
-   * Registers the parent, submits the first child, and transitions the parent to SUBMITTED.
-   *
-   * @return true if the first child was accepted by its venue, false if rejected.
-   */
   public boolean onParentSubmit(Order parent) {
     if (parent.getDisplayQuantity() == null) {
       throw new IllegalArgumentException(
@@ -69,10 +53,6 @@ public class IcebergCoordinator {
     return submitNextSlice(parent);
   }
 
-  /**
-   * Called after each child {@link ExecutionReport} is processed. No-op if the order is not an
-   * iceberg child.
-   */
   public void onChildFillIfApplicable(Order child, ExecutionReport report) {
     if (child.getParentOrderId() == null) {
       return;
@@ -102,7 +82,6 @@ public class IcebergCoordinator {
     }
   }
 
-  /** Cascade a parent CANCELLED transition to the currently-active child, if any. */
   public void onParentCancelRequested(Order parent) {
     registry
         .activeChildFor(parent.getOrderId())

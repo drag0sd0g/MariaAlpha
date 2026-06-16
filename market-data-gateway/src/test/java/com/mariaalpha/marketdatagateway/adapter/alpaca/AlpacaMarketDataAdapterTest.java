@@ -297,7 +297,6 @@ class AlpacaMarketDataAdapterTest {
     var testAdapter = new TestableAdapter(config, new SimpleMeterRegistry());
     testAdapter.connect(List.of("AAPL"));
 
-    // Simulate a received tick
     var tradeJson =
         "[{\"T\":\"t\",\"S\":\"AAPL\",\"p\":178.52,"
             + "\"s\":100,"
@@ -305,10 +304,8 @@ class AlpacaMarketDataAdapterTest {
             + "\"c\":[],\"z\":\"C\"}]";
     testAdapter.handleMessage(tradeJson, mockSession, List.of("AAPL"));
 
-    // Trigger reconnect
     testAdapter.scheduleReconnect();
 
-    // The second tick emitted should be stale
     StepVerifier.create(testAdapter.streamTicks().take(2))
         .assertNext(
             tick -> {
@@ -334,8 +331,6 @@ class AlpacaMarketDataAdapterTest {
     testAdapter.connect(List.of("AAPL"));
     IntStream.range(0, MAX_RETRIES).forEach(ignore -> testAdapter.scheduleReconnect());
 
-    // Past the end of the backoff table the adapter keeps retrying at the capped delay —
-    // giving up permanently would leave the gateway tickless until a restart.
     var countBefore =
         Objects.requireNonNull(registry.find("mariaalpha_md_websocket_reconnects_total").counter())
             .count();

@@ -118,7 +118,6 @@ class OrderLifecycleManagerTest {
     manager.transition(o2.getOrderId(), OrderStatus.FILLED, null, null);
     manager.transition(o3.getOrderId(), OrderStatus.REJECTED, null, "reason");
 
-    // Only o1 is open (SUBMITTED); o2 is FILLED, o3 is REJECTED
     assertThat(manager.getOpenOrderCount()).isEqualTo(1);
   }
 
@@ -142,14 +141,13 @@ class OrderLifecycleManagerTest {
               manager.transition(order.getOrderId(), OrderStatus.FILLED, null, null);
               successCount.incrementAndGet();
             } catch (Exception ignored) {
-              // Expected for losing threads
+              // only one thread wins the FILLED transition; the losers throw
             }
           });
     }
     executor.shutdown();
     executor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
 
-    // Exactly one thread should succeed
     assertThat(successCount.get()).isEqualTo(1);
     assertThat(order.getStatus()).isEqualTo(OrderStatus.FILLED);
   }

@@ -26,7 +26,6 @@ public class PortfolioController {
     return portfolioService.summary();
   }
 
-  /** Per-currency breakdown of gross / net exposure and realized / unrealized P&L. */
   @GetMapping("/currency-exposure")
   public CurrencyExposureResponse currencyExposure() {
     return currencyExposureService.exposureByCurrency();

@@ -102,11 +102,6 @@ class MultiVenueRoutingIntegrationTest {
             new BigDecimal("178.52"),
             Instant.now()));
 
-    // Burst 50 orders. SOR scoring is deterministic, so all orders with identical inputs
-    // route to the highest-scoring venue. We assert two stronger properties:
-    //   (a) every audit record carries a non-null venue from the configured set
-    //   (b) every audit record evaluated all 3 venues (candidateScores.size == 3)
-    // proving multi-venue routing is active end-to-end.
     int orderCount = 50;
     for (int i = 0; i < orderCount; i++) {
       service.executeSignal(

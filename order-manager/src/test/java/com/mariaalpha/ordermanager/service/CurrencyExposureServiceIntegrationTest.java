@@ -20,11 +20,6 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-/**
- * Drives {@link CurrencyExposureService} against a real Postgres so the aggregation by currency
- * survives a real JPA round-trip (transactional view of the position table). Mirrors the pattern
- * the repository integration tests use.
- */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
@@ -70,9 +65,9 @@ class CurrencyExposureServiceIntegrationTest {
     var resp = service.exposureByCurrency();
 
     assertThat(resp.rows()).extracting(r -> r.currency()).containsExactly("EUR", "JPY", "USD");
-    assertThat(resp.rows().get(0).grossExposure()).isEqualByComparingTo("6000"); // EUR
-    assertThat(resp.rows().get(1).grossExposure()).isEqualByComparingTo("500000"); // JPY
-    assertThat(resp.rows().get(2).grossExposure()).isEqualByComparingTo("15000"); // USD
+    assertThat(resp.rows().get(0).grossExposure()).isEqualByComparingTo("6000");
+    assertThat(resp.rows().get(1).grossExposure()).isEqualByComparingTo("500000");
+    assertThat(resp.rows().get(2).grossExposure()).isEqualByComparingTo("15000");
     assertThat(resp.openPositions()).isEqualTo(3);
   }
 

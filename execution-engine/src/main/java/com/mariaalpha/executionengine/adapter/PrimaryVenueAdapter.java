@@ -13,13 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/**
- * Wraps the profile-bound {@link ExchangeAdapter} (Alpaca or Simulated) as a {@link VenueAdapter}
- * so it can be registered alongside the dark/internal pool adapters. Lifecycle methods are
- * <em>delegated, not duplicated</em> — the wrapped {@code ExchangeAdapter} keeps its own
- * {@code @PostConstruct start()}, so this class does <strong>not</strong> annotate {@link #start}
- * with {@code @PostConstruct}.
- */
 @Component
 public final class PrimaryVenueAdapter implements VenueAdapter {
 
@@ -78,15 +71,11 @@ public final class PrimaryVenueAdapter implements VenueAdapter {
   }
 
   @Override
-  public void start() {
-    // NO-OP
-  }
+  public void start() {}
 
   @PreDestroy
   @Override
-  public void shutdown() {
-    // NO-OP
-  }
+  public void shutdown() {}
 
   @Override
   public boolean isHealthy() {

@@ -17,20 +17,6 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
-/**
- * Full-stack e2e for the trade-allocation engine (roadmap 3.4.2). Drives the post-trade allocation
- * REST surface through the api-gateway against the shared docker-compose stack. The compose stack
- * configures the default roster (HOUSE 50 / HEDGE_FUND_A 30 / HEDGE_FUND_B 20) so the assertions
- * below are deterministic.
- *
- * <ol>
- *   <li>{@code GET /api/allocations/sub-accounts} — list the configured roster.
- *   <li>{@code POST /api/allocations/run} — allocate 1000 shares pro-rata → 500/300/200.
- *   <li>{@code GET /api/allocations/order/{orderId}} — reads back the same rows.
- *   <li>{@code GET /api/allocations/sub-account/HOUSE} — finds at least one row for HOUSE.
- *   <li>Re-running with FIFO is idempotent — the prior rows are cleared.
- * </ol>
- */
 @Tag("e2e")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class TradeAllocationE2ETest {
@@ -73,7 +59,6 @@ class TradeAllocationE2ETest {
     var created = httpPostExpect(201, "/api/allocations/run", body);
     assertThat(created.size()).isEqualTo(3);
 
-    // Sum of allocated qty == parent qty.
     int sum = 0;
     for (var node : created) {
       sum += node.get("allocatedQuantity").asInt();
@@ -112,7 +97,6 @@ class TradeAllocationE2ETest {
                 "parentAvgPrice", 178.42,
                 "method", "FIFO"));
     var second = httpPostExpect(201, "/api/allocations/run", bodyFifo);
-    // FIFO with 25 shares → only HOUSE filled (weight 50 ≥ 25).
     assertThat(second.size()).isEqualTo(1);
 
     var current = httpGet("/api/allocations/order/" + orderId);

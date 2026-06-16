@@ -16,6 +16,8 @@ MariaAlpha is a working, end-to-end algorithmic trading engine:
 - **Smart Order Router** with scored multi-criteria venue selection across LIT, DARK, and INTERNAL venues, plus an in-process **internal crossing engine** that matches offsetting BUY/SELL interest at the NBBO midpoint.
 - **Eight order types** — MARKET, LIMIT, STOP, IOC, FOK, GTC, Iceberg (with a dedicated coordinator that slices parents into LIMIT children), and [Pegged](docs/strategies/pegged-orders.md) (midpoint/primary/market peg that re-prices its working child as the NBBO moves).
 - **Dual exchange routing** — simulated exchange (configurable fill latency + slippage) or Alpaca paper trading (REST + `trade_updates` WebSocket with reconnect), switchable via `EXECUTION_PROFILE`.
+- **Program/basket trading** — submit a multi-leg [basket](docs/strategies/program-basket-trading.md) in one call (`POST /api/execution/baskets`); every leg is fanned out through the full risk → SOR → venue pipeline and tracked as one aggregate with per-leg status.
+- **Inbound FIX gateway** — optional QuickFIX/J [FIX 4.4 acceptor](docs/strategies/fix-gateway.md) for programmatic order entry (`NewOrderSingle` / `OrderCancelRequest` → `ExecutionReport`), the protocol sibling of the REST order-entry path; disabled by default.
 - **Real-time position and P&L tracking** — mark-to-market unrealized P&L, portfolio aggregates, [per-currency exposure](docs/strategies/currency-exposure.md), fill history persisted in PostgreSQL with a Redis hot-path cache for sub-millisecond pre-trade reads.
 - **Transaction Cost Analysis + PnL attribution + flow toxicity + axe matching** — slippage, implementation shortfall, VWAP benchmark, spread cost per order; Kissell-Glantz five-component PnL decomposition; per-counterparty markout-based toxicity; client-interest axe matcher.
 - **Trade allocation** — post-trade splitting of filled parents across sub-accounts (pro-rata with remainder handling, or FIFO waterfall), persisted as the per-account book of record.
@@ -28,7 +30,7 @@ MariaAlpha is a working, end-to-end algorithmic trading engine:
 
 The end-to-end acceptance suite under `e2e-tests/` boots the full Docker Compose stack and traverses the complete Tick-to-Trade pipeline on every CI run.
 
-See [§11 of the Technical Design Document](docs/technical-design-document.md#11-roadmap) for the roadmap of additional capabilities not yet built (backtesting, multi-broker integration via IBKR, Tokyo Stock Exchange microstructure, program/basket trading, FIX gateway, OAuth/RBAC, ML-driven SOR, and others).
+See [§11 of the Technical Design Document](docs/technical-design-document.md#11-roadmap) for the roadmap of additional capabilities not yet built (backtesting, multi-broker integration via IBKR, Tokyo Stock Exchange microstructure, OAuth/RBAC, ML-driven SOR, and others).
 
 ## Prerequisites
 

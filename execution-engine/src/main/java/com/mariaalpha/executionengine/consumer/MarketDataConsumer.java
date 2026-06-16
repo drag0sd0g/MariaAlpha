@@ -12,15 +12,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-/**
- * Maintains per-symbol {@link MarketState} from the ticks topic.
- *
- * <p>Ticks are sparse: an Alpaca TRADE tick carries no bid/ask (they arrive as 0) and a QUOTE tick
- * carries no trade price. Each field is therefore merged with the previous state — a zero or
- * missing value never overwrites a previously-known one. Without this, every QUOTE would zero the
- * last trade price (silently disabling the notional-based risk checks) and every TRADE would zero
- * the NBBO (breaking pegged reference prices and SOR market snapshots).
- */
 @Component
 public class MarketDataConsumer {
 
@@ -55,7 +46,6 @@ public class MarketDataConsumer {
     }
   }
 
-  /** The tick's value if present and positive, otherwise the previous value (may be null). */
   private static BigDecimal merge(JsonNode node, String field, BigDecimal previous) {
     JsonNode value = node.get(field);
     if (value == null || value.isNull()) {

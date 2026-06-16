@@ -31,14 +31,12 @@ class FeeScorerTest {
 
   @Test
   void marketOrderUsesTakerFee() {
-    // taker=3 bps, max=10 → 1 - 0.3 = 0.7
     var ctx = ctxMarket(3, 2);
     assertThat(scorer.score(ctx)).isCloseTo(0.7, within(1e-9));
   }
 
   @Test
   void passiveLimitUsesMakerRebate() {
-    // rebate=2 → effective=-2 → 1 - (-0.2) = 1.2 → cap 1.0
     var ctx = ctxLimitPassive(3, 2);
     assertThat(scorer.score(ctx)).isCloseTo(1.0, within(1e-9));
   }
@@ -139,12 +137,10 @@ class FeeScorerTest {
   }
 
   private ScoringContext ctxLimitPassive(int taker, int rebate) {
-    // BUY LIMIT @ 178.30 with ask=178.54 → does not cross → passive
     return ctx(OrderType.LIMIT, new BigDecimal("178.30"), taker, rebate, marketState());
   }
 
   private ScoringContext ctxLimitAggressive(int taker, int rebate) {
-    // BUY LIMIT @ 178.60 with ask=178.54 → crosses → aggressive
     return ctx(OrderType.LIMIT, new BigDecimal("178.60"), taker, rebate, marketState());
   }
 

@@ -78,7 +78,6 @@ public class OrderPersistenceService {
     }
   }
 
-  // Guard: every lifecycle event must carry a full order snapshot
   private OrderSnapshotEvent requireSnapshot(OrderLifecycleEvent event) {
     if (event.order() == null) {
       throw new IllegalArgumentException(
@@ -87,7 +86,6 @@ public class OrderPersistenceService {
     return event.order();
   }
 
-  // Populate the immutable identity fields that are set once at order creation
   private OrderEntity createOrderFromSnapshot(OrderSnapshotEvent snapshot) {
     var order = new OrderEntity();
     order.setOrderId(UUID.fromString(snapshot.orderId()));
@@ -106,14 +104,12 @@ public class OrderPersistenceService {
     return order;
   }
 
-  // Reject transitions that violate the order status state machine (e.g. FILLED -> NEW)
   private boolean isIllegalTransition(OrderEntity order, boolean isNew, OrderLifecycleEvent event) {
     return !isNew
         && order.getStatus() != null
         && !order.getStatus().canTransitionTo(event.status());
   }
 
-  // Update the fields that can legitimately change with each lifecycle event
   private void applyMutableFields(
       OrderEntity order, OrderSnapshotEvent snapshot, OrderLifecycleEvent event) {
     order.setStatus(event.status());
@@ -140,8 +136,6 @@ public class OrderPersistenceService {
     return Optional.of(saved);
   }
 
-  // Idempotency guard: if the exchange already reported this fill ID, skip it to avoid
-  // double-counting
   private boolean isDuplicateFill(FillEvent fillEvent, OrderEntity order) {
     if (fillEvent.exchangeFillId() != null
         && fillRepository.existsByExchangeFillId(fillEvent.exchangeFillId())) {
@@ -154,8 +148,6 @@ public class OrderPersistenceService {
     return false;
   }
 
-  // Map the fill event onto a new FillEntity; fall back to a generated ID / current time if the
-  // exchange omitted them
   private FillEntity buildFillEntity(OrderEntity order, FillEvent fillEvent) {
     var fill = new FillEntity();
     if (fillEvent.fillId() != null) {

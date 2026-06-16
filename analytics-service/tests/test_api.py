@@ -65,7 +65,6 @@ def client(
     matcher: AxeMatcher,
     cache: MarketDataCache,
 ) -> TestClient:
-    # Build an OrdersConsumer-shaped stub that just records matches without touching Kafka.
     class _StubOrdersConsumer:
         def __init__(self, m: AxeMatcher) -> None:
             self._matcher = m
@@ -93,12 +92,10 @@ def client(
 
     stub = _StubOrdersConsumer(matcher)
     app = create_app(settings, toxicity, attribution, matcher, cache, orders_consumer=stub)
-    # Attach so individual tests can drive the stub.
     app.state.stub_orders = stub  # type: ignore[attr-defined]
     return TestClient(app)
 
 
-# ── platform endpoints ──────────────────────────────────────────────────
 
 
 def test_health_endpoint_returns_healthy(client: TestClient):
@@ -125,11 +122,9 @@ def test_ready_endpoint_reports_counts(client: TestClient):
 def test_metrics_endpoint_returns_prometheus_exposition(client: TestClient):
     r = client.get("/metrics")
     assert r.status_code == 200
-    # Prometheus text format starts with `# HELP`.
     assert "# HELP" in r.text
 
 
-# ── 2.2.4 flow toxicity ─────────────────────────────────────────────────
 
 
 def test_flow_toxicity_endpoint_returns_empty_until_fills_arrive(client: TestClient):
@@ -148,7 +143,6 @@ def test_flow_toxicity_endpoint_returns_rows_after_tick(
 ):
     cache.record("AAPL", 60.0, 99.0)
     toxicity.on_fill(FillRecord("o1", "VWAP", "AAPL", "BUY", 100.0, 0.0))
-    # Drive detector forward so the fill is consumed.
     toxicity._clock = lambda: 70.0  # type: ignore[assignment]
     toxicity.tick()
     r = client.get("/v1/analytics/flow/toxicity?strategy=VWAP")
@@ -157,7 +151,6 @@ def test_flow_toxicity_endpoint_returns_rows_after_tick(
     assert body["rows"][0]["strategy"] == "VWAP"
 
 
-# ── 2.2.5 PnL attribution ───────────────────────────────────────────────
 
 
 def _tca(order_id: str = "o1") -> TcaInput:
@@ -219,7 +212,6 @@ def test_pnl_attribution_by_strategy_endpoint(
     assert "spread" in body["components"]
 
 
-# ── 2.2.6 axe matching ──────────────────────────────────────────────────
 
 
 def test_publish_axe_via_post_creates_axe(client: TestClient):
@@ -310,7 +302,6 @@ def test_axe_matches_endpoint_404_when_no_orders_seen(client: TestClient):
 
 
 def test_axe_matches_endpoint_returns_recorded_matches(client: TestClient):
-    # Publish a SELL axe, then route an opposing BUY order through the stub consumer.
     client.post(
         "/v1/analytics/axes",
         json={

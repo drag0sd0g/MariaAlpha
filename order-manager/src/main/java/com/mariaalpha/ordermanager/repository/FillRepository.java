@@ -18,11 +18,6 @@ public interface FillRepository extends JpaRepository<FillEntity, UUID> {
 
   List<FillEntity> findBySymbolOrderByFilledAtDesc(String symbol);
 
-  /**
-   * Fetches fills whose {@code filledAt} falls in {@code [from, to)}. Used by the post-trade EOD
-   * reconciliation engine — the JOIN FETCH pulls the parent order eagerly so the response can
-   * include {@code clientOrderId} and {@code exchangeOrderId} without a per-fill round trip.
-   */
   @Query(
       """
       SELECT f FROM FillEntity f

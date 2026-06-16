@@ -44,7 +44,7 @@ class MaxPortfolioExposureCheckTest {
                 new BigDecimal("150"),
                 Instant.now()));
     when(positionTracker.getTotalGrossExposure()).thenReturn(new BigDecimal("1800000"));
-    var order = createOrder("AAPL", 1000); // $150K → total $1.95M < $2M
+    var order = createOrder("AAPL", 1000);
     assertThat(check.check(order).passed()).isTrue();
   }
 
@@ -59,7 +59,7 @@ class MaxPortfolioExposureCheckTest {
                 new BigDecimal("150"),
                 Instant.now()));
     when(positionTracker.getTotalGrossExposure()).thenReturn(new BigDecimal("1900000"));
-    var order = createOrder("AAPL", 1000); // $150K → total $2.05M > $2M
+    var order = createOrder("AAPL", 1000);
     var result = check.check(order);
     assertThat(result.passed()).isFalse();
     assertThat(result.checkName()).isEqualTo("MaxPortfolioExposure");

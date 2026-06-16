@@ -10,14 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
-/**
- * Producer for the {@code algo.progress} Kafka topic (roadmap 3.4.5). Strategy lifecycle and
- * signal-level events flow through here on their way to the API gateway's WebSocket fan-out.
- *
- * <p>Failures to publish are logged at WARN — the algo order itself is the source of truth and the
- * REST GET surface always returns the current state, so a dropped progress event degrades the UI
- * smoothness without affecting correctness.
- */
 @Component
 public class AlgoProgressPublisher {
 

@@ -21,10 +21,6 @@ public class SymbolStrategyRouter {
     this.registry = registry;
   }
 
-  /**
-   * Binds {@code symbol} to {@code strategyName}. Returns {@code true} if the strategy is
-   * registered, {@code false} if the name is unknown (mapping is not changed in that case).
-   */
   public boolean setActiveStrategy(String symbol, String strategyName) {
     if (registry.get(strategyName).isEmpty()) {
       LOG.warn("Cannot route {} → {}: strategy not found", symbol, strategyName);
@@ -35,28 +31,18 @@ public class SymbolStrategyRouter {
     return true;
   }
 
-  /** Returns the strategy name currently bound to {@code symbol}, or empty if none. */
   public Optional<String> getActiveStrategyName(String symbol) {
     return Optional.ofNullable(symbolToStrategy.get(symbol));
   }
 
-  /** Returns the live {@link TradingStrategy} bound to {@code symbol}, or empty if none. */
   public Optional<TradingStrategy> getActiveStrategy(String symbol) {
     return getActiveStrategyName(symbol).flatMap(registry::get);
   }
 
-  /** Returns an immutable snapshot of all currently routed symbols. */
   public Set<String> routedSymbols() {
     return Set.copyOf(symbolToStrategy.keySet());
   }
 
-  /**
-   * Removes any active strategy binding for {@code symbol}, so subsequent ticks for that symbol no
-   * longer reach a strategy. Returns {@code true} if a binding existed and was removed. Used by e2e
-   * tests to detach a stateful strategy (e.g. MOMENTUM on GOOGL) once their assertion has been met,
-   * preventing the strategy from continuing to oscillate in the background and contending with
-   * later tests for the simulated venue queue.
-   */
   public boolean clearActiveStrategy(String symbol) {
     var previous = symbolToStrategy.remove(symbol);
     if (previous != null) {

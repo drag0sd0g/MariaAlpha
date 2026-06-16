@@ -41,9 +41,7 @@ class BetaExposureCheckTest {
   @Test
   void passesWhenProjectedBetaExposureBelowLimit() {
     when(tracker.getMarketState("MSFT")).thenReturn(market("MSFT", "400"));
-    // Current portfolio: $1M MSFT × β0.95 = $950K beta-weighted.
     when(positions.snapshot()).thenReturn(Map.of("MSFT", new BigDecimal("1000000")));
-    // +250 MSFT × $400 = $100K notional × β0.95 = $95K → projected $1.045M < $2.5M.
     var order = order("MSFT", Side.BUY, 250);
     assertThat(check.check(order).passed()).isTrue();
   }
@@ -51,8 +49,6 @@ class BetaExposureCheckTest {
   @Test
   void failsWhenProjectedBetaExposureBreachesLimit() {
     when(tracker.getMarketState("TSLA")).thenReturn(market("TSLA", "250"));
-    // Existing $1M TSLA × β1.8 = $1.8M. +5000 TSLA × $250 = $1.25M × 1.8 = $2.25M.
-    // Projected $1.8M + $2.25M = $4.05M > $2.5M.
     when(positions.snapshot()).thenReturn(Map.of("TSLA", new BigDecimal("1000000")));
     var order = order("TSLA", Side.BUY, 5000);
     var result = check.check(order);
@@ -62,8 +58,6 @@ class BetaExposureCheckTest {
 
   @Test
   void sellsThatReduceBetaExposurePass() {
-    // Long $5M TSLA × β1.8 = $9M beta exposure (way over). SELL should still pass — it pulls
-    // exposure toward zero.
     when(tracker.getMarketState("TSLA")).thenReturn(market("TSLA", "250"));
     when(positions.snapshot()).thenReturn(Map.of("TSLA", new BigDecimal("5000000")));
     var order = order("TSLA", Side.SELL, 1000);
@@ -86,7 +80,6 @@ class BetaExposureCheckTest {
   void unknownSymbolUsesDefaultBeta() {
     when(tracker.getMarketState("ZZZZ")).thenReturn(market("ZZZZ", "100"));
     when(positions.snapshot()).thenReturn(Map.of());
-    // Default β = 1.0. Order = 30K × $100 = $3M × 1.0 = $3M projected. > $2.5M → fail.
     var order = order("ZZZZ", Side.BUY, 30_000);
     var result = check.check(order);
     assertThat(result.passed()).isFalse();

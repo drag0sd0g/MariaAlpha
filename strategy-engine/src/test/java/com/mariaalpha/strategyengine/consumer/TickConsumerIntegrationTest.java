@@ -69,7 +69,6 @@ public class TickConsumerIntegrationTest {
     when(mlSignalClient.getSignal(anyString())).thenReturn(Optional.empty());
     when(mlSignalClient.getCircuitBreakerState()).thenReturn(CircuitBreaker.State.CLOSED);
 
-    // Configure VWAP: 500 shares, single full-day bin, so any trading-hours tick fires a signal
     var vwapStrategy = strategyRegistry.get("VWAP").orElseThrow();
     var volumeProfile = List.of(new TimeBin(LocalTime.of(9, 30), LocalTime.of(16, 0), 1.0));
     vwapStrategy.updateParameters(
@@ -84,7 +83,6 @@ public class TickConsumerIntegrationTest {
 
   @Test
   void tickPublishedToKafkaTriggersSignalOnStrategySignalsTopic() throws Exception {
-    // Build a tick at 10:00 America/New_York — inside the single VWAP bin
     var ts =
         ZonedDateTime.of(
                 LocalDate.of(2026, 3, 24), LocalTime.of(10, 0), ZoneId.of("America/New_York"))
@@ -104,7 +102,6 @@ public class TickConsumerIntegrationTest {
             DataSource.ALPACA,
             false);
 
-    // Create a raw Kafka consumer pointed at strategy.signals
     var props = new HashMap<String, Object>();
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
     props.put(ConsumerConfig.GROUP_ID_CONFIG, "test-consumer-" + Instant.now().toEpochMilli());
@@ -117,12 +114,8 @@ public class TickConsumerIntegrationTest {
     try (var consumer = new KafkaConsumer<String, String>(props)) {
       consumer.subscribe(List.of("strategy.signals"));
 
-      // Publish the tick to market-data.ticks
       kafkaTemplate.send("market-data.ticks", "AAPL", objectMapper.writeValueAsString(tick)).get();
 
-      // Wait for the AAPL signal to appear on strategy.signals. Filter by symbol: this topic is
-      // shared across all the test methods in this class and read from earliest, so other methods'
-      // signals (MSFT/GOOGL/AMZN) may already sit ahead of ours regardless of execution order.
       Awaitility.await()
           .atMost(Duration.ofSeconds(15))
           .pollInterval(Duration.ofMillis(500))
@@ -148,7 +141,6 @@ public class TickConsumerIntegrationTest {
 
   @Test
   void twapTickPublishedToKafkaTriggersSignalOnStrategySignalsTopic() throws Exception {
-    // Configure TWAP: 300 shares, single full-day slice, so any trading-hours tick fires it.
     var twapStrategy = strategyRegistry.get("TWAP").orElseThrow();
     twapStrategy.updateParameters(
         Map.of(
@@ -218,9 +210,6 @@ public class TickConsumerIntegrationTest {
 
   @Test
   void implementationShortfallTickPublishedToKafkaTriggersFrontLoadedSignal() throws Exception {
-    // Configure IS: 1000 shares over two equal half-day slices with urgency 0.5. A tick inside
-    // the first slice fires its front-loaded allocation — 557 shares (> the 500 a uniform split
-    // would give), demonstrating the front-loading end-to-end.
     var isStrategy = strategyRegistry.get("IS").orElseThrow();
     isStrategy.updateParameters(
         Map.of(
@@ -297,8 +286,6 @@ public class TickConsumerIntegrationTest {
 
   @Test
   void povTickPublishedToKafkaTriggersParticipationClip() throws Exception {
-    // Configure POV: parent 1000 shares, 10% participation. A single TRADE tick of size 5000
-    // means cumulativeMarketVolume=5000 → targetExecuted = 0.10 × 5000 = 500 → emit 500-share clip.
     var povStrategy = strategyRegistry.get("POV").orElseThrow();
     povStrategy.updateParameters(
         Map.of(
@@ -377,9 +364,6 @@ public class TickConsumerIntegrationTest {
 
   @Test
   void closePreCloseSliceLimitOrderEmittedDuringWorkingWindow() throws Exception {
-    // Configure CLOSE: parent 1000 shares, 50% pre-close fraction, 5 slices. A tick inside the
-    // first pre-close slice (15:05) emits the slice's 100-share LIMIT clip — exercising the
-    // working-into-the-close phase end-to-end.
     var closeStrategy = strategyRegistry.get("CLOSE").orElseThrow();
     closeStrategy.updateParameters(
         Map.of(
@@ -459,8 +443,6 @@ public class TickConsumerIntegrationTest {
 
   @Test
   void momentumUptrendPublishedToKafkaTriggersEntrySignal() throws Exception {
-    // Configure MOMENTUM with tiny EMA periods so a two-trade uptrend produces a bullish
-    // crossover, and a 2-trade warmup so it acts immediately.
     var momentumStrategy = strategyRegistry.get("MOMENTUM").orElseThrow();
     momentumStrategy.updateParameters(
         Map.of(
@@ -488,7 +470,6 @@ public class TickConsumerIntegrationTest {
     try (var consumer = new KafkaConsumer<String, String>(props)) {
       consumer.subscribe(List.of("strategy.signals"));
 
-      // Ordered publish on the same key (symbol) → same partition → in-order processing.
       kafkaTemplate.send("market-data.ticks", "GOOGL", objectMapper.writeValueAsString(seed)).get();
       kafkaTemplate
           .send("market-data.ticks", "GOOGL", objectMapper.writeValueAsString(breakout))

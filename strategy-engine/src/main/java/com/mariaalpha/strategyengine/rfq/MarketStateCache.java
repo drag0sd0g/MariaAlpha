@@ -9,15 +9,6 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 
-/**
- * Per-symbol cache of the latest bid/ask/last + a bounded ring of mid-prices used by {@link
- * VolatilityTracker} for realised-volatility estimation. Populated from the same Kafka tick stream
- * the strategy engine already consumes.
- *
- * <p>The cache is intentionally service-local. Reads on the RFQ hot path are sub-microsecond and
- * the data is reconstructable from the next tick — perfect for an in-process map. A future
- * Redis-backed roll-out would replace this with the shared order-book cache.
- */
 @Component
 public class MarketStateCache {
 
@@ -41,7 +32,6 @@ public class MarketStateCache {
     return state == null ? Optional.empty() : Optional.of(state.snapshot(symbol));
   }
 
-  /** Returns an unmodifiable, point-in-time copy of the rolling mid-price history. */
   public Optional<double[]> midHistory(String symbol) {
     var state = stateBySymbol.get(symbol);
     return state == null ? Optional.empty() : Optional.of(state.midHistory());

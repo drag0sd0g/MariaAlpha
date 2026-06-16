@@ -21,7 +21,7 @@ class VolatilityTrackerTest {
     var tracker = new VolatilityTracker(cache);
     assertThat(tracker.realizedVolBps("AAPL")).isZero();
     cache.onTick(quote("AAPL", "100.00", "100.10"));
-    assertThat(tracker.realizedVolBps("AAPL")).isZero(); // 1 sample → 0 returns
+    assertThat(tracker.realizedVolBps("AAPL")).isZero();
   }
 
   @Test
@@ -39,12 +39,11 @@ class VolatilityTrackerTest {
     var cache = new MarketStateCache(CONFIG);
     var tracker = new VolatilityTracker(cache);
 
-    cache.onTick(quote("AAPL", "100.00", "100.20")); // mid 100.10
-    cache.onTick(quote("AAPL", "100.50", "100.70")); // mid 100.60 → log(100.60/100.10)≈0.00498
-    cache.onTick(quote("AAPL", "100.00", "100.20")); // mid 100.10 → log(100.10/100.60)≈-0.00498
+    cache.onTick(quote("AAPL", "100.00", "100.20"));
+    cache.onTick(quote("AAPL", "100.50", "100.70"));
+    cache.onTick(quote("AAPL", "100.00", "100.20"));
 
     double vol = tracker.realizedVolBps("AAPL");
-    // sample stdev of {+0.00498, -0.00498} ≈ 0.00704 → 70.4 bps
     assertThat(vol).isCloseTo(70.4, within(0.5));
   }
 

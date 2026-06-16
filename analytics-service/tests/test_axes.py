@@ -35,11 +35,9 @@ def test_publish_with_same_client_symbol_side_refreshes_instead_of_duplicating()
     m.publish("a1", "clientA", "AAPL", "BUY", 1000)
     clock[0] = 1500.0
     refreshed = m.publish("a-NEW", "clientA", "AAPL", "BUY", 2000)
-    # axe_id stays as the original; refresh_count bumped.
     assert refreshed.axe_id == "a1"
     assert refreshed.quantity == 2000
     assert refreshed.refresh_count == 1
-    # Snapshot should show exactly one entry.
     assert len(m.snapshot()) == 1
 
 
@@ -56,7 +54,6 @@ def test_cancel_removes_axe_and_refresh_index():
     m.publish("a1", "clientA", "AAPL", "BUY", 1000)
     assert m.cancel("a1") is True
     assert m.cancel("a1") is False
-    # Re-publishing must create a fresh axe (refresh index was cleared).
     fresh = m.publish("a2", "clientA", "AAPL", "BUY", 500)
     assert fresh.axe_id == "a2"
     assert fresh.refresh_count == 0
@@ -91,7 +88,6 @@ def test_fully_consumed_axe_is_removed():
     matches = m.match(IncomingLeg("o1", "AAPL", "BUY", 500))
     assert matches[0].matched_quantity == 500
     assert m.snapshot() == []
-    # Republishing for same client should now create a brand-new axe.
     fresh = m.publish("a2", "clientA", "AAPL", "SELL", 200)
     assert fresh.axe_id == "a2"
     assert fresh.refresh_count == 0
@@ -99,15 +95,11 @@ def test_fully_consumed_axe_is_removed():
 
 def test_match_ranks_by_confidence_then_remaining():
     m, clock = _matcher(default_ttl=1000)
-    # Old axe published at t=1000, fresh axe at t=1500. Both expire at +1000 from publish.
     m.publish("old", "C1", "AAPL", "SELL", 500)
     clock[0] = 1500.0
     m.publish("fresh", "C2", "AAPL", "SELL", 500)
-    # Match at t=1500: old has 500s of 1000 TTL remaining (conf=0.5);
-    # fresh has 1000s of 1000 TTL remaining (conf=1.0). Fresh should rank first.
     matches = m.match(IncomingLeg("o1", "AAPL", "BUY", 800))
     assert [s.axe_id for s in matches] == ["fresh", "old"]
-    # First fill: 500 from fresh; second: 300 from old.
     assert matches[0].matched_quantity == 500
     assert matches[1].matched_quantity == 300
 
@@ -120,13 +112,9 @@ def test_match_ranks_by_confidence_times_remaining_product():
     one when the product favours the larger axe.
     """
     m, clock = _matcher(default_ttl=1000)
-    # Big stale axe at t=1000, small fresh axe at t=1500.
     m.publish("big_stale", "C1", "AAPL", "SELL", 1000)
     clock[0] = 1500.0
     m.publish("small_fresh", "C2", "AAPL", "SELL", 100)
-    # At t=1500: big_stale conf=0.5 × remaining 1000 = 500 (product score).
-    #            small_fresh conf=1.0 × remaining 100 = 100.
-    # Spec ranking puts big_stale first despite its lower confidence.
     matches = m.match(IncomingLeg("o1", "AAPL", "BUY", 50))
     assert [s.axe_id for s in matches] == ["big_stale"]
 
@@ -134,7 +122,7 @@ def test_match_ranks_by_confidence_times_remaining_product():
 def test_expired_axe_is_dropped_at_match_time():
     m, clock = _matcher(default_ttl=100)
     m.publish("a1", "C1", "AAPL", "SELL", 500)
-    clock[0] = 1200.0  # 200s after publish → past TTL
+    clock[0] = 1200.0
     matches = m.match(IncomingLeg("o1", "AAPL", "BUY", 100))
     assert matches == []
     assert m.snapshot() == []
@@ -143,9 +131,7 @@ def test_expired_axe_is_dropped_at_match_time():
 def test_min_match_quantity_filters_tiny_orders():
     m, _ = _matcher(min_match=100)
     m.publish("a1", "C1", "AAPL", "SELL", 1000)
-    # Incoming below min_match → skipped entirely.
     assert m.match(IncomingLeg("o1", "AAPL", "BUY", 50)) == []
-    # Axe remaining is untouched.
     assert m.snapshot()[0]["remaining"] == 1000
 
 

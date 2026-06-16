@@ -47,10 +47,6 @@ public class MlSignalClient {
     registerCircuitBreakerGauge(meterRegistry);
   }
 
-  /**
-   * Calls {@code GetSignal} on the ML service for the given symbol. Returns empty if the circuit
-   * breaker is open, the call times out, or any other error occurs.
-   */
   public Optional<MlSignalResult> getSignal(String symbol) {
     try {
       return circuitBreaker.executeSupplier(
@@ -73,11 +69,6 @@ public class MlSignalClient {
     }
   }
 
-  /**
-   * Calls {@code GetRegime} on the ML service. Reuses the same circuit breaker as {@link
-   * #getSignal} so the strategy engine has a single ML-availability gate. Returns empty on any
-   * failure.
-   */
   public Optional<MlRegimeResult> getRegime(String symbol) {
     try {
       return circuitBreaker.executeSupplier(

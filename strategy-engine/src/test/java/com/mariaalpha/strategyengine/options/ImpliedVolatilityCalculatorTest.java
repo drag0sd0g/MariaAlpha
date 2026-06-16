@@ -17,7 +17,6 @@ class ImpliedVolatilityCalculatorTest {
 
   @Test
   void roundTripsForwardPriceCallVolatility() {
-    // Price a contract, then invert that price back to volatility — should recover σ to tolerance.
     double trueVol = 0.27;
     var contract = new OptionContract(100, 100, 0.5, trueVol, 0.03, 0.0, OptionType.CALL);
     double marketPrice = pricer.price(contract);
@@ -42,13 +41,11 @@ class ImpliedVolatilityCalculatorTest {
     double marketPrice = pricer.price(contract);
     var result = solver.solve(100, 100, 0.5, 0.03, 0.0, OptionType.CALL, marketPrice);
     assertThat(result.method()).isEqualTo(ImpliedVolatilityCalculator.Method.NEWTON);
-    // Newton is quadratic — well under 10 iterations from σ₀=0.2 to σ=0.3.
     assertThat(result.iterations()).isLessThan(10);
   }
 
   @Test
   void rejectsPriceBelowIntrinsic() {
-    // Deep-ITM call: lower no-arb bound ≈ S − K·e^(−rT)
     assertThatThrownBy(() -> solver.solve(150, 100, 1.0, 0.05, 0.0, OptionType.CALL, 30.0))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("no-arbitrage band");
@@ -56,7 +53,6 @@ class ImpliedVolatilityCalculatorTest {
 
   @Test
   void rejectsPriceAboveForwardSpot() {
-    // Upper no-arb bound for a call is S·e^(−qT). Asking for a premium > S is impossible.
     assertThatThrownBy(() -> solver.solve(100, 100, 1.0, 0.05, 0.0, OptionType.CALL, 105.0))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("no-arbitrage band");

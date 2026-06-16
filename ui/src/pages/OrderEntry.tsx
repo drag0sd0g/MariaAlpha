@@ -10,8 +10,6 @@ import FillHistoryTable from "@/components/FillHistoryTable";
 export default function OrderEntry() {
   const replaceAll = useOrderStore((s) => s.replaceAll);
   const [error, setError] = useState<string | null>(null);
-  // App-wide /ws/orders connection lives in AppWideStreams;
-  // we re-fetch the REST snapshot on each reconnect.
   const ordersWsState = useConnectionStore((s) => s.states["/ws/orders"]);
 
   const loadSnapshot = async (): Promise<void> => {

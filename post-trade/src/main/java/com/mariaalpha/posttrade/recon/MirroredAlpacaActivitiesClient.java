@@ -4,12 +4,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Simulated mode: every internal fill is echoed back as an external fill, so the comparator always
- * produces zero breaks. This is what keeps the local docker-compose stack runnable without Alpaca
- * credentials — a recon run exercises the full code path (schedule, persistence, alert publish) but
- * does not invent spurious EXTRA_FILL breaks.
- */
 public class MirroredAlpacaActivitiesClient implements AlpacaActivitiesClient {
 
   @Override

@@ -11,26 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/**
- * Confirmation / veto gate (FR-12, TDD §5.2.2).
- *
- * <p>The TDD specifies: <em>"if the ML signal confidence &gt; 0.7 and agrees with the strategy
- * direction, proceed. If &gt; 0.7 and contradicts, suppress. If ≤ 0.7, proceed with strategy signal
- * alone. Configurable via {@code config/strategy.yml}."</em>
- *
- * <p>Two additional configurable behaviours layer on top:
- *
- * <ul>
- *   <li>{@link VetoMode}: STRICT (default) suppresses contradictions; PERMISSIVE logs but lets the
- *       signal through; OFF disables the gate entirely.
- *   <li>{@link SizingMode}: when ML <strong>agrees</strong> with high confidence the gate can
- *       optionally <em>scale</em> the strategy's quantity by {@code recommendedSize /
- *       sizingNeutralFraction} (clamped between {@code sizingLowerBound} and {@code
- *       sizingUpperBound}), expressing the "adjusting urgency" half of FR-12.
- * </ul>
- *
- * <p>Pure decision logic — no I/O, no side effects other than the SLF4J log line. Stateless.
- */
 @Component
 public class MlSignalGate {
 
@@ -71,7 +51,6 @@ public class MlSignalGate {
       return MlGateDecision.confirmed(resized, scale);
     }
 
-    // Contradiction
     return switch (config.vetoMode()) {
       case STRICT -> {
         LOG.info(

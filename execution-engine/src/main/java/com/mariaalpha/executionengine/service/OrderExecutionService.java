@@ -1,6 +1,7 @@
 package com.mariaalpha.executionengine.service;
 
 import com.mariaalpha.executionengine.adapter.VenueAdapterRegistry;
+import com.mariaalpha.executionengine.basket.BasketCoordinator;
 import com.mariaalpha.executionengine.handler.OrderTypeHandlerRegistry;
 import com.mariaalpha.executionengine.iceberg.IcebergCoordinator;
 import com.mariaalpha.executionengine.lifecycle.IllegalStateTransitionException;
@@ -37,6 +38,7 @@ public class OrderExecutionService {
   private final ExecutionMetrics metrics;
   private final IcebergCoordinator icebergCoordinator;
   private final PeggedCoordinator peggedCoordinator;
+  private final BasketCoordinator basketCoordinator;
 
   public OrderExecutionService(
       OrderTypeHandlerRegistry handlerRegistry,
@@ -48,7 +50,8 @@ public class OrderExecutionService {
       DailyLossMonitor dailyLossMonitor,
       ExecutionMetrics metrics,
       IcebergCoordinator icebergCoordinator,
-      PeggedCoordinator peggedCoordinator) {
+      PeggedCoordinator peggedCoordinator,
+      BasketCoordinator basketCoordinator) {
     this.handlerRegistry = handlerRegistry;
     this.riskCheckChain = riskCheckChain;
     this.router = router;
@@ -59,6 +62,7 @@ public class OrderExecutionService {
     this.metrics = metrics;
     this.icebergCoordinator = icebergCoordinator;
     this.peggedCoordinator = peggedCoordinator;
+    this.basketCoordinator = basketCoordinator;
   }
 
   @PostConstruct
@@ -204,13 +208,11 @@ public class OrderExecutionService {
       return;
     }
 
-    // Zero-quantity terminal event: IOC residual cancel, FOK kill, or generic exchange cancel.
     if (report.fillQuantity() == 0 && report.remainingQuantity() == 0) {
       var reason = report.reason() != null ? report.reason() : "exchange-cancel";
       try {
         lifecycleManager.transition(order.getOrderId(), OrderStatus.CANCELLED, null, reason);
       } catch (IllegalStateTransitionException e) {
-        // Already terminal (FILLED on prior partial, etc.) — log and continue.
         LOG.debug(
             "Skipping cancel transition for order {} ({})", order.getOrderId(), e.getMessage());
         return;
@@ -219,9 +221,7 @@ public class OrderExecutionService {
         case "ioc-residual-cancel" ->
             metrics.recordIocResidualCancelled(order.getSymbol(), order.getSide().name());
         case "fok-killed" -> metrics.recordFokKilled(order.getSymbol(), order.getSide().name());
-        default -> {
-          /* generic cancel — no dedicated counter */
-        }
+        default -> {}
       }
       return;
     }
@@ -242,8 +242,6 @@ public class OrderExecutionService {
     try {
       lifecycleManager.transition(order.getOrderId(), newStatus, fill, null);
     } catch (IllegalStateTransitionException e) {
-      // A fill can race a cancel (the venue filled before our cancel landed). The order is
-      // already terminal locally, but the fill is real — keep counting it below.
       LOG.warn(
           "Fill {} arrived for order {} already in terminal state: {}",
           fill.fillId(),
@@ -263,6 +261,9 @@ public class OrderExecutionService {
     }
     if (peggedCoordinator != null) {
       peggedCoordinator.onChildFillIfApplicable(order, report);
+    }
+    if (basketCoordinator != null) {
+      basketCoordinator.onLegFillIfApplicable(order, report);
     }
   }
 }

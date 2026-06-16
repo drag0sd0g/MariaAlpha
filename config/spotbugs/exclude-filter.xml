@@ -402,6 +402,19 @@
         <Class name="com.mariaalpha.executionengine.pegged.PeggedMetrics"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
+    <!-- Program/basket trading (issue 3.4.1) -->
+    <Match>
+        <Class name="com.mariaalpha.executionengine.basket.BasketMetrics"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.basket.BasketView"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.controller.dto.BasketOrderRequest"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
     <Match>
         <Class name="com.mariaalpha.executionengine.handler.PeggedOrderHandler"/>
         <Bug pattern="EI_EXPOSE_REP2"/>

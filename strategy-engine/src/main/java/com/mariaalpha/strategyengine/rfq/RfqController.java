@@ -17,18 +17,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * RFQ pricing endpoints (FR-40 / TDD §2.6.2).
- *
- * <ul>
- *   <li>{@code POST /api/rfq/quote} — returns a two-way quote built by {@link RfqPricingEngine}.
- *   <li>{@code POST /api/rfq/accept} — accepts a previously issued quote (by id), validates
- *       freshness and the requested side+price, and publishes an {@link OrderSignal} for the
- *       Execution Engine to pick up via the regular signals topic.
- *   <li>{@code GET /api/rfq/quotes/{id}} — debug endpoint, returns whatever the store remembers
- *       about a quote (active or expired).
- * </ul>
- */
 @RestController
 @RequestMapping("/api/rfq")
 public class RfqController {
@@ -55,7 +43,6 @@ public class RfqController {
     this.config = config;
   }
 
-  /** Compute an inventory- and vol-aware RFQ quote. */
   @PostMapping("/quote")
   public ResponseEntity<RfqQuoteResponse> quote(@RequestBody RfqQuoteRequest request) {
     if (request == null) {
@@ -72,7 +59,6 @@ public class RfqController {
     }
   }
 
-  /** Accept a previously issued RFQ quote and publish an order signal. */
   @PostMapping("/accept")
   public ResponseEntity<RfqAcceptResponse> accept(@RequestBody RfqAcceptRequest request) {
     if (request == null
@@ -124,7 +110,6 @@ public class RfqController {
         new RfqAcceptResponse(quote.quoteId(), quote.symbol(), signal, "ACCEPTED"));
   }
 
-  /** Look up a previously issued RFQ quote (debug). */
   @GetMapping("/quotes/{quoteId}")
   public ResponseEntity<RfqQuoteResponse> getQuote(@PathVariable java.util.UUID quoteId) {
     return quoteStore

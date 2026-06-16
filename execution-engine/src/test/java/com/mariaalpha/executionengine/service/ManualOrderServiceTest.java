@@ -37,7 +37,6 @@ class ManualOrderServiceTest {
         new ManualOrderService(
             executionService, lifecycleManager, icebergCoordinator, null, venueAdapters);
 
-    // submitOrder returns the order passed in (simulates pipeline registration)
     when(executionService.submitOrder(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
   }
 
@@ -72,7 +71,6 @@ class ManualOrderServiceTest {
 
     service.submit(request);
 
-    // No exception; clientOrderId generated internally (UUID). Just verify submission happened.
     verify(executionService).submitOrder(any(Order.class));
   }
 
@@ -84,7 +82,6 @@ class ManualOrderServiceTest {
 
     service.submit(request);
 
-    // ClientOrderId is a signal-level concept; it's carried through as strategyName="MANUAL"
     verify(executionService).submitOrder(any(Order.class));
   }
 

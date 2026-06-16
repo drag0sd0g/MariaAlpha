@@ -31,9 +31,6 @@ public class IocOrderHandler implements OrderTypeHandler {
       return ValidationResult.fail("No market data available for " + order.getSymbol());
     }
 
-    // Marketability check: an IOC that cannot fill at submission time would be cancelled
-    // for zero fills. We reject pre-flight so the user sees a clear validation error
-    // rather than an opaque "ioc-residual-cancel" terminal event.
     if (order.getSide() == Side.BUY
         && order.getLimitPrice().compareTo(marketState.askPrice()) < 0) {
       return ValidationResult.fail(

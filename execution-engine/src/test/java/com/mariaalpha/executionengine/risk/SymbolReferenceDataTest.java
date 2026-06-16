@@ -23,7 +23,6 @@ class SymbolReferenceDataTest {
     var data = build(new SymbolRef("AAPL", "TECH", 1.2, 60_000_000L));
     assertThat(data.sectorOf("ZZZZ")).isEqualTo("UNKNOWN");
     assertThat(data.betaOf("ZZZZ")).isEqualTo(1.0);
-    // Default ADV is conservatively 0 so the ADV check rejects until reference data is added.
     assertThat(data.advOf("ZZZZ")).isZero();
     assertThat(data.isMapped("ZZZZ")).isFalse();
   }

@@ -11,31 +11,6 @@ import java.math.RoundingMode;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 
-/**
- * Pre-trade intraday Value-at-Risk check (roadmap 3.5.1).
- *
- * <p>Computes a parametric (Gaussian) one-day VaR for the projected portfolio at the configured
- * {@code varConfidenceLevel} and rejects any order whose addition would push the projection past
- * {@code maxIntradayVar}.
- *
- * <p>Per-symbol VaR contribution:
- *
- * <pre>
- *   var_i = |position_notional_i| × σ_ann_i / √trading-days × z(confidence)
- * </pre>
- *
- * <p>Portfolio VaR is the sum of |var_i| across all symbols — the conservative reading that assumes
- * no diversification benefit (perfect tail-correlation). A correlation-aware version is a future
- * concern; for an MVP risk check, the no-diversification assumption is the right side to err on.
- *
- * <p>Symbols whose annualised volatility is missing from {@link SymbolReferenceData} contribute 0
- * to the projection — the check is a safety net, not a substitute for proper reference data. If
- * {@code maxIntradayVar ≤ 0} the check self-disables.
- *
- * <p>SELLs that flatten a long position naturally pull VaR toward zero; the check only fires when
- * the projection both exceeds the limit AND exceeds the current portfolio VaR (so a re-balancing
- * trade that reduces total risk is never gated).
- */
 @Component
 @org.springframework.core.annotation.Order(9)
 public class IntradayVarCheck implements RiskCheck {
@@ -100,14 +75,12 @@ public class IntradayVarCheck implements RiskCheck {
     return RiskCheckResult.pass(name());
   }
 
-  /** Sum-of-absolutes VaR across the existing portfolio (no diversification credit). */
   private BigDecimal portfolioVar(Map<String, BigDecimal> positions, double zscore, double sqrtT) {
     return positions.entrySet().stream()
         .map(e -> positionVar(e.getKey(), e.getValue(), zscore, sqrtT))
         .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
-  /** Portfolio VaR after applying the incoming {@code order} to its symbol's existing position. */
   private BigDecimal projectedVar(
       Map<String, BigDecimal> positions,
       String orderSymbol,
@@ -140,11 +113,6 @@ public class IntradayVarCheck implements RiskCheck {
     return positionNotional.abs().multiply(BigDecimal.valueOf(scalar));
   }
 
-  /**
-   * Standard-normal one-tail z-score for a confidence level. Inlined Abramowitz &amp; Stegun
-   * 26.2.23 rational approximation — accurate to ~4.5×10⁻⁴, plenty for VaR thresholds. Defaults to
-   * the 95% z-score (1.645) when the configured level is out of range.
-   */
   static double zscore(double confidenceLevel) {
     double p = 1.0 - confidenceLevel;
     if (p <= 0 || p >= 1) {

@@ -21,10 +21,6 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-/**
- * Verifies PR-B persistence additions: the new {@code parent_order_id} column from migration 006
- * and the {@code ck_orders_display_quantity} CHECK constraint from migration 005.
- */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers

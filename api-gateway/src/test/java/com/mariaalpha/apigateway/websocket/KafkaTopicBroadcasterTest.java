@@ -47,7 +47,6 @@ class KafkaTopicBroadcasterTest {
         .expectNext("{\"symbol\":\"X\"}")
         .verifyComplete();
 
-    // Second subscriber sees the next message independently.
     StepVerifier.create(subB.take(1))
         .then(() -> broadcaster.onMarketData(record("market-data.ticks", "{\"symbol\":\"Y\"}")))
         .expectNext("{\"symbol\":\"Y\"}")

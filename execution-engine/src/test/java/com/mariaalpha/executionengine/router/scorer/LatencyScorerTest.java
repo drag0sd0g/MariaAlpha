@@ -29,7 +29,6 @@ class LatencyScorerTest {
 
   @Test
   void linearScale() {
-    // latency 50, max 200 → 1 - 0.25 = 0.75
     assertThat(scorer.score(ctx(50))).isCloseTo(0.75, within(1e-9));
   }
 

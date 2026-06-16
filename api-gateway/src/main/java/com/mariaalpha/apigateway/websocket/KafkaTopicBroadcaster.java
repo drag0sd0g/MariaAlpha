@@ -13,11 +13,6 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 
-/**
- * Subscribes to the four MariaAlpha event topics and fans out each record to a per-topic {@link
- * reactor.core.publisher.Sinks.Many}. WebSocket handlers grab the corresponding {@link Flux} and
- * pipe it to their session.
- */
 @Component
 public class KafkaTopicBroadcaster {
 
@@ -54,7 +49,6 @@ public class KafkaTopicBroadcaster {
     sinks.clear();
   }
 
-  /** Subscribers obtain the {@link Flux} for a given topic. Returns an empty Flux if unknown. */
   public Flux<String> stream(String topic) {
     Sinks.Many<String> sink = sinks.get(topic);
     if (sink == null) {
@@ -63,9 +57,6 @@ public class KafkaTopicBroadcaster {
     }
     return sink.asFlux();
   }
-
-  // The four Kafka listeners. We deliberately use distinct annotated methods (rather than a single
-  // dynamic registration) so Spring's metrics tag each listener with its method name.
 
   @KafkaListener(
       topics = "${mariaalpha.gateway.websocket.endpoints.market-data.topic}",
@@ -103,9 +94,6 @@ public class KafkaTopicBroadcaster {
     forward(record);
   }
 
-  // Roadmap 3.4.5 — algo-execution progress: CREATED / CANCELLED / SIGNAL_EMITTED events
-  // emitted by strategy-engine each time an algo order's lifecycle advances. Subscribers see
-  // them on /ws/algo.
   @KafkaListener(
       topics = "${mariaalpha.gateway.websocket.endpoints.algo.topic}",
       groupId = "api-gateway-${random.uuid}-algo",
@@ -116,8 +104,6 @@ public class KafkaTopicBroadcaster {
   }
 
   private void forward(ConsumerRecord<String, String> record) {
-    // Key by the record's actual topic — the sinks map is built from the configured endpoint
-    // topics, so hardcoded literals here would silently drop everything if config diverged.
     Sinks.Many<String> sink = sinks.get(record.topic());
     if (sink == null) {
       return;

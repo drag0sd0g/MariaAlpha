@@ -2,12 +2,6 @@ package com.mariaalpha.executionengine.pegged;
 
 import java.math.BigDecimal;
 
-/**
- * Immutable progress snapshot for a single PEGGED parent order — fill state, last reference price,
- * last submitted price, and the orderId of the currently-active LIMIT child (if any). All updates
- * return a new instance so the registry can use the {@link java.util.concurrent.ConcurrentHashMap}
- * compute idiom without lock-management bugs.
- */
 public record PeggedProgress(
     int totalQuantity,
     int filledQuantity,

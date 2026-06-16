@@ -29,14 +29,12 @@ class AdvParticipationCheckTest {
 
   @Test
   void passesWhenOrderIsSmallFractionOfAdv() {
-    // AAPL ADV = 60M; 1M shares = 1.67% ≪ 10%.
     var order = order("AAPL", 1_000_000);
     assertThat(check.check(order).passed()).isTrue();
   }
 
   @Test
   void failsWhenOrderExceedsParticipationLimit() {
-    // AAPL ADV = 60M; 7M shares = 11.67% > 10%.
     var order = order("AAPL", 7_000_000);
     var result = check.check(order);
     assertThat(result.passed()).isFalse();
@@ -45,14 +43,13 @@ class AdvParticipationCheckTest {
 
   @Test
   void passesAtExactLimit() {
-    // AAPL ADV = 60M; 6M = 10% exactly → passes (strict >).
     var order = order("AAPL", 6_000_000);
     assertThat(check.check(order).passed()).isTrue();
   }
 
   @Test
   void rejectsWhenAdvUnavailable() {
-    var order = order("ZZZZ", 100); // ZZZZ unmapped → ADV defaults to 0
+    var order = order("ZZZZ", 100);
     var result = check.check(order);
     assertThat(result.passed()).isFalse();
     assertThat(result.reason()).contains("ADV unavailable");

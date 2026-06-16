@@ -18,17 +18,12 @@ public class PositionTracker {
     return positions.getOrDefault(symbol, BigDecimal.ZERO);
   }
 
-  /**
-   * Sums the absolute value of every position (long positions are positive, shorts are negative) to
-   * get total market exposure regardless of direction.
-   */
   public BigDecimal getTotalGrossExposure() {
     return positions.values().stream()
         .map(BigDecimal::abs)
         .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
-  /** Live snapshot of every tracked position keyed by symbol. Used by the sector / beta checks. */
   public Map<String, BigDecimal> snapshot() {
     return Map.copyOf(positions);
   }

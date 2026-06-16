@@ -29,8 +29,6 @@ public class StopOrderHandler implements OrderTypeHandler {
     if (marketState == null || marketState.bidPrice() == null || marketState.askPrice() == null) {
       return ValidationResult.fail("No market data available for " + order.getSymbol());
     }
-    // BUY stop: stopPrice must be above current ask (momentum entry)
-    // SELL stop: stopPrice must be below current bid (stop-loss)
     if (order.getSide() == Side.BUY
         && order.getStopPrice().compareTo(marketState.askPrice()) <= 0) {
       return ValidationResult.fail("BUY STOP price must be above current ask");

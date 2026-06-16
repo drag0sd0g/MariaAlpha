@@ -16,14 +16,6 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Pulls fill activities from Alpaca for a given calendar date. Wraps {@code GET
- * /v2/account/activities?activity_types=FILL&date=...}.
- *
- * <p>This class makes a network call and is constructed by {@link ReconBeansConfig} only when
- * {@code post-trade.recon.mode=EXTERNAL}. Failures surface as {@link AlpacaActivitiesException} so
- * the orchestrator can mark the run FAILED rather than silently emitting bogus MISSING_FILL breaks.
- */
 public class HttpAlpacaActivitiesClient implements AlpacaActivitiesClient {
 
   private static final Logger LOG = LoggerFactory.getLogger(HttpAlpacaActivitiesClient.class);

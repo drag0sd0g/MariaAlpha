@@ -48,7 +48,7 @@ FEATURE_NAMES: list[str] = [
 class Bar:
     """A completed 1-minute OHLCV bar."""
 
-    timestamp: float  # epoch seconds of bar start
+    timestamp: float
     open: float
     high: float
     low: float
@@ -87,7 +87,6 @@ class FeatureEngine:
         self._min_bars = settings.min_bars_for_features
         self._max_bars = settings.max_bars_retained
 
-        # Per-symbol state (protected by _lock)
         self._bars: dict[str, list[Bar]] = {}
         self._current_bar: dict[str, BarBuilder] = {}
         self._features: dict[str, dict[str, float]] = {}
@@ -95,8 +94,6 @@ class FeatureEngine:
 
         self._lock = threading.Lock()
 
-        # StreamSignals listeners: list of (queue, symbol_filter)
-        # symbol_filter is None for "all symbols"
         self._listeners: list[
             tuple[queue.Queue[tuple[str, dict[str, float]]], set[str] | None]
         ] = []
@@ -129,10 +126,8 @@ class FeatureEngine:
             current = self._current_bar[symbol]
 
             if bar_ts == current.timestamp:
-                # Same bar — accumulate
                 current.update(price, vol)
             else:
-                # Bar completed — finalize and start new
                 completed = current.to_bar()
                 bars = self._bars.setdefault(symbol, [])
                 bars.append(completed)
@@ -141,7 +136,6 @@ class FeatureEngine:
 
                 self._current_bar[symbol] = BarBuilder(bar_ts, price, price, price, price, vol)
 
-                # Recompute features if we have enough bars
                 if len(bars) >= self._min_bars:
                     features = self._compute_features(bars)
                     self._features[symbol] = features
@@ -193,7 +187,6 @@ class FeatureEngine:
         with self._lock:
             self._listeners = [(lq, ls) for lq, ls in self._listeners if lq is not q]
 
-    # --- private ---
 
     def _notify_listeners(self, symbol: str, features: dict[str, float]) -> None:
         for q, sym_filter in self._listeners:
@@ -205,8 +198,6 @@ class FeatureEngine:
     def _extract_price_and_volume(tick: dict[str, object]) -> tuple[float, int] | None:
         event_type = str(tick.get("eventType", ""))
         if event_type == "TRADE":
-            # market-data-gateway serializes MarketTick with `price` / `size`
-            # (see MarketTick.java) — not `tradePrice` / `tradeVolume`.
             price = float(tick.get("price", 0))  # type: ignore[arg-type]
             vol = int(tick.get("size", 0))  # type: ignore[call-overload]
             if price > 0:
@@ -244,12 +235,10 @@ class FeatureEngine:
 
         last_close = closes[-1]
 
-        # Volume ratio
         vol_window = volumes[-20:] if len(volumes) >= 20 else volumes
         vol_sma = float(np.mean(vol_window))
         vol_ratio = float(volumes[-1]) / vol_sma if vol_sma > 0 else 1.0
 
-        # Realized volatility (std of 1-bar returns, 20 periods)
         if len(closes) >= 2:
             returns = np.diff(closes) / closes[:-1]
             ret_window = returns[-20:] if len(returns) >= 20 else returns
@@ -257,7 +246,6 @@ class FeatureEngine:
         else:
             realized_vol = 0.0
 
-        # Returns
         return_1 = float(closes[-1] / closes[-2] - 1) if len(closes) >= 2 else 0.0
         return_5 = float(closes[-1] / closes[-6] - 1) if len(closes) >= 6 else 0.0
 

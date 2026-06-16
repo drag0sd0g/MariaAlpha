@@ -25,8 +25,6 @@ class VwapStrategyTest {
   public static final String AAPL = "AAPL";
   private VwapStrategy strategy;
 
-  // Standard 3-bin profile for most tests:
-  //   09:30-10:30 (40%), 10:30-11:30 (35%), 11:30-12:30 (25%)
   private static final List<TimeBin> THREE_BIN_PROFILE =
       List.of(
           new TimeBin(LocalTime.of(9, 30), LocalTime.of(10, 30), 0.40),
@@ -45,7 +43,6 @@ class VwapStrategyTest {
     configureStrategy(targetQty, Side.BUY, volumeProfile);
     var signals = new ArrayList<OrderSignal>();
 
-    // Simulate ticks every 15 minutes from 09:30 to 16:00
     var baseDate = LocalDate.of(2026, 3, 24);
     for (int hour = 9; hour <= 15; hour++) {
       int startMin = (hour == 9) ? 30 : 0;
@@ -56,20 +53,16 @@ class VwapStrategyTest {
       }
     }
 
-    // EOD: tick at 16:00 triggers sweep if needed
     var closeTs = ZonedDateTime.of(baseDate, LocalTime.of(16, 0), MARKET_ZONE).toInstant();
     strategy.onTick(quoteTick(AAPL, closeTs, "178.50", "178.54"));
     strategy.evaluate(AAPL).ifPresent(signals::add);
 
-    // Verify all bins emitted exactly once (13 bin signals + possibly 1 sweep)
     int totalQty = signals.stream().mapToInt(OrderSignal::quantity).sum();
     assertThat(totalQty).isEqualTo(targetQty);
 
-    // All non-sweep signals should be LIMIT orders
     var limitSignals = signals.stream().filter(s -> s.orderType() == OrderType.LIMIT).toList();
     assertThat(limitSignals).hasSize(13);
 
-    // Every signal should be for APPL
     assertThat(signals).allMatch(s -> s.symbol().equals(AAPL));
     assertThat(signals).allMatch(s -> s.side() == Side.BUY);
   }
@@ -83,7 +76,6 @@ class VwapStrategyTest {
             new TimeBin(LocalTime.of(11, 30), LocalTime.of(12, 30), 0.334));
     configureStrategy(1001, Side.BUY, profile);
 
-    // Execute all bins and collect quantities
     int total = 0;
     strategy.onTick(quoteTick(AAPL, etInstant(9, 45), "178.50", "178.54"));
     total += strategy.evaluate(AAPL).get().quantity();
@@ -131,7 +123,7 @@ class VwapStrategyTest {
   void evaluateDoesNotReemitForSameBin() {
     configureStrategy(1000, Side.BUY, THREE_BIN_PROFILE);
     strategy.onTick(quoteTick(AAPL, etInstant(10, 45), "178.50", "178.54"));
-    strategy.evaluate(AAPL); // first call emits
+    strategy.evaluate(AAPL);
     strategy.onTick(quoteTick(AAPL, etInstant(10, 45), "178.50", "178.54"));
     assertThat(strategy.evaluate(AAPL)).isEmpty();
   }
@@ -140,11 +132,9 @@ class VwapStrategyTest {
   void evaluateEmitsForNextBinWhenTimeAdvances() {
     configureStrategy(1000, Side.BUY, THREE_BIN_PROFILE);
 
-    // Bin 0
     strategy.onTick(quoteTick(AAPL, etInstant(9, 45), "178.50", "178.54"));
     strategy.evaluate(AAPL);
 
-    // Bin 1
     strategy.onTick(quoteTick(AAPL, etInstant(10, 45), "179.00", "179.04"));
     var signal = strategy.evaluate(AAPL);
     assertThat(signal).isPresent();
@@ -157,11 +147,9 @@ class VwapStrategyTest {
   void evaluateEmitsMarketSweepAtEndTime() {
     configureStrategy(1000, Side.BUY, THREE_BIN_PROFILE);
 
-    // Execute only bin 0 (400 shares)
     strategy.onTick(quoteTick(AAPL, etInstant(9, 45), "178.50", "178.54"));
     strategy.evaluate(AAPL);
 
-    // Jump past end time
     strategy.onTick(quoteTick(AAPL, etInstant(12, 35), "180.00", "180.04"));
 
     var signal = strategy.evaluate(AAPL);
@@ -203,14 +191,11 @@ class VwapStrategyTest {
   void updateParametersResetsState() {
     configureStrategy(1000, Side.BUY, THREE_BIN_PROFILE);
 
-    // Execute bin 0
     strategy.onTick(quoteTick("AAPL", etInstant(9, 45), "178.50", "178.54"));
     assertThat(strategy.evaluate("AAPL")).isPresent();
 
-    // Reconfigure with new target
     configureStrategy(2000, Side.SELL, THREE_BIN_PROFILE);
 
-    // Bin 0 should fire again (state was reset)
     strategy.onTick(quoteTick("AAPL", etInstant(9, 45), "178.50", "178.54"));
     var signal = strategy.evaluate(AAPL);
     assertThat(signal).isPresent();
@@ -269,8 +254,6 @@ class VwapStrategyTest {
   }
 
   private static List<TimeBin> buildFullDayProfile() {
-    // 13 bins, 30 min each, from 09:30 to 16:00
-    // U-shaped volume distribution
     double[] fractions = {
       0.12, 0.09, 0.07, 0.06, 0.05, 0.05, 0.05, 0.05, 0.06, 0.07, 0.09, 0.11, 0.13
     };

@@ -8,20 +8,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * Options pricing endpoints (roadmap 3.2.1 / 3.2.2).
- *
- * <ul>
- *   <li>{@code POST /api/options/price} — Black-Scholes-Merton premium + the full Greek bundle.
- *   <li>{@code POST /api/options/greeks} — Greeks only (slightly cheaper if the caller already
- *       priced the contract).
- *   <li>{@code POST /api/options/implied-volatility} — invert an observed market premium to a
- *       volatility using {@link ImpliedVolatilityCalculator}.
- * </ul>
- *
- * <p>Validation lives in {@link OptionContract}'s compact constructor — bad inputs surface as
- * {@code 400 Bad Request} via the {@link IllegalArgumentException} translator below.
- */
 @RestController
 @RequestMapping("/api/options")
 public class OptionsController {

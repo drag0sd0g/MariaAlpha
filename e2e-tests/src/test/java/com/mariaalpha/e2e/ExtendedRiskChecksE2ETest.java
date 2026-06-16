@@ -22,21 +22,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.testcontainers.containers.ComposeContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 
-/**
- * E2E coverage for the sector / beta / ADV-participation risk checks. Brings up the full
- * docker-compose stack with the ADV-participation limit tightened via env override to a tiny
- * fraction (0.0000001 ≈ ~6 AAPL shares trigger), then verifies a manual order above that limit
- * comes back REJECTED with {@code AdvParticipation} as the failing check.
- *
- * <p>The sector / beta exposure checks are exercised by the unit + integration tests — they
- * require an accumulated position book to fire, which is harder to set up deterministically in a
- * docker-compose stack.
- */
-// Runs LAST among the e2e suite (ClassOrderer.OrderAnnotation, see junit-platform.properties).
-// `ClassOrderer.OrderAnnotation` treats unannotated classes as having order Integer.MAX_VALUE/2,
-// so this annotation must exceed that — MAX_VALUE guarantees this class runs after every
-// shared-stack class. The setUp tears down the SharedComposeStack to swap in its own
-// ADV-tightened stack; every shared-stack test must complete before that destruction is safe.
 @Order(Integer.MAX_VALUE)
 @Tag("e2e")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -59,9 +44,6 @@ class ExtendedRiskChecksE2ETest {
 
   @BeforeAll
   void startStack() throws Exception {
-    // Release the SharedComposeStack first so its ComposeContainer handle doesn't fight ours over
-    // the same compose project name ("mariaalpha"). Without this, our `compose up -d --build`
-    // exits with code 1 and Testcontainers reports an opaque ContainerLaunchException.
     SharedComposeStack.get().stopIfRunning();
     var dockerComposeFile = new File("../docker-compose.yml");
     new ProcessBuilder(
@@ -85,8 +67,6 @@ class ExtendedRiskChecksE2ETest {
             .withEnv("POSTGRES_DB", "mariaalpha")
             .withEnv("ALPACA_API_KEY_ID", "unused")
             .withEnv("ALPACA_API_SECRET_KEY", "unused")
-            // Tighten ADV participation so a 6-share AAPL order trips the check.
-            // (AAPL ADV = 60M; 1e-7 × 60M = 6 shares.)
             .withEnv("EXECUTION_ENGINE_RISK_MAX_ADV_PARTICIPATION", "0.0000001")
             .withBuild(true)
             .withRemoveVolumes(true)
@@ -108,8 +88,6 @@ class ExtendedRiskChecksE2ETest {
   void manualOrderAboveAdvParticipationLimitIsRejected() throws Exception {
     var orderId = submitManualOrder("AAPL", "BUY", 100);
 
-    // The Kafka-orderdb lag is bounded; the order-manager persists the REJECTED state shortly
-    // after the execution-engine fires the lifecycle event.
     var order =
         await()
             .atMost(20, TimeUnit.SECONDS)
@@ -120,15 +98,10 @@ class ExtendedRiskChecksE2ETest {
     assertThat(order.get("status").asText())
         .as("100-share AAPL order with ADV participation cap at 1e-7 must be rejected")
         .isEqualTo("REJECTED");
-    // The rejection reason is published on the orders.lifecycle topic but order-manager doesn't
-    // persist it on the OrderResponse DTO today. Reason-text assertions live in the unit and
-    // integration tests where the chain is reachable directly.
   }
 
   @Test
   void smallNormalOrderStillPassesTheChain() throws Exception {
-    // Establish that the chain still admits normal flow — a 1-share order is well below every
-    // configured limit even with the ADV check tightened.
     var orderId = submitManualOrder("AAPL", "BUY", 1);
     var order =
         await()

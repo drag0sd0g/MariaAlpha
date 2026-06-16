@@ -2,19 +2,6 @@ package com.mariaalpha.strategyengine.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/**
- * Wiring + policy knobs for the ML Signal Service gRPC client and the {@link
- * com.mariaalpha.strategyengine.ml.MlSignalGate} that consumes its output.
- *
- * <p>{@link #confidenceThreshold()} is the confidence floor below which the ML signal is treated as
- * uninformative; the strategy proceeds on its own per FR-12. Above it the gate applies the {@link
- * #vetoMode()} policy (STRICT — suppress contradictions; PERMISSIVE — log only; OFF — ML never
- * suppresses). {@link #neutralSuppress()} controls whether a high-confidence NEUTRAL prediction is
- * treated as contradicting any side (true) or as a non-opinion (false; the default and the relaxed
- * TDD §5.2.2 reading). {@link #sizingMode()} drives the quantity adjustment: NONE leaves quantity
- * untouched; SCALED multiplies it by {@code clamp(recommendedSize / sizingNeutralFraction, lower,
- * upper)} when ML agrees with high confidence.
- */
 @ConfigurationProperties(prefix = "strategy-engine.ml")
 public record MlConfig(
     String host,

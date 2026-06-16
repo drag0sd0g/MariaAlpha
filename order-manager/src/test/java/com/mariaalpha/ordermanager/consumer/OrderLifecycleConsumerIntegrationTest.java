@@ -68,8 +68,6 @@ class OrderLifecycleConsumerIntegrationTest {
     registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");
     registry.add(
         "spring.liquibase.change-log", () -> "classpath:db/changelog/db.changelog-master.yaml");
-    // No Redis container here — the cache is exercised in
-    // RedisPositionCachePublisherIntegrationTest.
     registry.add("order-manager.redis.enabled", () -> "false");
     registry.add("management.health.redis.enabled", () -> "false");
     registry.add(

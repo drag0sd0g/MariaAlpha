@@ -51,10 +51,9 @@ def _make_quote_tick(symbol: str, bid: float, ask: float, epoch_seconds: float) 
 
 def _feed_n_bars(engine: FeatureEngine, symbol: str, n: int, start_price: float = 100.0) -> None:
     """Feed enough ticks to complete n bars (at 60s intervals)."""
-    base_ts = 1700000000.0  # arbitrary epoch
+    base_ts = 1700000000.0
     for i in range(n + 1):
         price = start_price + i * 0.1
-        # Two ticks per bar: one at start, one 30s in
         ts = base_ts + i * 60
         engine.on_tick(_make_trade_tick(symbol, price, 1000, ts))
         engine.on_tick(_make_trade_tick(symbol, price + 0.05, 500, ts + 30))
@@ -63,12 +62,12 @@ def _feed_n_bars(engine: FeatureEngine, symbol: str, n: int, start_price: float 
 class TestFeatureEngineBasic:
     def test_no_features_before_min_bars(self, feature_engine: FeatureEngine) -> None:
         """Features should not be available until min_bars bars have been completed."""
-        _feed_n_bars(feature_engine, "AAPL", 3)  # min is 5
+        _feed_n_bars(feature_engine, "AAPL", 3)
         assert feature_engine.get_features("AAPL") is None
 
     def test_features_available_after_min_bars(self, feature_engine: FeatureEngine) -> None:
         """After enough bars, features should be available."""
-        _feed_n_bars(feature_engine, "AAPL", 6)  # min is 5
+        _feed_n_bars(feature_engine, "AAPL", 6)
         features = feature_engine.get_features("AAPL")
         assert features is not None
 
@@ -118,7 +117,7 @@ class TestFeatureEngineListeners:
         q: queue.Queue[tuple[str, dict[str, float]]] = queue.Queue()
         feature_engine.add_listener(q, symbols={"MSFT"})
         _feed_n_bars(feature_engine, "AAPL", 6)
-        assert q.empty()  # AAPL updates should not reach a MSFT-only listener
+        assert q.empty()
 
     def test_remove_listener(self, feature_engine: FeatureEngine) -> None:
         q: queue.Queue[tuple[str, dict[str, float]]] = queue.Queue()
@@ -135,7 +134,6 @@ class TestGetBars:
     def test_returns_completed_bars(self, feature_engine: FeatureEngine) -> None:
         _feed_n_bars(feature_engine, "AAPL", 6)
         bars = feature_engine.get_bars("AAPL")
-        # 7 ticks at bar boundaries → 6 completed bars (the last is still open).
         assert len(bars) == 6
         assert bars[0].close > 0
 
@@ -143,7 +141,6 @@ class TestGetBars:
         _feed_n_bars(feature_engine, "AAPL", 10)
         bars = feature_engine.get_bars("AAPL", n=3)
         assert len(bars) == 3
-        # Truncation must keep the *most recent* bars.
         full = feature_engine.get_bars("AAPL")
         assert bars == full[-3:]
 

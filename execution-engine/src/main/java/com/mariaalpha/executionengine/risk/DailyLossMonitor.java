@@ -18,15 +18,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/**
- * Tracks realized intraday P&L and trips the kill-switch when the configured {@code maxDailyLoss}
- * is breached.
- *
- * <p>Realized P&L requires knowing the entry price of the position being closed, so the monitor
- * keeps its own per-symbol (net quantity, average cost) book, updated on every fill. A fill that
- * extends a position realizes nothing; a fill that reduces or flips one realizes {@code (fillPrice
- * − avgCost) × closedQty × sign(position)} on the closed portion.
- */
 @Component
 public class DailyLossMonitor {
 
@@ -34,7 +25,6 @@ public class DailyLossMonitor {
   private static final ZoneId ET = ZoneId.of("America/New_York");
   private static final int SCALE = 8;
 
-  /** Per-symbol open position: signed share quantity and average entry cost. */
   private record Lot(BigDecimal quantity, BigDecimal avgCost) {
     static final Lot FLAT = new Lot(BigDecimal.ZERO, BigDecimal.ZERO);
   }
@@ -52,7 +42,6 @@ public class DailyLossMonitor {
     this.lastResetDate = LocalDate.now(ET);
   }
 
-  /** Called on every fill: updates the per-symbol book and accumulates realized P&L. */
   public void onFill(Fill fill) {
     var realized = new AtomicReference<>(BigDecimal.ZERO);
     var fillQty = BigDecimal.valueOf(fill.fillQuantity());
@@ -66,7 +55,6 @@ public class DailyLossMonitor {
           int fillSign = signedQty.signum();
 
           if (currentSign == 0 || currentSign == fillSign) {
-            // Opening or extending: weighted-average the entry cost, realize nothing.
             var newQty = current.quantity().add(signedQty);
             var newAvg =
                 newQty.signum() == 0
@@ -79,7 +67,6 @@ public class DailyLossMonitor {
             return new Lot(newQty, newAvg);
           }
 
-          // Reducing or flipping: realize P&L on the closed portion.
           var closedQty = signedQty.abs().min(current.quantity().abs());
           realized.set(
               fill.fillPrice()
@@ -90,7 +77,6 @@ public class DailyLossMonitor {
           if (newQty.signum() == 0) {
             return Lot.FLAT;
           }
-          // Flipped: the residual opens a new position at the fill price.
           var newAvg = newQty.signum() == currentSign ? current.avgCost() : fill.fillPrice();
           return new Lot(newQty, newAvg);
         });
@@ -109,7 +95,6 @@ public class DailyLossMonitor {
     return dailyPnl.get();
   }
 
-  /** Auto-reset at market open each trading day. Open positions carry over. */
   @Scheduled(cron = "0 30 9 * * MON-FRI", zone = "America/New_York")
   public void resetDailyLimits() {
     dailyPnl.set(BigDecimal.ZERO);
@@ -142,6 +127,5 @@ public class DailyLossMonitor {
                 "Daily P&L $%s exceeds loss limit of $%d", dailyPnl.get(), config.maxDailyLoss()),
             Instant.now());
     alertPublisher.publish(alert);
-    // Cancel all open orders (handled by OrderExecutionService)
   }
 }

@@ -9,11 +9,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-/**
- * Thin Kafka shim: deserializes each record and delegates to {@link LifecycleEventHandler}, whose
- * {@code @Transactional} boundary actually applies because the call crosses a bean proxy (a
- * same-class {@code @Transactional} method would be self-invoked and run without a transaction).
- */
 @Component
 public class OrderLifecycleConsumer {
 

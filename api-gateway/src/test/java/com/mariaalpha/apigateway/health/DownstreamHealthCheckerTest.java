@@ -63,8 +63,6 @@ class DownstreamHealthCheckerTest {
 
   @Test
   void reportsDownOnTimeout() {
-    // setHeadersDelay (not setBodyDelay) is required: toBodilessEntity completes once headers
-    // arrive, so a body-only delay is not observable.
     server.enqueue(new MockResponse().setHeadersDelay(2, java.util.concurrent.TimeUnit.SECONDS));
     var d = downstream(server.url("/").toString());
 
@@ -81,7 +79,6 @@ class DownstreamHealthCheckerTest {
     StepVerifier.create(checker.check("test", d)).expectNextCount(1).verifyComplete();
     StepVerifier.create(checker.check("test", d)).expectNextCount(1).verifyComplete();
 
-    // Only one HTTP call should have hit the server.
     assertThat(server.getRequestCount()).isEqualTo(1);
   }
 

@@ -10,23 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-/**
- * Two-way RFQ quote generator combining inventory skew and volatility + size/ADV widening.
- *
- * <p>Pricing pipeline per quote request:
- *
- * <ol>
- *   <li>Fetch market mid from {@link MarketStateCache}; reject if no book yet.
- *   <li>Fetch current desk position from {@link PositionLookup}; treat missing as flat.
- *   <li>Compute inventory skew on the <em>mid</em> — long inventory pushes mid down (offload),
- *       short pushes it up (cover). Capped at {@code inventoryMaxSkewBps} so a runaway position
- *       can't shove the quote arbitrarily far.
- *   <li>Compute realised volatility (bps) over the rolling window via {@link VolatilityTracker}.
- *   <li>Compute size-as-percent-of-ADV.
- *   <li>Assemble half-spread = base/2 + volScalar × vol + advScalar × (size/ADV in bps).
- *   <li>Bid = adjusted_mid × (1 − half-spread); Ask = adjusted_mid × (1 + half-spread).
- * </ol>
- */
 @Component
 public class RfqPricingEngine {
 
@@ -90,7 +73,6 @@ public class RfqPricingEngine {
     var snapshot = snapshotOpt.get();
     BigDecimal marketMid = snapshot.mid();
 
-    // --- Inventory skew -------------------------------------------------------
     var position = positionLookup.fetch(symbol);
     double netQty = position.netQuantity().doubleValue();
     double inventoryNotional = netQty * marketMid.doubleValue();
@@ -101,16 +83,13 @@ public class RfqPricingEngine {
         clamp(rawSkewBps, -config.inventoryMaxSkewBps(), config.inventoryMaxSkewBps());
     BigDecimal adjustedMid = marketMid.multiply(BigDecimal.valueOf(1.0 - cappedSkewBps / 10_000.0));
 
-    // --- Volatility widening --------------------------------------------------
     double realizedVolBps = volatilityTracker.realizedVolBps(symbol);
     double volWideningBps = config.volScalar() * realizedVolBps;
 
-    // --- ADV widening ---------------------------------------------------------
     long adv = refData.advOf(symbol);
     double advFraction = adv <= 0 ? 0.0 : (double) quantity / (double) adv;
     double advWideningBps = config.advScalar() * advFraction * 10_000.0;
 
-    // --- Assemble spread ------------------------------------------------------
     double baseHalfSpreadBps = config.baseSpreadBps() / 2.0;
     double totalHalfSpreadBps = baseHalfSpreadBps + volWideningBps + advWideningBps;
 

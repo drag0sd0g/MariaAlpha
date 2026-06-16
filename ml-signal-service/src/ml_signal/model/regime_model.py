@@ -22,7 +22,6 @@ from ml_signal.metrics import INFERENCE_DURATION, REGIME_MODEL_INFO
 
 logger = structlog.get_logger()
 
-# Regime label constants — must match the MarketRegime enum in signal.proto.
 REGIME_UNKNOWN = 0
 REGIME_TRENDING_UP = 1
 REGIME_TRENDING_DOWN = 2
@@ -75,8 +74,6 @@ class RegimeModel:
                 return REGIME_UNKNOWN, 0.0
             feature_names = list(self._feature_names)
 
-        # Build the feature row outside the lock — the model object itself is
-        # not mutated during predict, only the swap during reload needs locking.
         import numpy as np
 
         feature_array = np.array(
@@ -111,8 +108,6 @@ class RegimeModel:
         try:
             data = joblib.load(path)
             model = data["model"]
-            # classes_ comes from sklearn — preserve the training-time label
-            # ordering so we can map predict_proba columns back to enum values.
             class_labels = [int(c) for c in getattr(model, "classes_", [])]
             with self._lock:
                 self._model = model

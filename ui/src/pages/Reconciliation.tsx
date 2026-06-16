@@ -96,7 +96,6 @@ export default function Reconciliation() {
       const r = await api<ReconRun[]>("/api/recon/runs");
       setRuns(r);
     } catch (e) {
-      // non-fatal — leave runs empty
       console.warn("recon runs failed", e);
     }
   }, []);
@@ -122,8 +121,6 @@ export default function Reconciliation() {
     void load();
   }, [load]);
 
-  // Matched count — when we know how many external fills came in, "matched" is external - breaks.
-  // Falls back to "—" when there's no run record (the engine hasn't fired for this date).
   const matched = useMemo<number | "—">(() => {
     if (summary?.run?.externalFillsCount == null) return "—";
     return Math.max(0, summary.run.externalFillsCount - summary.totalBreaks);

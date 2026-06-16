@@ -20,17 +20,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-/**
- * VenueAdapter facade for the simulated internal crossing venue. Delegates the matching itself to
- * {@link InternalCrossingEngine} and translates {@link MidpointCross} events into {@link
- * ExecutionReport}s on the {@code OrderExecutionService} callback.
- *
- * <p>The adapter retains two probability knobs ({@code crossProbabilityOnSubmit} and {@code
- * matchProbabilityPerTick}) as <i>simulated-liquidity rates</i>: when no real counterparty is
- * resting on the opposite side, the adapter rolls a die and may ask the engine to synthesize one.
- * This keeps the simulator producing crosses even when only one strategy is feeding the venue,
- * while the real matching path remains primary.
- */
 @Component
 @Profile("simulated")
 public class SimulatedInternalCrossingAdapter implements VenueAdapter {
@@ -136,7 +125,6 @@ public class SimulatedInternalCrossingAdapter implements VenueAdapter {
     return engine;
   }
 
-  /** Visible for tests — runs one sweep. Called every {@code tickIntervalMs} in prod. */
   void matchTick() {
     engine.sweep();
     if (config.matchProbabilityPerTick() <= 0.0) {
@@ -151,9 +139,6 @@ public class SimulatedInternalCrossingAdapter implements VenueAdapter {
   }
 
   private void onCross(MidpointCross cross) {
-    // Dispatch the execution-report callback asynchronously so the caller of submitOrder() has a
-    // chance to transition the order to SUBMITTED before the FILLED event arrives. All other
-    // venue adapters follow the same async contract; OrderExecutionService relies on it.
     if (scheduler.isShutdown()) {
       return;
     }

@@ -51,7 +51,6 @@ public class StreamingWebSocketHandler implements WebSocketHandler {
             sig -> LOG.info("ws {} session={} closed signal={}", name, session.getId(), sig));
   }
 
-  /** Tiny query-string parser to avoid pulling in Spring's UriComponents from a hot path. */
   private static String extractQuery(String query, String key) {
     if (query == null || key == null) {
       return null;

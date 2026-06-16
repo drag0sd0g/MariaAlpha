@@ -79,7 +79,6 @@ class TestReady:
     def test_ready_with_model_and_features(
         self, client_with_models: TestClient, feature_engine: FeatureEngine
     ) -> None:
-        # Inject a feature vector
         with feature_engine._lock:
             feature_engine._features["AAPL"] = {name: 0.0 for name in FEATURE_NAMES}
         response = client_with_models.get("/ready")

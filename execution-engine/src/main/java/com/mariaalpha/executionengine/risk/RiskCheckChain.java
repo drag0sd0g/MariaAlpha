@@ -22,7 +22,6 @@ public class RiskCheckChain {
         checks.stream().map(RiskCheck::name).toList());
   }
 
-  /** Runs all checks in order. Short-circuits on the first failure. */
   public RiskCheckResult evaluate(Order order) {
     for (var check : checks) {
       var result = check.check(order);

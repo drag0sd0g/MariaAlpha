@@ -16,9 +16,8 @@ export function useWebSocket<T>(opts: Options<T>): { state: ConnectionState } {
   const { endpoint, query, onMessage, enabled = true } = opts;
   const [state, setLocalState] = useState<ConnectionState>("connecting");
   const onMessageRef = useRef(onMessage);
-  onMessageRef.current = onMessage; // always invoke the latest closure
+  onMessageRef.current = onMessage;
 
-  // Capture query snapshot so the dep array doesn't churn on every render.
   const queryKey = JSON.stringify(query ?? {});
 
   useEffect(() => {
@@ -87,8 +86,6 @@ export function useWebSocket<T>(opts: Options<T>): { state: ConnectionState } {
     return () => {
       unmounted = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
-      // Close CONNECTING sockets too — an unmount mid-handshake would otherwise leak a
-      // connection that completes in the background and stays open.
       if (
         socket &&
         (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)

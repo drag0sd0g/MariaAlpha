@@ -25,10 +25,6 @@ public record SubmitOrderRequest(
     PegType pegType,
     Integer pegOffsetBps) {
 
-  /**
-   * Legacy constructor: defaults peg fields to null. Kept for backward-compatibility with the
-   * non-PEGGED order types and the test suite that predates roadmap 3.2.3.
-   */
   public SubmitOrderRequest(
       String symbol,
       Side side,

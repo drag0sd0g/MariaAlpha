@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "execution-engine.sor.mode", havingValue = "direct")
 public class DirectRouter implements SmartOrderRouter {
 
-  private static final String VENUE = "PRIMARY"; // profile-dependent
+  private static final String VENUE = "PRIMARY";
 
   private final RoutingDecisionPublisher publisher;
 

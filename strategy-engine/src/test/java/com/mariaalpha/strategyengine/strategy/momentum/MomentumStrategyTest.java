@@ -59,7 +59,7 @@ class MomentumStrategyTest {
   void bullishCrossoverWithConfirmationEntersLong() {
     configure(Map.of());
 
-    assertThat(step(trade(AAPL, "100.00", 100, "99.98", "100.02"))).isEmpty(); // seed
+    assertThat(step(trade(AAPL, "100.00", 100, "99.98", "100.02"))).isEmpty();
     var signal = step(trade(AAPL, "101.00", 300, "100.98", "101.02"));
 
     assertThat(signal).isPresent();
@@ -84,7 +84,6 @@ class MomentumStrategyTest {
   @Test
   void entrySuppressedWhenVolumeNotConfirmed() {
     configure(Map.of("volumeMultiplier", 1.5));
-    // Large baseline, tiny breakout volume — crossover fires but volume fails to confirm.
     assertThat(step(trade(AAPL, "100.00", 1000, "99.98", "100.02"))).isEmpty();
     assertThat(step(trade(AAPL, "101.00", 100, "100.98", "101.02"))).isEmpty();
     assertThat(strategy.getParameters().get("position")).isEqualTo("FLAT");
@@ -92,12 +91,11 @@ class MomentumStrategyTest {
 
   @Test
   void entrySuppressedWhenRsiOverbought() {
-    // rsiPeriod 2 makes RSI react fast; a sharp rally lifts RSI above 70 at the crossover.
     configure(Map.of("rsiPeriod", 2, "volumeMultiplier", 0.0));
-    step(trade(AAPL, "100.00", 100, "99.98", "100.02")); // seed, above=false
-    step(trade(AAPL, "99.00", 100, "98.98", "99.02")); // down
-    step(trade(AAPL, "98.00", 100, "97.98", "98.02")); // down → RSI 0
-    var signal = step(trade(AAPL, "102.00", 300, "101.98", "102.02")); // rally → bullish + RSI 80
+    step(trade(AAPL, "100.00", 100, "99.98", "100.02"));
+    step(trade(AAPL, "99.00", 100, "98.98", "99.02"));
+    step(trade(AAPL, "98.00", 100, "97.98", "98.02"));
+    var signal = step(trade(AAPL, "102.00", 300, "101.98", "102.02"));
 
     assertThat(signal).as("bullish crossover but RSI overbought → no entry").isEmpty();
     assertThat(strategy.getParameters().get("position")).isEqualTo("FLAT");
@@ -108,8 +106,7 @@ class MomentumStrategyTest {
   void noReentryWhileAlreadyLong() {
     configure(Map.of());
     step(trade(AAPL, "100.00", 100, "99.98", "100.02"));
-    assertThat(step(trade(AAPL, "101.00", 300, "100.98", "101.02"))).isPresent(); // enter long
-    // Further up-trending trades keep us long but emit nothing new.
+    assertThat(step(trade(AAPL, "101.00", 300, "100.98", "101.02"))).isPresent();
     assertThat(step(trade(AAPL, "102.00", 300, "101.98", "102.02"))).isEmpty();
     assertThat(step(trade(AAPL, "103.00", 300, "102.98", "103.02"))).isEmpty();
     assertThat(strategy.getParameters().get("position")).isEqualTo("LONG");
@@ -119,9 +116,9 @@ class MomentumStrategyTest {
   void bearishCrossoverExitsLong() {
     configure(Map.of());
     step(trade(AAPL, "100.00", 100, "99.98", "100.02"));
-    assertThat(step(trade(AAPL, "101.00", 300, "100.98", "101.02"))).isPresent(); // enter long
+    assertThat(step(trade(AAPL, "101.00", 300, "100.98", "101.02"))).isPresent();
 
-    var exit = step(trade(AAPL, "100.00", 300, "99.98", "100.02")); // fast dips below slow
+    var exit = step(trade(AAPL, "100.00", 300, "99.98", "100.02"));
     assertThat(exit).isPresent();
     var order = exit.get();
     assertThat(order.side()).isEqualTo(Side.SELL);
@@ -134,9 +131,9 @@ class MomentumStrategyTest {
   @Test
   void rsiOverboughtExitsLong() {
     configure(Map.of("rsiPeriod", 2, "rsiOverbought", 70.0, "volumeMultiplier", 0.0));
-    step(trade(AAPL, "100.00", 100, "99.98", "100.02")); // seed
-    assertThat(step(trade(AAPL, "101.00", 100, "100.98", "101.02"))).isPresent(); // enter, RSI ~50
-    var exit = step(trade(AAPL, "102.00", 100, "101.98", "102.02")); // RSI → 100, still long-trend
+    step(trade(AAPL, "100.00", 100, "99.98", "100.02"));
+    assertThat(step(trade(AAPL, "101.00", 100, "100.98", "101.02"))).isPresent();
+    var exit = step(trade(AAPL, "102.00", 100, "101.98", "102.02"));
     assertThat(exit).isPresent();
     assertThat(exit.get().side()).isEqualTo(Side.SELL);
     assertThat(exit.get().orderType()).isEqualTo(OrderType.MARKET);
@@ -147,9 +144,8 @@ class MomentumStrategyTest {
   void stopLossExitsLongOnAdverseQuote() {
     configure(Map.of("stopLossPct", 1.0));
     step(trade(AAPL, "100.00", 100, "99.98", "100.02"));
-    assertThat(step(trade(AAPL, "101.00", 300, "100.98", "101.02"))).isPresent(); // long @ 101.02
+    assertThat(step(trade(AAPL, "101.00", 300, "100.98", "101.02"))).isPresent();
 
-    // A quote dropping ~2% below entry trips the stop without moving the EMAs.
     var exit = step(quote(AAPL, "99.00", "99.04"));
     assertThat(exit).isPresent();
     assertThat(exit.get().side()).isEqualTo(Side.SELL);
@@ -160,15 +156,15 @@ class MomentumStrategyTest {
   @Test
   void shortSideEntersOnBearishCrossover() {
     configure(Map.of("side", "SELL"));
-    step(trade(AAPL, "100.00", 100, "99.98", "100.02")); // seed
-    step(trade(AAPL, "101.00", 100, "100.98", "101.02")); // bullish (ignored on short side)
-    var signal = step(trade(AAPL, "99.00", 300, "98.96", "99.04")); // bearish crossover
+    step(trade(AAPL, "100.00", 100, "99.98", "100.02"));
+    step(trade(AAPL, "101.00", 100, "100.98", "101.02"));
+    var signal = step(trade(AAPL, "99.00", 300, "98.96", "99.04"));
 
     assertThat(signal).isPresent();
     var order = signal.get();
     assertThat(order.side()).isEqualTo(Side.SELL);
     assertThat(order.orderType()).isEqualTo(OrderType.LIMIT);
-    assertThat(order.limitPrice()).isEqualByComparingTo(new BigDecimal("98.96")); // sells at bid
+    assertThat(order.limitPrice()).isEqualByComparingTo(new BigDecimal("98.96"));
     assertThat(strategy.getParameters().get("position")).isEqualTo("SHORT");
   }
 
@@ -177,9 +173,9 @@ class MomentumStrategyTest {
     configure(Map.of("side", "SELL"));
     step(trade(AAPL, "100.00", 100, "99.98", "100.02"));
     step(trade(AAPL, "101.00", 100, "100.98", "101.02"));
-    assertThat(step(trade(AAPL, "99.00", 300, "98.96", "99.04"))).isPresent(); // enter short
+    assertThat(step(trade(AAPL, "99.00", 300, "98.96", "99.04"))).isPresent();
 
-    var exit = step(trade(AAPL, "101.00", 100, "100.98", "101.02")); // bullish crossover
+    var exit = step(trade(AAPL, "101.00", 100, "100.98", "101.02"));
     assertThat(exit).isPresent();
     assertThat(exit.get().side()).isEqualTo(Side.BUY);
     assertThat(exit.get().orderType()).isEqualTo(OrderType.MARKET);
@@ -216,14 +212,13 @@ class MomentumStrategyTest {
   void updateParametersResetsState() {
     configure(Map.of());
     step(trade(AAPL, "100.00", 100, "99.98", "100.02"));
-    assertThat(step(trade(AAPL, "101.00", 300, "100.98", "101.02"))).isPresent(); // long
+    assertThat(step(trade(AAPL, "101.00", 300, "100.98", "101.02"))).isPresent();
     assertThat(strategy.getParameters().get("position")).isEqualTo("LONG");
 
     configure(Map.of("tradeQuantity", 50));
     assertThat(strategy.getParameters().get("position")).isEqualTo("FLAT");
     assertThat(strategy.getParameters().get("tradesObserved")).isEqualTo(0L);
 
-    // Fresh run honours the new quantity.
     step(trade(AAPL, "100.00", 100, "99.98", "100.02"));
     var signal = step(trade(AAPL, "101.00", 300, "100.98", "101.02"));
     assertThat(signal).isPresent();
@@ -237,7 +232,7 @@ class MomentumStrategyTest {
     var params = strategy.getParameters();
     assertThat(params.get("tradeQuantity")).isEqualTo(250);
     assertThat(params.get("side")).isEqualTo("BUY");
-    assertThat(params.get("fastPeriod")).isEqualTo(2); // retained from configure()
+    assertThat(params.get("fastPeriod")).isEqualTo(2);
     assertThat(params.get("slowPeriod")).isEqualTo(3);
   }
 
@@ -258,8 +253,6 @@ class MomentumStrategyTest {
     assertThat(step(trade(AAPL, "101.00", 300, "100.98", "101.02"))).isEmpty();
   }
 
-  // --- helpers ---------------------------------------------------------------
-
   private Optional<OrderSignal> step(MarketTick tick) {
     strategy.onTick(tick);
     return strategy.evaluate(tick.symbol());
@@ -277,7 +270,7 @@ class MomentumStrategyTest {
     params.put("volumeLookback", 20);
     params.put("tradeQuantity", 100);
     params.put("side", "BUY");
-    params.put("stopLossPct", 50.0); // effectively off unless overridden
+    params.put("stopLossPct", 50.0);
     params.putAll(overrides);
     strategy.updateParameters(params);
   }

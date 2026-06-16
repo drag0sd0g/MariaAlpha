@@ -17,7 +17,6 @@ import grpc
 import structlog
 import uvicorn
 
-# Add proto generated stubs to path (for local development)
 _proto_path = (
     Path(__file__).resolve().parent.parent.parent.parent / "proto" / "generated" / "python"
 )
@@ -47,17 +46,14 @@ def main() -> None:
         regime_model_path=settings.regime_model_path,
     )
 
-    # Core components
     feature_engine = FeatureEngine(settings)
     signal_model = SignalModel(settings.signal_model_path)
     regime_model = RegimeModel(settings.regime_model_path)
 
-    # Kafka consumer (daemon thread — dies when main thread exits)
     consumer = TickConsumer(settings, feature_engine)
     consumer_thread = threading.Thread(target=consumer.run, name="tick-consumer", daemon=True)
     consumer_thread.start()
 
-    # gRPC server
     grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=settings.grpc_max_workers))
     servicer = SignalServicer(feature_engine, signal_model, regime_model)
     signal_pb2_grpc.add_SignalServiceServicer_to_server(servicer, grpc_server)
@@ -65,7 +61,6 @@ def main() -> None:
     grpc_server.start()
     logger.info("grpc_server_started", port=settings.grpc_port)
 
-    # FastAPI (blocks on main thread)
     app = create_app(feature_engine, signal_model, regime_model, settings)
     uvicorn.run(app, host="0.0.0.0", port=settings.api_port, log_level="info")
 

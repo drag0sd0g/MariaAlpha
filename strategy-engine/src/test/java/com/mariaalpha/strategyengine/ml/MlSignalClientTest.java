@@ -98,7 +98,6 @@ class MlSignalClientTest {
     fakeSignalService.nextError(Status.UNAVAILABLE.asRuntimeException());
     for (int i = 0; i < 5; i++) {
       client.getSignal("AAPL");
-      // refresh the error each call (FakeSignalService clears after use)
       fakeSignalService.nextError(Status.UNAVAILABLE.asRuntimeException());
     }
     assertThat(client.getCircuitBreakerState()).isEqualTo(CircuitBreaker.State.OPEN);

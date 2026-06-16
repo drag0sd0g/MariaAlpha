@@ -48,7 +48,6 @@ class MlSignalGateTest {
   void exactThresholdTreatedAsLowConfidence() {
     var ml = Optional.of(new MlSignalResult(Direction.SHORT, 0.7, 0.0));
     var decision = new MlSignalGate(strict()).decide(BUY, ml);
-    // confidence > threshold is the spec; equality should not be enough to suppress
     assertThat(decision.outcome()).isEqualTo(MlGateDecision.Outcome.LOW_CONFIDENCE);
   }
 

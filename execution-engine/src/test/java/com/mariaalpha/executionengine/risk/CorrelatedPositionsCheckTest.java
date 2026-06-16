@@ -46,7 +46,6 @@ class CorrelatedPositionsCheckTest {
             Map.of(
                 "AAPL", new BigDecimal("500000"),
                 "MSFT", new BigDecimal("400000")));
-    // +1000 AAPL × $200 = $200K → MEGACAP_TECH projection $200K + $500K + $400K = $1.1M < $1.75M
     assertThat(check.check(order("AAPL", Side.BUY, 1000)).passed()).isTrue();
   }
 
@@ -58,7 +57,6 @@ class CorrelatedPositionsCheckTest {
             Map.of(
                 "AAPL", new BigDecimal("800000"),
                 "MSFT", new BigDecimal("600000")));
-    // +5000 AAPL × $200 = $1M → MEGACAP_TECH projection $1M + $800K + $600K = $2.4M > $1.75M
     var result = check.check(order("AAPL", Side.BUY, 5000));
     assertThat(result.passed()).isFalse();
     assertThat(result.reason()).contains("MEGACAP_TECH");
@@ -67,8 +65,6 @@ class CorrelatedPositionsCheckTest {
   @Test
   void sellThatReducesClusterGrossPasses() {
     when(tracker.getMarketState("AAPL")).thenReturn(market("AAPL", "200"));
-    // Cluster is already over the cap ($2M AAPL + $400K MSFT = $2.4M > $1.75M). A SELL that pulls
-    // AAPL down should still pass — projection grows toward zero, never above the current $2.4M.
     when(positions.snapshot())
         .thenReturn(
             Map.of(
@@ -79,11 +75,6 @@ class CorrelatedPositionsCheckTest {
 
   @Test
   void crossClusterMembershipIsCheckedIndependently() {
-    // MSFT belongs to both MEGACAP_TECH ($1.75M cap) and AI_TRADE ($1.5M cap). Position:
-    //   MSFT $1M + GOOGL $400K + NVDA $1.2M.
-    //   MEGACAP_TECH gross = MSFT + GOOGL = $1.4M; +400K MSFT BUY → $1.8M > $1.75M  ✗
-    //   AI_TRADE gross = MSFT + GOOGL + NVDA = $2.6M; +400K MSFT BUY → $3M > $1.5M  ✗
-    // First cluster checked fails — we accept either reason but require failure.
     when(tracker.getMarketState("MSFT")).thenReturn(market("MSFT", "400"));
     when(positions.snapshot())
         .thenReturn(
@@ -103,8 +94,7 @@ class CorrelatedPositionsCheckTest {
         .thenReturn(
             Map.of(
                 "AAPL", new BigDecimal("1700000"),
-                "MSFT", new BigDecimal("40000"))); // MEGACAP_TECH at $1.74M (near cap)
-    // AMZN isn't in any cluster → check passes unconditionally regardless of other positions.
+                "MSFT", new BigDecimal("40000")));
     assertThat(check.check(order("AMZN", Side.BUY, 1_000_000)).passed()).isTrue();
   }
 
@@ -127,14 +117,12 @@ class CorrelatedPositionsCheckTest {
 
   @Test
   void freshSymbolGetsAddedToProjection() {
-    // No existing AAPL position. Cluster already at $1.7M from MSFT + GOOGL.
     when(tracker.getMarketState("AAPL")).thenReturn(market("AAPL", "200"));
     when(positions.snapshot())
         .thenReturn(
             Map.of(
                 "MSFT", new BigDecimal("1000000"),
                 "GOOGL", new BigDecimal("700000")));
-    // +500 AAPL × $200 = $100K → projection $1.8M > $1.75M cap → reject.
     var result = check.check(order("AAPL", Side.BUY, 500));
     assertThat(result.passed()).isFalse();
   }

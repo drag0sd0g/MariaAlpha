@@ -51,7 +51,7 @@ class SectorExposureCheckTest {
     when(tracker.getMarketState("AAPL")).thenReturn(market("AAPL", "150"));
     when(positions.snapshot())
         .thenReturn(Map.of("AAPL", new BigDecimal("500000"), "MSFT", new BigDecimal("400000")));
-    var order = order("AAPL", Side.BUY, 1000); // $150K → TECH projected $1.05M < $1.5M
+    var order = order("AAPL", Side.BUY, 1000);
     assertThat(check.check(order).passed()).isTrue();
   }
 
@@ -60,7 +60,6 @@ class SectorExposureCheckTest {
     when(tracker.getMarketState("AAPL")).thenReturn(market("AAPL", "150"));
     when(positions.snapshot())
         .thenReturn(Map.of("AAPL", new BigDecimal("500000"), "NVDA", new BigDecimal("900000")));
-    // TECH exposure already 1.4M; +200K NVDA order pushes to 1.6M, breaches 1.5M TECH cap.
     when(tracker.getMarketState("NVDA")).thenReturn(market("NVDA", "200"));
     var order = order("NVDA", Side.BUY, 1000);
     var result = check.check(order);
@@ -70,19 +69,17 @@ class SectorExposureCheckTest {
 
   @Test
   void sellsThatReduceSectorExposurePass() {
-    // Position is at 1.4M; selling some doesn't push past limit even if limit were tighter.
     when(tracker.getMarketState("AAPL")).thenReturn(market("AAPL", "150"));
     when(positions.snapshot()).thenReturn(Map.of("AAPL", new BigDecimal("1400000")));
-    var order = order("AAPL", Side.SELL, 1000); // reduces by $150K
+    var order = order("AAPL", Side.SELL, 1000);
     assertThat(check.check(order).passed()).isTrue();
   }
 
   @Test
   void unknownSectorFallsBackToDefaultLimit() {
-    // ZZZZ → UNKNOWN sector → falls back to default 1M cap.
     when(tracker.getMarketState("ZZZZ")).thenReturn(market("ZZZZ", "100"));
     when(positions.snapshot()).thenReturn(Map.of());
-    var bigOrder = order("ZZZZ", Side.BUY, 20_000); // $2M > $1M default
+    var bigOrder = order("ZZZZ", Side.BUY, 20_000);
     var result = check.check(bigOrder);
     assertThat(result.passed()).isFalse();
     assertThat(result.reason()).contains("UNKNOWN");
@@ -96,7 +93,7 @@ class SectorExposureCheckTest {
     var disabled = new SectorExposureCheck(disabledConfig, tracker, positions, refData);
     when(tracker.getMarketState("AAPL")).thenReturn(market("AAPL", "150"));
     when(positions.snapshot()).thenReturn(Map.of());
-    var order = order("AAPL", Side.BUY, 100_000); // huge order, would breach if checked
+    var order = order("AAPL", Side.BUY, 100_000);
     assertThat(disabled.check(order).passed()).isTrue();
   }
 

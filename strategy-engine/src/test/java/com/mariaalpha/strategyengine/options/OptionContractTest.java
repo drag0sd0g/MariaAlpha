@@ -51,7 +51,6 @@ class OptionContractTest {
 
   @Test
   void acceptsNegativeRiskFreeRate() {
-    // Negative rates are real (e.g. EUR/CHF in the 2010s) — must not be rejected.
     new OptionContract(100, 100, 0.5, 0.2, -0.005, 0.0, OptionType.CALL);
   }
 }

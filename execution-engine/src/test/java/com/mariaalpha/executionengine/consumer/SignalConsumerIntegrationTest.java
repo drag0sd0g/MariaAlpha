@@ -71,7 +71,6 @@ class SignalConsumerIntegrationTest {
         new OrderSignal("AAPL", Side.BUY, 100, OrderType.MARKET, null, null, "VWAP", Instant.now());
     var json = mapper.writeValueAsString(signal);
 
-    // Send and block until the broker acks — verifies Kafka is reachable and the topic exists.
     var sendResult = template.send("strategy.signals", "AAPL", json).get(10, TimeUnit.SECONDS);
     assertThat(sendResult.getRecordMetadata().offset()).isGreaterThanOrEqualTo(0);
   }

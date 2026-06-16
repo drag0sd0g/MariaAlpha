@@ -78,7 +78,6 @@ class TestRegimeModel:
         model = RegimeModel(str(trained_model_path))
         assert model.is_loaded
 
-        # Feature 0 ≈ 0 is the TRENDING_UP centroid in the fixture (cls_idx == 0).
         features = {name: 0.0 for name in REGIME_FEATURE_NAMES}
         features[REGIME_FEATURE_NAMES[0]] = 0.0
         regime, confidence = model.predict(features)

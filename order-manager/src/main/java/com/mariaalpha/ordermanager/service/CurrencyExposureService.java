@@ -13,16 +13,6 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Aggregates open-position exposure by currency. Mirrors {@link PortfolioService}'s gross/net
- * exposure logic but groups by the currency resolved from {@link CurrencyConfig}, so a desk trading
- * mixed-currency books can see (for example) JPY exposure separately from USD without needing FX
- * rates to collapse them into a single base.
- *
- * <p>No FX conversion: exposures are reported in their native currency. Adding a rates map and a
- * portfolio-base option is a deliberate follow-up — keeps this ticket small and avoids baking in a
- * choice about which leg of an FX rate the system should consume.
- */
 @Service
 public class CurrencyExposureService {
 
@@ -46,7 +36,6 @@ public class CurrencyExposureService {
       var ccy = config.currencyFor(position.getSymbol());
       var agg = byCurrency.computeIfAbsent(ccy, Aggregator::new);
 
-      // P&L is always aggregated (even for flat positions, realized P&L stays on the books).
       agg.realizedPnl = agg.realizedPnl.add(position.getRealizedPnl());
       agg.unrealizedPnl = agg.unrealizedPnl.add(position.getUnrealizedPnl());
 

@@ -39,7 +39,6 @@ class MarketStateCacheTest {
       cache.onTick(quote("AAPL", String.valueOf(100 + i), String.valueOf(100.2 + i)));
     }
     var history = cache.midHistory("AAPL").orElseThrow();
-    // window size 5 → last 5 entries
     assertThat(history).hasSize(5);
     assertThat(history[0]).isCloseTo(105.1, within(0.001));
     assertThat(history[4]).isCloseTo(109.1, within(0.001));

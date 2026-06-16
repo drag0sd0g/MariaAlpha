@@ -56,10 +56,8 @@ class PeggedPriceCalculatorTest {
 
   @Test
   void positiveOffsetMovesBuyUpAndSellDown() {
-    // BUY @ +5 bps → 100.10 × 1.0005 = 100.150
     var buy = calculator.peggedPrice(new BigDecimal("100.10"), Side.BUY, 5, null);
     assertThat(buy.doubleValue()).isCloseTo(100.150, within(1e-3));
-    // SELL @ +5 bps → 100.10 × 0.9995 = 100.050
     var sell = calculator.peggedPrice(new BigDecimal("100.10"), Side.SELL, 5, null);
     assertThat(sell.doubleValue()).isCloseTo(100.050, within(1e-3));
   }
@@ -74,7 +72,6 @@ class PeggedPriceCalculatorTest {
 
   @Test
   void priceCapClampsBuyAboveCap() {
-    // BUY @ +500 bps on 100 → 105.00; cap at 100.50 → must clamp.
     var price =
         calculator.peggedPrice(new BigDecimal("100.00"), Side.BUY, 500, new BigDecimal("100.50"));
     assertThat(price).isEqualByComparingTo("100.5000");

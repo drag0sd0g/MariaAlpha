@@ -4,11 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/**
- * Façade that bundles {@link BlackScholesPricer} + {@link GreeksCalculator} into a single call so
- * the REST controller, future option strategies, and risk checks can ask for "everything I need
- * about this contract" in one shot.
- */
 @Component
 public class OptionPricingService {
 
@@ -25,7 +20,6 @@ public class OptionPricingService {
     this.metrics = metrics;
   }
 
-  /** Theoretical fair value of {@code contract}. */
   public double price(OptionContract contract) {
     long start = System.nanoTime();
     double premium = pricer.price(contract);
@@ -33,12 +27,10 @@ public class OptionPricingService {
     return premium;
   }
 
-  /** Five-Greek sensitivity bundle for {@code contract}. */
   public Greeks greeks(OptionContract contract) {
     return greeksCalculator.compute(contract);
   }
 
-  /** Combined price + Greeks in one pass. */
   public Priced priceWithGreeks(OptionContract contract) {
     long start = System.nanoTime();
     double premium = pricer.price(contract);
@@ -57,6 +49,5 @@ public class OptionPricingService {
     return new Priced(premium, greeks);
   }
 
-  /** Result of {@link #priceWithGreeks(OptionContract)}. */
   public record Priced(double price, Greeks greeks) {}
 }

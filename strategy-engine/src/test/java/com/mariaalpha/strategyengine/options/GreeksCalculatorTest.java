@@ -15,12 +15,6 @@ class GreeksCalculatorTest {
 
   @Test
   void hullTextbookCallGreeks() {
-    // Hull Ch.19 worked example, same inputs as the pricer test. Published reference values:
-    //   delta = 0.7791 (= N(d1))
-    //   gamma = 0.0498
-    //   vega (annualised) = 8.79 → 0.0879 per 1% vol
-    //   theta_call (annualised) ≈ −4.5532 → ÷365 ≈ −0.01247 per day
-    //   rho_call (annualised) ≈ 13.98 → 0.1398 per 1% rate
     var contract = new OptionContract(42.0, 40.0, 0.5, 0.20, 0.10, 0.0, OptionType.CALL);
     var greeks = calculator.compute(contract);
     assertThat(greeks.delta()).isCloseTo(0.7791, within(0.001));
@@ -32,13 +26,6 @@ class GreeksCalculatorTest {
 
   @Test
   void hullTextbookPutGreeksMatchParity() {
-    // Same inputs as the call test → put Greeks via parity relations:
-    //   delta_put = delta_call − e^(−qT) = 0.7791 − 1.0 = −0.2209  (q = 0)
-    //   gamma_put = gamma_call = 0.0498
-    //   vega_put = vega_call = 0.0879
-    //   theta_put (annualised) = theta_call + r·K·e^(−rT) = −4.5532 + 0.10·40·0.9512 = −0.7484
-    //              → ÷365 ≈ −0.00205 per day
-    //   rho_put (annualised) = rho_call − K·T·e^(−rT) = 13.98 − 19.024 = −5.044 → −0.05044 per 1%
     var contract = new OptionContract(42.0, 40.0, 0.5, 0.20, 0.10, 0.0, OptionType.PUT);
     var greeks = calculator.compute(contract);
     assertThat(greeks.delta()).isCloseTo(-0.2209, within(0.001));
@@ -51,7 +38,6 @@ class GreeksCalculatorTest {
   @Test
   void atTheMoneyCallDeltaIsNearHalf() {
     var contract = new OptionContract(100, 100, 0.5, 0.25, 0.01, 0.0, OptionType.CALL);
-    // ATM-forward delta is slightly > 0.5 because the carry pushes d1 above zero.
     assertThat(calculator.compute(contract).delta()).isCloseTo(0.55, within(0.05));
   }
 
@@ -111,7 +97,6 @@ class GreeksCalculatorTest {
 
   @Test
   void deltaMatchesNumericalBumpForCall() {
-    // Numerical bump check: delta ≈ (price(S+h) - price(S-h)) / (2h)
     var base = new OptionContract(100, 100, 0.5, 0.25, 0.03, 0.0, OptionType.CALL);
     double h = 0.01;
     var up = new OptionContract(100 + h, 100, 0.5, 0.25, 0.03, 0.0, OptionType.CALL);
@@ -138,7 +123,6 @@ class GreeksCalculatorTest {
     var up = new OptionContract(100, 100, 0.5, 0.25 + h, 0.03, 0.0, OptionType.CALL);
     var down = new OptionContract(100, 100, 0.5, 0.25 - h, 0.03, 0.0, OptionType.CALL);
     double numericVegaAnnual = (pricer.price(up) - pricer.price(down)) / (2 * h);
-    // Our reported vega is per-1%-vol; rescale numerical vega to compare.
     assertThat(calculator.compute(base).vega() * 100.0).isCloseTo(numericVegaAnnual, within(1e-3));
   }
 
@@ -149,7 +133,6 @@ class GreeksCalculatorTest {
     var trading = new GreeksCalculator(new OptionsPricingConfig(252.0, 100, 1e-6, 1e-4, 5.0));
     double calendarTheta = calendar.compute(contract).theta();
     double tradingTheta = trading.compute(contract).theta();
-    // Same annualised theta → trading-day theta is more negative by factor 365/252 (1.448×).
     assertThat(tradingTheta).isCloseTo(calendarTheta * (365.0 / 252.0), within(1e-6));
   }
 }

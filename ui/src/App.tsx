@@ -17,14 +17,6 @@ import { usePositionStore } from "@/stores/positionStore";
 import { useOrderStore } from "@/stores/orderStore";
 import type { OrderEvent, PositionUpdate, RiskAlert } from "@/types/api";
 
-/**
- * App-wide WebSocket consumers.
- *
- * The Dashboard and OrderEntry pages historically each opened their own `/ws/positions` and
- * `/ws/orders` connections, so navigating between pages tore down + recreated them. Mounting all
- * three streams here means the gateway holds one persistent connection per topic for the entire
- * session — and every page renders from a single, shared store.
- */
 function AppWideStreams() {
   const applyPosition = usePositionStore((s) => s.applyUpdate);
   const applyOrder = useOrderStore((s) => s.applyEvent);

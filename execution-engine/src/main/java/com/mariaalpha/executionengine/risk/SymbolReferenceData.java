@@ -9,15 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/**
- * Symbol-keyed lookup for sector / beta / ADV reference data.
- *
- * <p>Loads {@code execution-engine.risk.reference-data.symbols[]} at startup into an in-memory map
- * and falls back to {@code execution-engine.risk.reference-data.defaults} for any symbol not
- * explicitly configured. The fallback keeps the sector/beta/ADV risk checks safe — an unmapped
- * symbol lands in the {@code UNKNOWN} sector with the conservative default beta and a zero ADV (so
- * the ADV-participation check rejects every order on that symbol until reference data is added).
- */
 @Component
 public class SymbolReferenceData {
 
@@ -56,32 +47,22 @@ public class SymbolReferenceData {
         defaults.adv());
   }
 
-  /** Sector classification for {@code symbol}, or {@code defaults.sector()} if unknown. */
   public String sectorOf(String symbol) {
     return bySymbol.getOrDefault(symbol, defaults).sector();
   }
 
-  /** Beta vs. benchmark for {@code symbol}, or {@code defaults.beta()} if unknown. */
   public double betaOf(String symbol) {
     return bySymbol.getOrDefault(symbol, defaults).beta();
   }
 
-  /** Average Daily Volume (shares) for {@code symbol}, or {@code defaults.adv()} if unknown. */
   public long advOf(String symbol) {
     return bySymbol.getOrDefault(symbol, defaults).adv();
   }
 
-  /**
-   * Annualised volatility of log-returns (decimal — 0.25 == 25%/yr) for {@code symbol}, or {@code
-   * defaults.annualizedVolatility()} if unknown. {@code 0.0} means "vol unknown" — the VaR check
-   * treats that as a zero risk contribution so missing reference data never inflates the
-   * projection.
-   */
   public double annualizedVolatilityOf(String symbol) {
     return bySymbol.getOrDefault(symbol, defaults).annualizedVolatility();
   }
 
-  /** True iff explicit reference data was loaded for this symbol. */
   public boolean isMapped(String symbol) {
     return bySymbol.containsKey(symbol);
   }

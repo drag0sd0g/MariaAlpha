@@ -19,11 +19,10 @@ public class SubmitOrderRequestConstraints
   @Override
   public boolean isValid(SubmitOrderRequest request, ConstraintValidatorContext ctx) {
     if (request == null) {
-      return true; // @NotNull on field handles null requests
+      return true;
     }
     ctx.disableDefaultConstraintViolation();
 
-    // displayQuantity is required iff ICEBERG, forbidden otherwise.
     boolean isIceberg = ICEBERG_ONLY.contains(request.orderType());
     if (isIceberg && request.displayQuantity() == null) {
       return violation(ctx, "displayQuantity is required for ICEBERG orders");
@@ -35,7 +34,6 @@ public class SubmitOrderRequestConstraints
       return violation(ctx, "displayQuantity must be strictly less than quantity");
     }
 
-    // pegType is required iff PEGGED, forbidden otherwise. pegOffsetBps follows the same rule.
     boolean isPegged = PEGGED_ONLY.contains(request.orderType());
     if (isPegged && request.pegType() == null) {
       return violation(ctx, "pegType is required for PEGGED orders");
@@ -47,7 +45,6 @@ public class SubmitOrderRequestConstraints
       return violation(ctx, "pegOffsetBps is only valid for PEGGED orders");
     }
 
-    // TIF rules.
     var tif = request.tif();
     if (FORBIDS_CUSTOM_TIF.contains(request.orderType()) && tif != null && tif != TimeInForce.DAY) {
       return violation(ctx, "MARKET and STOP orders only accept tif=DAY (or null)");
@@ -62,7 +59,6 @@ public class SubmitOrderRequestConstraints
       return violation(ctx, "GTC orders only accept tif=GTC (or null)");
     }
 
-    // Limit-bearing types must have limitPrice.
     if (requiresLimitPrice(request.orderType()) && request.limitPrice() == null) {
       return violation(ctx, request.orderType() + " orders require limitPrice");
     }

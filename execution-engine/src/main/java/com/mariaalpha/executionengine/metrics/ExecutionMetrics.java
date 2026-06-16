@@ -118,9 +118,6 @@ public class ExecutionMetrics {
       java.util.function.ToIntFunction<T> buyDepth,
       java.util.function.ToIntFunction<T> sellDepth,
       java.util.function.ToIntFunction<T> restingOrders) {
-    // Pass the live source bean (not a lambda capturing it) so Micrometer's WeakReference keeps a
-    // strong handle as long as the bean is alive. Lambdas get GC'd shortly after register() and
-    // the gauge degrades to NaN.
     io.micrometer.core.instrument.Gauge.builder(
             "mariaalpha.execution.internal.book.buy.depth", source, buyDepth::applyAsInt)
         .register(registry);

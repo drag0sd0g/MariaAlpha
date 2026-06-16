@@ -67,10 +67,6 @@ public class StrategyMetrics {
         .record(scale);
   }
 
-  /**
-   * Counts ticks dropped before reaching a strategy. {@code reason=market_closed} is the 3.1.3
-   * trading-hours gate; other reasons can land on the same meter later (e.g. data quality).
-   */
   public void recordTickSuppressed(String symbol, String reason) {
     Counter.builder(TICKS_SUPPRESSED)
         .description("Ticks dropped before reaching a strategy, by reason")

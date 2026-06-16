@@ -11,17 +11,6 @@ import java.time.LocalDate;
 import java.util.Objects;
 import java.util.UUID;
 
-/**
- * Row from the {@code reconciliation_breaks} table populated by the EOD reconciliation engine. One
- * row per discrepancy detected between internal fills and the external venue's day-of-trade
- * activity report. Exposed for the UI Reconciliation page via {@link
- * com.mariaalpha.posttrade.controller.ReconController}.
- *
- * <p>{@code internalQty}/{@code externalQty}/{@code internalPrice}/{@code externalPrice} are
- * populated for {@code QUANTITY_MISMATCH} / {@code PRICE_MISMATCH} types. For {@code MISSING_FILL}
- * the external side is populated and the internal side is null; for {@code EXTRA_FILL} it's the
- * other way round.
- */
 @Entity
 @Table(name = "reconciliation_breaks")
 public class ReconciliationBreakEntity {

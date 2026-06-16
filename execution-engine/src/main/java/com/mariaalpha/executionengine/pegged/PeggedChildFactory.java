@@ -8,14 +8,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import org.springframework.stereotype.Component;
 
-/**
- * Builds the LIMIT child order that fronts a PEGGED parent at the venue.
- *
- * <p>The child inherits the parent's symbol, side, and remaining quantity; its limit price is the
- * freshly-computed pegged price. The {@code strategyName} on the child is the literal {@code
- * "PEGGED-CHILD"} so downstream TCA / metrics group child fills under the parent strategy. The
- * parent's {@code orderId} flows into the child as {@code parentOrderId}.
- */
 @Component
 public class PeggedChildFactory {
 

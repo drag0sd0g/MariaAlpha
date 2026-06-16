@@ -37,8 +37,6 @@ class PriceImprovementScorerTest {
 
   @Test
   void darkVenueGetsHalfSpread() {
-    // bid=178.50 ask=178.54 → spread=0.04, half=0.02, mid≈178.52, halfSpreadBps≈1.12
-    // max=5 bps → score ≈ 0.224
     var ctx = ctx(VenueType.DARK, market("178.50", "178.54"));
     assertThat(scorer.score(ctx)).isCloseTo(0.224, within(0.01));
   }
@@ -57,7 +55,6 @@ class PriceImprovementScorerTest {
 
   @Test
   void capsAtOneForWideSpread() {
-    // bid=100 ask=101 → halfSpreadBps≈49.75; max=5 → raw=9.95 → cap=1.0
     var ctx = ctx(VenueType.DARK, market("100.00", "101.00"));
     assertThat(scorer.score(ctx)).isEqualTo(1.0);
   }

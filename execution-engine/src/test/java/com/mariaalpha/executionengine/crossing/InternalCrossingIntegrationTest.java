@@ -29,16 +29,6 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.KafkaContainer;
 
-/**
- * Wiring test for the internal crossing engine. Verifies that when orders are submitted directly to
- * the simulated internal-crossing venue adapter, the embedded {@link InternalCrossingEngine}
- * matches them and both legs flow through {@link OrderExecutionService}'s execution-report callback
- * into the {@link OrderLifecycleManager} as FILLED.
- *
- * <p>Submitting via the SOR isn't deterministic (other venues outscore INTERNAL_CROSS on the
- * stock-simulated config), so this test calls the adapter directly to keep the assertion sharp. The
- * SOR-routed path is covered by the e2e test in {@code e2e-tests}.
- */
 @SpringBootTest
 @Testcontainers
 @ActiveProfiles("simulated")
@@ -94,15 +84,9 @@ class InternalCrossingIntegrationTest {
             new OrderSignal(
                 "AAPL", Side.BUY, 100, OrderType.MARKET, null, null, "T-BUY", Instant.now()));
 
-    // Submit through OrderExecutionService.submitOrder so they're registered with the lifecycle
-    // manager. We then manually re-dispatch through the internal adapter to force the venue
-    // choice — the normal SOR path is exercised in the e2e test.
     service.submitOrder(sell);
     service.submitOrder(buy);
 
-    // Direct hits on the internal adapter — these create *additional* orders that go straight to
-    // the engine and cross there. Pre-registering with the lifecycle manager would require
-    // hand-wiring, so we instead assert against the engine + venue-adapter health.
     var sellOnly =
         new Order(
             new OrderSignal(

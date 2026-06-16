@@ -17,7 +17,6 @@ class ReconciliationComparatorTest {
   private static final LocalDate D = LocalDate.of(2026, 6, 1);
   private static final Instant TS = Instant.parse("2026-06-01T15:30:00Z");
 
-  // 1 bps tolerance on price, 0.001 tolerance on qty, $10k HIGH / $100k CRITICAL severity.
   private final ReconciliationComparator comparator =
       new ReconciliationComparator(
           new BigDecimal("1.0"),
@@ -78,7 +77,6 @@ class ReconciliationComparatorTest {
 
   @Test
   void priceMismatchAboveToleranceIsDetected() {
-    // 180.05 vs 180.08 → 1.66 bps, above 1.0 bps tolerance
     var internal = List.of(fill("alpaca-1", "AAPL", Side.BUY, "180.05", "100"));
     var external = List.of(ext("alpaca-1", "AAPL", Side.BUY, "180.08", "100"));
     var breaks = comparator.compare(D, internal, external);
@@ -90,7 +88,6 @@ class ReconciliationComparatorTest {
 
   @Test
   void priceDifferenceBelowToleranceIgnored() {
-    // 180.05 vs 180.06 → 0.555 bps, below 1.0 bps tolerance
     var internal = List.of(fill("alpaca-1", "AAPL", Side.BUY, "180.05", "100"));
     var external = List.of(ext("alpaca-1", "AAPL", Side.BUY, "180.06", "100"));
     assertThat(comparator.compare(D, internal, external)).isEmpty();
@@ -98,7 +95,6 @@ class ReconciliationComparatorTest {
 
   @Test
   void aggregatesMultipleFillsPerOrder() {
-    // Two internal fills for same alpaca-1 order, total = 100 @ vwap 180.05
     var internal =
         List.of(
             fill("alpaca-1", "AAPL", Side.BUY, "180.00", "50"),
@@ -109,7 +105,6 @@ class ReconciliationComparatorTest {
 
   @Test
   void severityScalesWithNotionalForMissingFill() {
-    // $1k → MEDIUM, $10k → HIGH, $100k → CRITICAL
     var lowBreak =
         comparator.compare(D, List.of(), List.of(ext("o1", "AAPL", Side.BUY, "10", "100"))).get(0);
     var highBreak =
@@ -125,9 +120,7 @@ class ReconciliationComparatorTest {
 
   @Test
   void severityScalesWithPriceDiffMagnitudeForPriceMismatch() {
-    // 1.66 bps diff → just above tolerance → MEDIUM (less than 10× = 10 bps)
     var medium = priceMismatch("180.05", "180.08");
-    // 100 vs 110 → 909 bps diff → way above 100× tolerance (100 bps) → CRITICAL
     var critical = priceMismatch("100", "110");
     assertThat(medium.severity()).isEqualTo(Severity.MEDIUM);
     assertThat(critical.severity()).isEqualTo(Severity.CRITICAL);
@@ -170,7 +163,7 @@ class ReconciliationComparatorTest {
             fill("alpaca-2", "MSFT", Side.SELL, "415.00", "50"));
     var external = List.of(ext("alpaca-3", "GOOGL", Side.BUY, "140.00", "200"));
     var breaks = comparator.compare(D, internal, external);
-    assertThat(breaks).hasSize(3); // 2 EXTRA_FILL + 1 MISSING_FILL
+    assertThat(breaks).hasSize(3);
     long extra = breaks.stream().filter(b -> b.breakType() == BreakType.EXTRA_FILL).count();
     long missing = breaks.stream().filter(b -> b.breakType() == BreakType.MISSING_FILL).count();
     assertThat(extra).isEqualTo(2);
@@ -195,7 +188,7 @@ class ReconciliationComparatorTest {
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 null,
-                null, // no client or exchange id
+                null,
                 "AAPL",
                 Side.BUY,
                 new BigDecimal("180.05"),
@@ -203,8 +196,6 @@ class ReconciliationComparatorTest {
                 TS));
     assertThat(comparator.compare(D, internal, List.of())).isEmpty();
   }
-
-  // --- helpers ---
 
   private static InternalFill fill(
       String exchangeOrderId, String symbol, Side side, String price, String qty) {

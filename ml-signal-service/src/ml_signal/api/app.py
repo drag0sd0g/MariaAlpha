@@ -50,7 +50,6 @@ def create_app(
 
     @app.get("/metrics", response_class=PlainTextResponse)
     def metrics() -> bytes:
-        # Update staleness gauges before scrape
         now = time.time()
         for symbol, last_update in feature_engine.last_update_times().items():
             FEATURE_STALENESS.labels(symbol=symbol).set(now - last_update)

@@ -18,17 +18,6 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
-/**
- * Full-stack e2e for PEGGED orders (roadmap 3.2.3). Drives the execution-engine through the
- * api-gateway:
- *
- * <ol>
- *   <li>Submit a PEGGED MIDPOINT BUY parent and assert the pegged-progress endpoint reports an
- *       active LIMIT child at the midpoint of the simulated NBBO.
- *   <li>Submit with a missing pegType and assert the validator rejects it with HTTP 400.
- *   <li>Submit a non-PEGGED order with a stray pegType and assert the validator rejects it.
- * </ol>
- */
 @Tag("e2e")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PeggedOrderE2ETest {
@@ -48,8 +37,6 @@ class PeggedOrderE2ETest {
 
   @Test
   void submitPeggedMidpointBuyRegistersChildAndReportsProgress() throws Exception {
-    // The simulator continuously republishes AAPL ticks; wait until the execution-engine's
-    // MarketStateTracker has at least one snapshot.
     var orderId =
         await()
             .atMost(45, TimeUnit.SECONDS)
@@ -57,18 +44,6 @@ class PeggedOrderE2ETest {
             .ignoreExceptions()
             .until(this::submitPeggedMidpointBuy, id -> id != null);
 
-    // The PEGGED parent registers a child immediately on submit; the simulator might already
-    // have filled it before we get here, in which case the registry has dropped the parent and
-    // the progress endpoint returns 404. Either outcome is a valid pegged round-trip:
-    //  (1) progress endpoint returns a snapshot with the expected fields, OR
-    //  (2) progress endpoint returns 404 AND the order shows up in /api/orders in a terminal state.
-    //
-    // Budget 60s (not 20s): when the child is synthetically crossed on submit, the parent is
-    // FILLED+removed instantly, so this poll falls to branch (2), which depends on order-manager
-    // having consumed the FILLED event off `orders.lifecycle`. Early in a freshly-started shared
-    // stack the order-manager consumer group is still rebalancing/resetting offsets, so that
-    // cross-service propagation can take well over 20s under CI load. 60s matches the budget the
-    // rest of the suite (e.g. SimulatedHappyPathE2ETest) already uses for order-manager catch-up.
     boolean done =
         await()
             .atMost(60, TimeUnit.SECONDS)
@@ -89,7 +64,6 @@ class PeggedOrderE2ETest {
       assertThat(progress.get("lastSubmittedPrice").isNumber()).isTrue();
       return true;
     }
-    // 404 from the registry — the parent must have completed. Look it up in the order-manager.
     var order = lookupOrder(orderId);
     if (order == null) {
       return false;

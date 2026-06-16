@@ -113,7 +113,6 @@ class RedisPositionCacheClientTest {
     client.applyMessage("not json");
     client.applyMessage("");
     client.applyMessage(null);
-    // No exception escapes; tracker still empty.
     assertThat(tracker.getPositionNotional("AAPL")).isEqualByComparingTo("0");
   }
 

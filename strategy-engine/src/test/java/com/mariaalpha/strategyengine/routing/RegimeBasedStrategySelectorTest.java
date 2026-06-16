@@ -33,7 +33,6 @@ public class RegimeBasedStrategySelectorTest {
             new RegimeAutoSelectConfig(false, 0.6, Map.of()), mlClient, registry);
 
     assertThat(selector.selectFor("AAPL")).isEmpty();
-    // No need to call out to the ML service when the feature is off.
     verify(mlClient, never()).getRegime("AAPL");
   }
 
@@ -74,7 +73,6 @@ public class RegimeBasedStrategySelectorTest {
 
   @Test
   void returnsEmptyOnUnmappedRegimeSoCallerFallsBackToManualBinding() {
-    // HIGH_VOLATILITY intentionally has no default mapping — let the user choose explicitly.
     when(mlClient.getRegime("TSLA"))
         .thenReturn(Optional.of(new MlRegimeResult(MarketRegime.HIGH_VOLATILITY, 0.95)));
     var selector =
@@ -96,8 +94,7 @@ public class RegimeBasedStrategySelectorTest {
 
   @Test
   void honorsConfigOverridesOverDefaults() {
-    // Override the default MEAN_REVERTING → VWAP mapping to TWAP via config.
-    var twap = vwap; // reuse the mock — its identity is what matters
+    var twap = vwap;
     when(mlClient.getRegime("GOOGL"))
         .thenReturn(Optional.of(new MlRegimeResult(MarketRegime.MEAN_REVERTING, 0.8)));
     when(registry.get("TWAP")).thenReturn(Optional.of(twap));

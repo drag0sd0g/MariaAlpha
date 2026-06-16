@@ -15,7 +15,7 @@ interface Sample {
   pnl: number;
 }
 const SAMPLE_INTERVAL_MS = 1_000;
-const MAX_SAMPLES = 600; // 10 minutes at 1Hz
+const MAX_SAMPLES = 600;
 
 export default function DailyPnlChart() {
   const samplesRef = useRef<Sample[]>([]);

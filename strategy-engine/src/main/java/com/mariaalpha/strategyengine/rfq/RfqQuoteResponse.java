@@ -4,11 +4,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * Response body for {@code POST /api/rfq/quote}. The breakdown fields are stable for UI consumption
- * — the React RFQ panel reads them to show inventory / vol / ADV contributions next to the bid +
- * ask, so traders can sanity-check why a particular quote came out where it did.
- */
 public record RfqQuoteResponse(
     UUID quoteId,
     String symbol,

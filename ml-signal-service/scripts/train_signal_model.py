@@ -24,7 +24,6 @@ import pandas as pd
 from lightgbm import LGBMClassifier
 from sklearn.metrics import accuracy_score, classification_report
 
-# Add src to path so we can import our indicator functions
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from ml_signal.features.indicators import atr, ema, macd, rsi  # noqa: E402
 
@@ -47,8 +46,8 @@ FEATURE_NAMES = [
 ]
 
 SYMBOLS = ["AAPL", "MSFT", "GOOGL", "AMZN", "META"]
-LOOKBACK_DAYS = 180  # 6 months
-LABEL_HORIZON = 5  # predict 5-bar (5-minute) return
+LOOKBACK_DAYS = 180
+LABEL_HORIZON = 5
 TRAIN_SPLIT = 0.8
 OUTPUT_PATH = Path(__file__).parent.parent.parent / "ml-models" / "signal_model.joblib"
 
@@ -130,16 +129,13 @@ def compute_features(df: pd.DataFrame) -> pd.DataFrame:
     macd_line, macd_sig, macd_hist = macd(closes)
     atr_14 = atr(highs, lows, closes, 14)
 
-    # Volume ratio: current / SMA(20)
     vol_sma = pd.Series(volumes).rolling(20).mean().values
     vol_ratio = np.where(vol_sma > 0, volumes / vol_sma, 1.0)
 
-    # Returns: (close[i] - close[i-1]) / close[i-1]  — must match engine.py
     prev_closes = np.roll(closes, 1)
-    prev_closes[0] = closes[0]  # first bar → return = 0
+    prev_closes[0] = closes[0]
     return_1 = (closes - prev_closes) / np.where(prev_closes > 0, prev_closes, 1.0)
 
-    # Realized volatility: std of 1-bar returns over 20 periods
     realized_vol = pd.Series(return_1).rolling(20).std().values
     close_shifted_5 = np.roll(closes, 5)
     close_shifted_5[:5] = closes[:5]
@@ -184,7 +180,6 @@ def main() -> None:
     print(f"Label horizon: {LABEL_HORIZON} bars (minutes)")
     print()
 
-    # 1. Fetch data
     dfs: list[pd.DataFrame] = []
     for symbol in SYMBOLS:
         df = fetch_bars(symbol, api_key, api_secret)
@@ -195,7 +190,6 @@ def main() -> None:
         print("ERROR: No data fetched. Check your API credentials and network.")
         sys.exit(1)
 
-    # 2. Compute features per symbol
     featured_dfs: list[pd.DataFrame] = []
     for df in dfs:
         featured = compute_features(df)
@@ -204,16 +198,13 @@ def main() -> None:
 
     all_data = pd.concat(featured_dfs, ignore_index=True)
 
-    # 3. Drop rows with NaN features or labels
     all_data = all_data.dropna(subset=FEATURE_NAMES + ["label"])
 
-    # Drop first 50 rows per symbol (warm-up period for indicators)
     all_data = all_data.groupby("symbol").apply(lambda g: g.iloc[50:]).reset_index(drop=True)
 
     print(f"\nTotal samples after cleanup: {len(all_data)}")
     print(f"Label distribution:\n{all_data['label'].value_counts().to_string()}")
 
-    # 4. Time-ordered train/val split
     split_idx = int(len(all_data) * TRAIN_SPLIT)
     X_train = all_data[FEATURE_NAMES].iloc[:split_idx].values
     y_train = all_data["label"].iloc[:split_idx].values
@@ -222,7 +213,6 @@ def main() -> None:
 
     print(f"\nTrain: {len(X_train)} samples, Val: {len(X_val)} samples")
 
-    # 5. Train LightGBM
     print("\nTraining LightGBM...")
     clf = LGBMClassifier(
         n_estimators=200,
@@ -240,7 +230,6 @@ def main() -> None:
         callbacks=[],
     )
 
-    # 6. Evaluate
     y_pred = clf.predict(X_val)
     accuracy = accuracy_score(y_val, y_pred)
     print(f"\nValidation accuracy: {accuracy:.4f}")
@@ -249,13 +238,11 @@ def main() -> None:
     if accuracy < 0.50:
         print("WARNING: Accuracy below 50% — model may not be better than random")
 
-    # 7. Feature importance
     print("Feature importance (gain):")
     importances = clf.feature_importances_
     for name, imp in sorted(zip(FEATURE_NAMES, importances, strict=False), key=lambda x: -x[1]):
         print(f"  {name:20s} {imp:8.1f}")
 
-    # 8. Save
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     version = datetime.now().strftime("%Y%m%d-%H%M%S")
     joblib.dump(

@@ -10,11 +10,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
-/**
- * Why Caffeine: every K8s readiness probe at 10 Hz × 5 downstreams = 50 outbound requests/sec just
- * from probes. Caffeine's 5-second TTL caps this at ~1 req/sec/downstream. The async API integrates
- * cleanly with Reactor.
- */
 @Component
 public class DownstreamHealthChecker {
 

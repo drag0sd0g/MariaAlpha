@@ -33,7 +33,6 @@ class OrdersConsumer:
         self._topic = settings.kafka_orders_lifecycle_topic
         self._matcher = matcher
         self._running = True
-        # Last-seen match suggestions for a given order_id, surfaced via REST.
         self._last_matches: dict[str, list[dict[str, object]]] = {}
 
     def run(self) -> None:

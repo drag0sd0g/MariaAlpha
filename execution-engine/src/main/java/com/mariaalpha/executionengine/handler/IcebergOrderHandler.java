@@ -9,14 +9,6 @@ import com.mariaalpha.executionengine.model.ValidationResult;
 import java.math.BigDecimal;
 import org.springframework.stereotype.Component;
 
-/**
- * Validates ICEBERG <em>parent</em> orders. The execution-engine never submits an iceberg parent
- * directly to a venue — the parent is captured by {@link
- * com.mariaalpha.executionengine.iceberg.IcebergCoordinator}, which produces {@code
- * displayQuantity}-sized LIMIT child orders that flow through {@link LimitOrderHandler}. {@link
- * #toExecutionInstruction} is therefore only used to surface validation/preview output via the
- * manual order REST endpoint; the actual venue submission path bypasses it.
- */
 @Component
 public class IcebergOrderHandler implements OrderTypeHandler {
 

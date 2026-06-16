@@ -8,27 +8,6 @@ import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
-/**
- * Pure allocation math (roadmap 3.4.2). No I/O, no persistence — given a parent {@code
- * filledQuantity}, {@code avgPrice}, and a list of weighted sub-accounts plus a method, returns the
- * per-sub-account split.
- *
- * <p>The two algorithms differ only in how they distribute shares:
- *
- * <ul>
- *   <li>{@link AllocationMethod#PRO_RATA} — each sub-account gets {@code weight / Σ weights ×
- *       parent_quantity}, rounded down to a whole share. Any rounding remainder is awarded to the
- *       highest-weighted account first (ties broken by declaration order), so {@code Σ allocations
- *       == parent_quantity} exactly. Sub-accounts with weight = 0 are skipped.
- *   <li>{@link AllocationMethod#FIFO} — sub-accounts are filled in declaration order. Each gets
- *       {@code min(weight, remaining)} where {@code weight} is interpreted as a share cap and
- *       {@code remaining} is the parent quantity not yet allocated. Useful for waterfall structures
- *       (first sub-account fills first, leftovers spill to the next).
- * </ul>
- *
- * <p>Behaviour with a zero parent quantity: returns an empty list (nothing to allocate). With an
- * empty sub-account list: returns an empty list (allocation is unconfigured).
- */
 @Component
 public class AllocationCalculator {
 
@@ -64,7 +43,6 @@ public class AllocationCalculator {
       if (acct.weight() <= 0) {
         continue;
       }
-      // Floor-divide to whole shares so the running total never overshoots the parent.
       BigDecimal share =
           filledQuantity
               .multiply(BigDecimal.valueOf(acct.weight()))
@@ -72,8 +50,6 @@ public class AllocationCalculator {
       results.add(new AllocationResult(acct.name(), share, avgPrice, AllocationMethod.PRO_RATA));
       allocatedSoFar = allocatedSoFar.add(share);
     }
-    // Award the rounding remainder to the largest-weighted account that received an allocation —
-    // ties broken by original declaration order, since stream-sorted is stable.
     var remainder = filledQuantity.subtract(allocatedSoFar);
     if (remainder.signum() > 0 && !results.isEmpty()) {
       var topIndex = findHeaviestAccountIndex(subAccounts, results);
@@ -126,9 +102,6 @@ public class AllocationCalculator {
       remaining = remaining.subtract(share);
     }
     if (remaining.signum() > 0 && !results.isEmpty()) {
-      // Parent quantity exceeded the sum of waterfall caps — the last filled sub-account absorbs
-      // the overflow so the parent fully allocates. This keeps the FIFO contract aligned with
-      // pro-rata: Σ allocations == parent_quantity.
       var lastIdx = results.size() - 1;
       var last = results.get(lastIdx);
       results.set(
@@ -142,12 +115,10 @@ public class AllocationCalculator {
     return List.copyOf(results);
   }
 
-  /** Total weight across non-zero-weight sub-accounts. Test helper. */
   static double totalWeight(List<SubAccount> subAccounts) {
     return subAccounts.stream().filter(s -> s.weight() > 0).mapToDouble(SubAccount::weight).sum();
   }
 
-  /** Comparator that sorts sub-accounts heaviest-first (test helper). */
   static Comparator<SubAccount> byWeightDescending() {
     return Comparator.comparingDouble(SubAccount::weight).reversed();
   }

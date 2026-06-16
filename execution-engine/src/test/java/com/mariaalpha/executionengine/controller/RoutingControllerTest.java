@@ -98,7 +98,6 @@ class RoutingControllerTest {
 
   @Test
   void scorePreviewBadInput() throws Exception {
-    // missing symbol → bean-validation 400
     var json = "{\"side\":\"BUY\",\"orderType\":\"MARKET\",\"quantity\":100}";
     mvc.perform(post("/api/routing/score").contentType(MediaType.APPLICATION_JSON).content(json))
         .andExpect(status().isBadRequest());

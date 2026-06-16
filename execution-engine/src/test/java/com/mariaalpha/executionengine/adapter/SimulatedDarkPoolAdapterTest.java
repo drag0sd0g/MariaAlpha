@@ -65,7 +65,6 @@ class SimulatedDarkPoolAdapterTest {
   void seededMatchTickProducesDeterministicFills() {
     adapter.start();
     adapter.submitOrder(instruction(100));
-    // Match probability = 0.8, seed=42 → first nextDouble() (~0.7276) < 0.8 fires deterministic.
     adapter.matchTick();
     assertThat(reports).hasSize(1);
     assertThat(reports.get(0).venue()).isEqualTo("DARK_POOL_A");
@@ -74,7 +73,7 @@ class SimulatedDarkPoolAdapterTest {
 
   @Test
   void partialFillRatioRespected() {
-    adapter = adapterWith(seedConfigWithRatio(42, 1.0, 0.5)); // 50% partial, deterministic match
+    adapter = adapterWith(seedConfigWithRatio(42, 1.0, 0.5));
     adapter.onExecutionReport(reports::add);
     adapter.start();
     adapter.submitOrder(instruction(100));
@@ -90,7 +89,7 @@ class SimulatedDarkPoolAdapterTest {
         new MarketState(
             "AAPL",
             new BigDecimal("178.50"),
-            new BigDecimal("178.5001"), // 0.005 bps spread, well below 1 bps min
+            new BigDecimal("178.5001"),
             new BigDecimal("178.50"),
             Instant.now()));
     adapter = adapterWith(seedConfig(42, 1.0));
@@ -122,7 +121,7 @@ class SimulatedDarkPoolAdapterTest {
 
   @Test
   void nullMarketStateNoFill() {
-    tracker = new MarketStateTracker(); // no AAPL state
+    tracker = new MarketStateTracker();
     adapter = adapterWith(seedConfig(42, 1.0), tracker);
     adapter.onExecutionReport(reports::add);
     adapter.start();

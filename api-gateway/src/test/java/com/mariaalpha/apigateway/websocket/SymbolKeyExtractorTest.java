@@ -38,7 +38,6 @@ class SymbolKeyExtractorTest {
 
   @Test
   void handlesNestedJsonByReturningTopLevelOnly() {
-    // The first matching field wins. For our JSON schema this is the top-level field.
     assertThat(
             SymbolKeyExtractor.extract(
                 "{\"symbol\":\"AAPL\",\"meta\":{\"symbol\":\"OTHER\"}}", "symbol"))

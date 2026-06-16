@@ -48,7 +48,7 @@ def engine_with_real_models(tmp_path: Path) -> tuple[FeatureEngine, RegimeModel,
         min_bars_for_features=5,
     )
     feature_engine = FeatureEngine(settings)
-    signal_model = SignalModel(settings.signal_model_path)  # ok if unloaded
+    signal_model = SignalModel(settings.signal_model_path)
     regime_model = RegimeModel(settings.regime_model_path)
     assert regime_model.is_loaded, "production regime model must load"
     return feature_engine, regime_model, signal_model
@@ -154,5 +154,4 @@ class TestRegimeClassificationAccuracy:
         _inject_path(engine, "SPY", closes)
         response = stub.GetRegime(signal_pb2.RegimeRequest(symbol="SPY"))
         assert 0.0 <= response.confidence <= 1.0
-        # A clearly trending path should yield reasonable confidence (>1/5 baseline).
         assert response.confidence > 0.3

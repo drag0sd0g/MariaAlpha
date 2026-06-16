@@ -5,11 +5,6 @@ import io.micrometer.core.instrument.Timer;
 import java.time.Duration;
 import org.springframework.stereotype.Component;
 
-/**
- * Reconciliation engine metrics. {@code mariaalpha_recon_breaks_total} is the headline counter
- * called out in §8.2 of the TDD; the duration timer and run counters back the dashboards added in
- * 2.6.4.
- */
 @Component
 public class ReconMetrics {
 

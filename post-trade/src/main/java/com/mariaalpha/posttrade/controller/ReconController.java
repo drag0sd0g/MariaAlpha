@@ -20,12 +20,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Read + write reconciliation API consumed by the UI Reconciliation page and any automation that
- * needs to trigger an ad-hoc run. The {@code POST /api/recon/run} endpoint runs synchronously —
- * fast enough for the simulated stack, and useful in production for re-running after a known-bad
- * earlier attempt.
- */
 @RestController
 @RequestMapping("/api/recon")
 public class ReconController {
@@ -43,7 +37,6 @@ public class ReconController {
     this.service = service;
   }
 
-  /** List reconciliation breaks for a date (defaults to today). */
   @GetMapping("/breaks")
   public List<ReconBreakResponse> breaks(
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
@@ -54,7 +47,6 @@ public class ReconController {
         .toList();
   }
 
-  /** Per-date summary plus the matching run record (if any) so the UI can render run status. */
   @GetMapping("/summary")
   public ReconSummaryResponse summary(
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
@@ -71,7 +63,6 @@ public class ReconController {
     return new ReconSummaryResponse(target, rows.size(), bySeverity, byBreakType, run);
   }
 
-  /** Most recent reconciliation runs (regardless of whether they produced breaks). */
   @GetMapping("/runs")
   public List<ReconRunResponse> runs(@RequestParam(defaultValue = "30") int limit) {
     int clamped = Math.min(Math.max(limit, 1), 365);
@@ -80,7 +71,6 @@ public class ReconController {
         .toList();
   }
 
-  /** All breaks recorded against a given order id, across dates. */
   @GetMapping("/breaks/order/{orderId}")
   public List<ReconBreakResponse> breaksForOrder(@PathVariable UUID orderId) {
     return breakRepository.findByOrderIdOrderByReconDateDesc(orderId).stream()
@@ -88,7 +78,6 @@ public class ReconController {
         .toList();
   }
 
-  /** Trigger an EOD reconciliation run for the given date (defaults to today). Synchronous. */
   @PostMapping("/run")
   public ReconRunResponse run(
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)

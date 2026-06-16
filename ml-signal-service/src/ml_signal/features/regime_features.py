@@ -34,9 +34,6 @@ REGIME_FEATURE_NAMES: list[str] = [
 ]
 
 
-# The classifier needs at least this many bars to compute a stable feature
-# vector. Windows shorter than this would produce too-noisy estimates of the
-# slow features (long-window vol, autocorrelation).
 MIN_BARS_FOR_REGIME: int = 60
 
 
@@ -68,23 +65,17 @@ def compute_regime_features_from_closes(
         return None
 
     log_closes = np.log(np.maximum(closes, 1e-12))
-    returns = np.diff(log_closes)  # log returns
+    returns = np.diff(log_closes)
 
     trend_strength, trend_r2 = _trend_strength_and_r2(log_closes)
     short_vol = float(np.std(returns[-20:])) if len(returns) >= 20 else float(np.std(returns))
     long_vol = float(np.std(returns))
     vol_ratio = short_vol / long_vol if long_vol > 1e-12 else 1.0
 
-    # Mean reversion: sign-flipped first-order autocorrelation of returns.
-    # AR(1) < 0 → returns tend to reverse → score > 0 (mean-reverting).
-    # AR(1) ≈ 0 → random walk → score ≈ 0.
     mean_reversion_score = -_lag1_autocorrelation(returns)
 
     return_dispersion = float(np.quantile(returns, 0.75) - np.quantile(returns, 0.25))
 
-    # Directional strength: mean absolute return scaled by realised vol.
-    # High values indicate sustained directional moves (trending); low values
-    # indicate choppy/quiet markets.
     abs_mean = float(np.mean(np.abs(returns)))
     directional_strength = abs_mean / long_vol if long_vol > 1e-12 else 0.0
 

@@ -10,13 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/**
- * Thread-safe registry linking ICEBERG parent orders to their LIMIT child slices.
- *
- * <p>All maps are {@link ConcurrentHashMap} and per-parent mutations use the {@link
- * ConcurrentHashMap#compute compute} idiom to avoid lost updates from concurrent fills on different
- * children of the same parent.
- */
 @Component
 public class ParentChildOrderRegistry {
 
@@ -81,7 +74,6 @@ public class ParentChildOrderRegistry {
     progress.remove(parentOrderId);
   }
 
-  /** Diagnostics — returns count of currently-tracked parents. */
   public int trackedParents() {
     return parents.size();
   }

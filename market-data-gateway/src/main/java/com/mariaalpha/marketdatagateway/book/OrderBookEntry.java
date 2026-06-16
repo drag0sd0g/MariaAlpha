@@ -18,15 +18,6 @@ public record OrderBookEntry(
         symbol, BigDecimal.ZERO, BigDecimal.ZERO, 0L, 0L, BigDecimal.ZERO, 0L, Instant.EPOCH);
   }
 
-  /**
-   * Returns a new entry with fields updated from the given tick. TRADE ticks update lastPrice and
-   * cumulativeVolume. QUOTE ticks update bid/ask prices and sizes. BAR ticks are ignored.
-   *
-   * <p>Cumulative volume: the simulated CSV feed carries a running total on each tick, but the
-   * Alpaca feed reports only the per-trade size (cumulativeVolume arrives as 0). Taking the max of
-   * "feed-reported total" and "our own running total + this trade's size" handles both without
-   * double-counting.
-   */
   public OrderBookEntry update(MarketTick tick) {
     return switch (tick.eventType()) {
       case TRADE ->

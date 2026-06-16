@@ -91,6 +91,7 @@ class OrderExecutionServiceTest {
             dailyLossMonitor,
             metrics,
             icebergCoordinator,
+            null,
             null);
     service.registerCallbacks();
   }
@@ -130,8 +131,6 @@ class OrderExecutionServiceTest {
 
     verify(primaryVenueAdapter, never()).submitOrder(any());
     verify(metrics).recordRejection("TradingHalted");
-    // The rejection must be visible downstream: the order is registered and transitioned to
-    // REJECTED so order-manager / the UI see the drop instead of a silent no-op.
     verify(lifecycleManager).registerOrder(any());
     verify(lifecycleManager)
         .transition(any(), eq(OrderStatus.REJECTED), isNull(), eq("Trading halted"));

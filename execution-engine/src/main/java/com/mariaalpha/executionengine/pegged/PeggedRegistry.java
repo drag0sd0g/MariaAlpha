@@ -7,14 +7,6 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 
-/**
- * Thread-safe registry linking PEGGED parent orders to their currently-active LIMIT child slice.
- *
- * <p>Mirrors {@link com.mariaalpha.executionengine.iceberg.ParentChildOrderRegistry} but with a
- * simpler model: a PEGGED parent has at most one open child at any time (the previous child is
- * cancelled before the new one is submitted), so {@code childToParent} is single-valued and the
- * {@link PeggedProgress} carries the activeChildOrderId directly.
- */
 @Component
 public class PeggedRegistry {
 
@@ -58,9 +50,6 @@ public class PeggedRegistry {
   }
 
   public PeggedProgress recordChildCancelled(String parentOrderId, String childOrderId) {
-    // Deliberately keep the childToParent mapping: the venue cancel is asynchronous, and a fill
-    // that raced the cancel must still be attributable to the parent. The mapping is cleaned up
-    // in removeParent when the parent reaches a terminal state.
     return progress.compute(parentOrderId, (k, v) -> v == null ? null : v.withChildCancelled());
   }
 
