@@ -60,6 +60,8 @@ post-trade:
     arrival-snapshot-max-lookback-seconds: 60
     order-manager-base-url: ${ORDER_MANAGER_BASE_URL:http://localhost:8086}
     order-manager-http-timeout-ms: 2000
+    order-manager-fetch-max-attempts: ${POST_TRADE_TCA_ORDER_FETCH_MAX_ATTEMPTS:6}
+    order-manager-fetch-retry-delay-ms: ${POST_TRADE_TCA_ORDER_FETCH_RETRY_DELAY_MS:500}
   recon:
     enabled: ${POST_TRADE_RECON_ENABLED:true}
     # MIRROR for simulated stacks (default), EXTERNAL hits Alpaca with the configured creds.

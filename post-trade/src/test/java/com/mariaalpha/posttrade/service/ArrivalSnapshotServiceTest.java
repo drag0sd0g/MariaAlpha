@@ -36,7 +36,7 @@ class ArrivalSnapshotServiceTest {
   @BeforeEach
   void setUp() {
     repository = mock(ArrivalSnapshotRepository.class);
-    cfg = new TcaConfig(21600, 1000, 60, "http://localhost", 2000);
+    cfg = new TcaConfig(21600, 1000, 60, "http://localhost", 2000, 1, 0);
     cache = new MarketDataCache(cfg);
     service = new ArrivalSnapshotService(repository, cache, cfg);
   }

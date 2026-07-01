@@ -21,7 +21,7 @@ class MarketDataCacheTest {
 
   @BeforeEach
   void setUp() {
-    cfg = new TcaConfig(21600, 100, 60, "http://localhost", 2000);
+    cfg = new TcaConfig(21600, 100, 60, "http://localhost", 2000, 1, 0);
     cache =
         new MarketDataCache(
             cfg, Clock.fixed(Instant.parse("2026-04-20T16:00:00Z"), ZoneOffset.UTC));
@@ -133,7 +133,7 @@ class MarketDataCacheTest {
 
   @Test
   void sizeLimit_evictsOldest() {
-    TcaConfig smallCfg = new TcaConfig(21600, 3, 60, "http://localhost", 2000);
+    TcaConfig smallCfg = new TcaConfig(21600, 3, 60, "http://localhost", 2000, 1, 0);
     MarketDataCache small =
         new MarketDataCache(
             smallCfg, Clock.fixed(Instant.parse("2026-04-20T16:00:00Z"), ZoneOffset.UTC));
@@ -150,7 +150,7 @@ class MarketDataCacheTest {
     Instant now = Instant.parse("2026-04-20T16:00:00Z");
     MarketDataCache withClock =
         new MarketDataCache(
-            new TcaConfig(60, 100, 60, "http://localhost", 2000), Clock.fixed(now, ZoneOffset.UTC));
+            new TcaConfig(60, 100, 60, "http://localhost", 2000, 1, 0), Clock.fixed(now, ZoneOffset.UTC));
     withClock.record(trade("AAPL", now.minusSeconds(120), 100.00, 100));
     withClock.record(trade("AAPL", now.minusSeconds(30), 100.05, 100));
     withClock.evictStale();
