@@ -1,0 +1,143 @@
+name: Demo GIF
+
+# Manual only — recording is slow and heavy, so it never runs on the per-PR critical path.
+# Boots the full Docker Compose stack, drives the UI tour with Playwright, converts the
+# recording to a GIF, and uploads it as an artifact. Optionally opens a PR refreshing the
+# committed docs/demo/mariaalpha-demo.gif so the README demo doesn't go stale.
+on:
+  workflow_dispatch:
+    inputs:
+      open_pr:
+        description: "Open a PR committing the refreshed GIF"
+        type: boolean
+        default: false
+
+concurrency:
+  group: demo-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  demo:
+    name: Record UI demo (Docker Compose)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      # Single key shared by gateway + baked UI bundle (must match, or the UI 401s).
+      MARIAALPHA_API_KEY: e2e-test-key
+      POSTGRES_USER: mariaalpha
+      POSTGRES_PASSWORD: mariaalpha
+      POSTGRES_DB: mariaalpha
+      ALPACA_API_KEY_ID: unused
+      ALPACA_API_SECRET_KEY: unused
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Generate Python proto stubs
+        run: |
+          pip install grpcio-tools==1.70.0 --quiet
+          bash proto/generate_python.sh
+
+      # Pre-build Java jars on the host (warm Gradle cache) so the thin Dockerfile.local
+      # images build fast — identical to the e2e job.
+      - name: Pre-build Java service jars
+        run: |
+          ./gradlew \
+            :market-data-gateway:bootJar \
+            :strategy-engine:bootJar \
+            :execution-engine:bootJar \
+            :order-manager:bootJar \
+            :post-trade:bootJar \
+            :api-gateway:bootJar \
+            -x test -x checkstyleMain -x checkstyleTest -x spotbugsMain -x spotbugsTest -x spotlessCheck
+
+      - name: Build all service images
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml build \
+            ml-signal-service market-data-gateway strategy-engine \
+            execution-engine order-manager post-trade api-gateway
+
+      # The UI image is built from the plain compose file so VITE_MARIAALPHA_API_KEY is baked
+      # from MARIAALPHA_API_KEY (= e2e-test-key) above.
+      - name: Build UI image
+        run: docker compose build ui
+
+      - name: Start the stack
+        # docker-compose.demo.yml widens post-trade's TCA arrival-snapshot lookback so the
+        # Analytics panels populate from the historical-timestamped replay (see that file).
+        run: docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d
+
+      - name: Wait for health
+        run: just _wait-healthy
+        # `just` is preinstalled on ubuntu-latest runners via the snap/apt image; if not,
+        # fall back to the inline poll below.
+        continue-on-error: false
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install UI deps + Chromium
+        working-directory: ui
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Seed demo data (positions, fills, analytics)
+        run: just demo-seed
+
+      - name: Record tour + convert to GIF
+        run: just demo
+
+      - name: Upload demo artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-gif
+          path: docs/demo/mariaalpha-demo.gif
+          if-no-files-found: warn
+
+      - name: Capture compose logs on failure
+        if: failure()
+        run: docker compose logs --no-color > compose-logs.txt 2>&1 || true
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-failure-logs
+          path: |
+            compose-logs.txt
+            ui/demo/.output/**
+            ui/playwright-report/**
+          if-no-files-found: ignore
+
+      - name: Open PR refreshing the committed GIF
+        if: ${{ inputs.open_pr && success() }}
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/refresh-demo-gif
+          title: "chore: refresh README demo GIF"
+          commit-message: "chore: refresh README demo GIF"
+          body: |
+            Auto-regenerated `docs/demo/mariaalpha-demo.gif` from the `demo.yml` workflow.
+
+            🤖 Generated with [Claude Code](https://claude.com/claude-code)
+          add-paths: docs/demo/mariaalpha-demo.gif

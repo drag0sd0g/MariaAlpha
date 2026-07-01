@@ -9,7 +9,9 @@ public record TcaConfig(
     int marketDataCacheMaxTicksPerSymbol,
     long arrivalSnapshotMaxLookbackSeconds,
     String orderManagerBaseUrl,
-    long orderManagerHttpTimeoutMs) {
+    long orderManagerHttpTimeoutMs,
+    int orderManagerFetchMaxAttempts,
+    long orderManagerFetchRetryDelayMs) {
 
   public Duration cacheTtl() {
     return Duration.ofSeconds(marketDataCacheTtlSeconds);
@@ -21,5 +23,13 @@ public record TcaConfig(
 
   public Duration httpTimeout() {
     return Duration.ofMillis(orderManagerHttpTimeoutMs);
+  }
+
+  public int fetchMaxAttempts() {
+    return Math.max(1, orderManagerFetchMaxAttempts);
+  }
+
+  public Duration fetchRetryDelay() {
+    return Duration.ofMillis(orderManagerFetchRetryDelayMs);
   }
 }

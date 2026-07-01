@@ -1,5 +1,6 @@
 package com.mariaalpha.posttrade.service;
 
+import com.mariaalpha.posttrade.config.TcaConfig;
 import com.mariaalpha.posttrade.entity.ArrivalSnapshotEntity;
 import com.mariaalpha.posttrade.entity.TcaResultEntity;
 import com.mariaalpha.posttrade.metrics.PostTradeMetrics;
@@ -38,6 +39,7 @@ public class TcaService {
   private final MarketDataCache marketDataCache;
   private final TcaResultPublisher publisher;
   private final PostTradeMetrics metrics;
+  private final TcaConfig tcaConfig;
 
   public TcaService(
       TcaResultRepository repository,
@@ -45,13 +47,15 @@ public class TcaService {
       OrderManagerClient orderManagerClient,
       MarketDataCache marketDataCache,
       TcaResultPublisher publisher,
-      PostTradeMetrics metrics) {
+      PostTradeMetrics metrics,
+      TcaConfig tcaConfig) {
     this.repository = repository;
     this.arrivalSnapshotService = arrivalSnapshotService;
     this.orderManagerClient = orderManagerClient;
     this.marketDataCache = marketDataCache;
     this.publisher = publisher;
     this.metrics = metrics;
+    this.tcaConfig = tcaConfig;
   }
 
   @Transactional
@@ -63,14 +67,18 @@ public class TcaService {
 
     long t0 = System.nanoTime();
 
-    Optional<OrderDetails> orderOpt = orderManagerClient.fetchOrder(orderId);
+    Optional<OrderDetails> orderOpt = fetchFilledOrder(orderId);
     if (orderOpt.isEmpty()) {
       LOG.warn("Skipping TCA: order-manager did not return details for {}", orderId);
       return Optional.empty();
     }
     OrderDetails order = orderOpt.get();
     if (order.status() != OrderStatus.FILLED) {
-      LOG.info("Skipping TCA: order {} is not FILLED (status={})", orderId, order.status());
+      LOG.info(
+          "Skipping TCA: order {} still not FILLED after {} attempt(s) (status={})",
+          orderId,
+          tcaConfig.fetchMaxAttempts(),
+          order.status());
       return Optional.empty();
     }
     Optional<ArrivalSnapshotEntity> arrivalOpt = arrivalSnapshotService.findByOrderId(orderId);
@@ -129,6 +137,41 @@ public class TcaService {
         result.vwapBenchmarkBps(),
         result.spreadCostBps());
     return Optional.of(saved);
+  }
+
+  private Optional<OrderDetails> fetchFilledOrder(UUID orderId) {
+    int maxAttempts = tcaConfig.fetchMaxAttempts();
+    Optional<OrderDetails> latest = Optional.empty();
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      latest = orderManagerClient.fetchOrder(orderId);
+      if (latest.isPresent() && latest.get().status() == OrderStatus.FILLED) {
+        return latest;
+      }
+      if (attempt < maxAttempts) {
+        LOG.debug(
+            "order-manager not yet consistent for FILLED order {} (attempt {}/{}); retrying",
+            orderId,
+            attempt,
+            maxAttempts);
+        if (!sleep(tcaConfig.fetchRetryDelay())) {
+          break;
+        }
+      }
+    }
+    return latest;
+  }
+
+  private static boolean sleep(Duration delay) {
+    if (delay.isZero() || delay.isNegative()) {
+      return true;
+    }
+    try {
+      Thread.sleep(delay.toMillis());
+      return true;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return false;
+    }
   }
 
   private static BigDecimal totalCommission(List<FillRecord> fills) {

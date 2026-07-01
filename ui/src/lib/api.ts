@@ -36,5 +36,9 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError(res.status, path, body || res.statusText);
   }
   if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  // Some endpoints return 200 with an empty body (e.g. PUT /api/strategies/{symbol}, which
+  // is ResponseEntity<Void>). Calling res.json() on an empty body throws
+  // "Unexpected end of JSON input", so treat an empty body as no content.
+  const text = await res.text();
+  return text ? (JSON.parse(text) as T) : (undefined as T);
 }

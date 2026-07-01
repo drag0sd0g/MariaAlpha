@@ -149,7 +149,6 @@ class PnlAttributionEngine:
             totals["orders"] += 1
         return row
 
-
     def daily_summary(self, strategy: str | None = None) -> list[dict[str, object]]:
         """One row per (strategy, day) with summed component values."""
         with self._lock:

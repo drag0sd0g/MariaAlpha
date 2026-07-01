@@ -111,7 +111,6 @@ class FlowToxicityDetector:
         self._last_alert_ts: dict[tuple[str, int], float] = {}
         self._alert_cooldown_seconds = 60.0
 
-
     def on_fill(self, fill: FillRecord) -> None:
         """Register a fill for later markout measurement at each horizon."""
         with self._lock:
@@ -181,7 +180,6 @@ class FlowToxicityDetector:
                 TOXICITY_ALERTS.labels(strategy=strategy, horizon_seconds=str(horizon)).inc()
             except Exception:
                 logger.exception("toxicity_alert_publish_failed", strategy=strategy)
-
 
     def snapshot(self, strategy: str | None = None) -> list[dict[str, object]]:
         """Return per-(strategy, horizon) toxicity rows, sorted by mean markout descending."""

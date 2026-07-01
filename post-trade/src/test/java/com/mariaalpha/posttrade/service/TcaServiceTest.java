@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -46,12 +47,19 @@ class TcaServiceTest {
     repository = mock(TcaResultRepository.class);
     arrivalSnapshotService = mock(ArrivalSnapshotService.class);
     orderManagerClient = mock(OrderManagerClient.class);
-    cache = new MarketDataCache(new TcaConfig(21600, 1000, 60, "http://localhost", 2000));
+    TcaConfig tcaConfig = new TcaConfig(21600, 1000, 60, "http://localhost", 2000, 1, 0);
+    cache = new MarketDataCache(tcaConfig);
     publisher = mock(TcaResultPublisher.class);
     metrics = new PostTradeMetrics(new SimpleMeterRegistry());
     service =
         new TcaService(
-            repository, arrivalSnapshotService, orderManagerClient, cache, publisher, metrics);
+            repository,
+            arrivalSnapshotService,
+            orderManagerClient,
+            cache,
+            publisher,
+            metrics,
+            tcaConfig);
   }
 
   @Test
@@ -144,6 +152,58 @@ class TcaServiceTest {
     when(arrivalSnapshotService.findByOrderId(orderId)).thenReturn(Optional.empty());
 
     assertThat(service.computeForCompletedOrder(orderId)).isEmpty();
+  }
+
+  @Test
+  void retriesUntilOrderManagerBecomesConsistent() {
+    UUID orderId = UUID.randomUUID();
+    Instant createdAt = Instant.parse("2026-04-20T09:30:00Z");
+    Instant filledAt = Instant.parse("2026-04-20T09:40:00Z");
+    TcaConfig retrying = new TcaConfig(21600, 1000, 60, "http://localhost", 2000, 3, 0);
+    TcaService retryingService =
+        new TcaService(
+            repository,
+            arrivalSnapshotService,
+            orderManagerClient,
+            cache,
+            publisher,
+            metrics,
+            retrying);
+    when(repository.existsByOrderId(orderId)).thenReturn(false);
+    when(arrivalSnapshotService.findByOrderId(orderId))
+        .thenReturn(Optional.of(arrival(orderId, createdAt)));
+    when(orderManagerClient.fetchOrder(orderId))
+        .thenReturn(Optional.of(submitted(orderId, createdAt)))
+        .thenReturn(Optional.of(details(orderId, createdAt, filledAt)));
+    cache.record(trade("AAPL", Instant.parse("2026-04-20T09:32:00Z"), 180.02, 1000));
+    cache.record(trade("AAPL", Instant.parse("2026-04-20T09:35:00Z"), 180.04, 1000));
+    when(repository.save(any(TcaResultEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    Optional<TcaResultEntity> saved = retryingService.computeForCompletedOrder(orderId);
+
+    assertThat(saved).isPresent();
+    verify(orderManagerClient, times(2)).fetchOrder(orderId);
+    verify(publisher).publish(saved.get());
+  }
+
+  private static OrderDetails submitted(UUID orderId, Instant createdAt) {
+    return new OrderDetails(
+        orderId,
+        "c-1",
+        "AAPL",
+        Side.BUY,
+        OrderType.MARKET,
+        new BigDecimal("1000"),
+        null,
+        OrderStatus.SUBMITTED,
+        "VWAP",
+        BigDecimal.ZERO,
+        null,
+        "x",
+        "ALPACA",
+        createdAt,
+        createdAt,
+        List.of());
   }
 
   private static ArrivalSnapshotEntity arrival(UUID orderId, Instant ts) {
