@@ -98,7 +98,6 @@ class AxeMatcher:
         self._refresh_index: dict[tuple[str, str, str], str] = {}
         self._matched_total = 0
 
-
     def publish(
         self,
         axe_id: str,
@@ -153,7 +152,6 @@ class AxeMatcher:
                 return False
             self._refresh_index.pop((axe.client_id, axe.symbol, axe.side), None)
             return True
-
 
     def match(self, leg: IncomingLeg) -> list[MatchSuggestion]:
         """Return ranked match suggestions for an incoming order leg.
@@ -215,7 +213,6 @@ class AxeMatcher:
                     self._refresh_index.pop((axe.client_id, axe.symbol, axe.side), None)
         return suggestions
 
-
     def snapshot(
         self, symbol: str | None = None, side: str | None = None
     ) -> list[dict[str, object]]:
@@ -255,7 +252,6 @@ class AxeMatcher:
                 "activeAxes": len(self._axes),
                 "matchedTotalShares": self._matched_total,
             }
-
 
     def _expire_locked(self, now: float) -> None:
         expired = [a.axe_id for a in self._axes.values() if a.expires_at <= now]

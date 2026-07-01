@@ -1,0 +1,14 @@
+# Demo-recording overrides — layered on top of docker-compose.yml only when generating the
+# README demo GIF (`just demo-full`). NOT used for normal `just run`.
+#
+# The simulated market-data profile replays a historical CSV, so ticks carry their original
+# timestamps (e.g. 2026-03-24) rather than wall-clock "now". Post-trade's TCA arrival-snapshot
+# benchmark only accepts a tick within `arrival-snapshot-max-lookback-seconds` of the order's
+# arrival time (default 60s), so with replayed data it always skips — leaving the Analytics
+# page's TCA / PnL-attribution / flow-toxicity panels empty. Widening the lookback here lets
+# TCA compute against the replayed arrival price so those panels populate for the recording.
+services:
+  post-trade:
+    environment:
+      # ~400 days, so the 3-month-old replayed arrival tick is accepted.
+      POST_TRADE_TCA_ARRIVAL_SNAPSHOT_MAX_LOOKBACK_SECONDS: "34560000"

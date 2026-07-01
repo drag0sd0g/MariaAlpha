@@ -13,3 +13,6 @@ proto/generated/
 .mutmut-cache
 ml-signal-service/html/
 ml-signal-service/mutmut-results.xml
+ui/demo/.output/
+ui/test-results/
+ui/playwright-report/

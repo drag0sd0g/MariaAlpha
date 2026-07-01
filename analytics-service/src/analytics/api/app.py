@@ -45,7 +45,6 @@ def create_app(
         docs_url="/openapi.json",
     )
 
-
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "healthy"}
@@ -69,7 +68,6 @@ def create_app(
             AXES_ACTIVE.labels(symbol=str(row["symbol"]), side=str(row["side"])).set(1)
         return generate_latest()
 
-
     @app.get("/v1/analytics/flow/toxicity")
     def get_flow_toxicity(strategy: str | None = None) -> dict[str, Any]:
         return {
@@ -77,7 +75,6 @@ def create_app(
             "thresholdBps": settings.toxicity_threshold_bps,
             "horizonsSeconds": list(settings.toxicity_horizons_seconds),
         }
-
 
     @app.get("/v1/analytics/pnl/attribution")
     def get_pnl_attribution(strategy: str | None = None) -> dict[str, Any]:
@@ -95,7 +92,6 @@ def create_app(
     @app.get("/v1/analytics/pnl/attribution/by-strategy/{strategy}")
     def get_strategy_distribution(strategy: str) -> dict[str, Any]:
         return attribution.strategy_distribution(strategy)
-
 
     @app.post("/v1/analytics/axes", status_code=201)
     def publish_axe(req: AxePublishRequest) -> dict[str, Any]:

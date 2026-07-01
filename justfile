@@ -138,6 +138,50 @@ ui-lint:
 ui-fix:
     cd ui && npm run lint:fix && npm run format
 
+# --- Demo recording (README GIF) — see ui/demo/README.md ---
+
+# Record the UI tour and regenerate docs/demo/mariaalpha-demo.gif.
+# Assumes the stack is already up (`just run`), healthy, and seeded (`just demo-seed`).
+# Requires ffmpeg + chromium (one-time: `cd ui && npx playwright install chromium`).
+demo:
+    cd ui && npm run demo
+    bash scripts/make-demo-gif.sh
+
+# Generate trading activity so the Dashboard + Analytics pages are populated, then wait for
+# flow-toxicity markouts (60s horizon) to mature. Override the wait with DEMO_SEED_WAIT.
+demo-seed:
+    bash scripts/seed-demo-data.sh
+    @echo "Waiting ${DEMO_SEED_WAIT:-75}s for fills + analytics markouts to mature..."
+    sleep "${DEMO_SEED_WAIT:-75}"
+
+# Hermetic one-shot: clean boot, wait for health, seed data, record, tear down.
+# Starts from a wiped volume set so each recording is reproducible.
+demo-full:
+    -MARIAALPHA_API_KEY="${MARIAALPHA_API_KEY:-demo-key}" docker compose down -v
+    MARIAALPHA_API_KEY="${MARIAALPHA_API_KEY:-demo-key}" docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+    just _wait-healthy
+    just demo-seed
+    just demo
+    docker compose down -v
+
+# Block until the UI and api-gateway answer health checks (used by demo-full).
+# The gateway's actuator lives on the management port (8091); :8080 is the auth-gated
+# proxy and never returns 2xx for /actuator. The UI on :5173 proxies /api to the gateway.
+_wait-healthy:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Waiting for ui:5173 and api-gateway:8091 to become healthy..."
+    for i in $(seq 1 60); do
+        if curl -fsS --max-time 3 http://localhost:8091/actuator/health/liveness >/dev/null 2>&1 \
+           && curl -fsS --max-time 3 http://localhost:5173/ >/dev/null 2>&1; then
+            echo "  ✓ stack healthy"
+            exit 0
+        fi
+        sleep 5
+    done
+    echo "  ✗ stack did not become healthy within 5 minutes" >&2
+    exit 1
+
 # --- Kubernetes (Helm) — see docs/runbooks/helm-install.md ---
 
 # Start the OrbStack-managed Kubernetes cluster.

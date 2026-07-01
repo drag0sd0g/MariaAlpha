@@ -4,6 +4,12 @@
 
 Full-stack algorithmic trading engine — see [Technical Design Document](docs/technical-design-document.md) for architecture and details.
 
+<p align="center">
+  <img src="docs/demo/mariaalpha-demo.gif" alt="MariaAlpha UI walkthrough — strategy binding, order entry, live P&L, and analytics" width="900" />
+</p>
+
+> The walkthrough above is generated automatically from a [Playwright tour](ui/demo/README.md) of the live UI — regenerate it with `just demo`.
+
 ## Capabilities
 
 MariaAlpha is a working, end-to-end algorithmic trading engine:

@@ -96,8 +96,6 @@ def client(
     return TestClient(app)
 
 
-
-
 def test_health_endpoint_returns_healthy(client: TestClient):
     r = client.get("/health")
     assert r.status_code == 200
@@ -125,8 +123,6 @@ def test_metrics_endpoint_returns_prometheus_exposition(client: TestClient):
     assert "# HELP" in r.text
 
 
-
-
 def test_flow_toxicity_endpoint_returns_empty_until_fills_arrive(client: TestClient):
     r = client.get("/v1/analytics/flow/toxicity")
     assert r.status_code == 200
@@ -149,8 +145,6 @@ def test_flow_toxicity_endpoint_returns_rows_after_tick(
     body = r.json()
     assert len(body["rows"]) == 1
     assert body["rows"][0]["strategy"] == "VWAP"
-
-
 
 
 def _tca(order_id: str = "o1") -> TcaInput:
@@ -210,8 +204,6 @@ def test_pnl_attribution_by_strategy_endpoint(
     assert body["strategy"] == "VWAP"
     assert body["orders"] == 1
     assert "spread" in body["components"]
-
-
 
 
 def test_publish_axe_via_post_creates_axe(client: TestClient):

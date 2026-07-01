@@ -187,7 +187,6 @@ class FeatureEngine:
         with self._lock:
             self._listeners = [(lq, ls) for lq, ls in self._listeners if lq is not q]
 
-
     def _notify_listeners(self, symbol: str, features: dict[str, float]) -> None:
         for q, sym_filter in self._listeners:
             if sym_filter is None or symbol in sym_filter:

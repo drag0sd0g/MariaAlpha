@@ -23,6 +23,7 @@ All tasks run through [`just`](justfile). The most-used targets:
 | Auto-fix formatting + lint | `just fix` |
 | Regenerate gRPC stubs from `proto/` | `just proto` |
 | UI dev server / build | `just ui-dev` / `just ui-build` |
+| Record the README demo GIF (Playwright tour) | `just demo` (stack up) / `just demo-full` (hermetic) |
 | Local K8s (Helm on OrbStack) | `just k8s-up` / `just k8s-test` / `just k8s-down` |
 | Alpaca paper-trading smoke test | `just smoke-alpaca` |
 
