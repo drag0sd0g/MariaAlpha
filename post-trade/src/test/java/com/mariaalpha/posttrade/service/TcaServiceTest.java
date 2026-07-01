@@ -162,7 +162,12 @@ class TcaServiceTest {
     TcaConfig retrying = new TcaConfig(21600, 1000, 60, "http://localhost", 2000, 3, 0);
     TcaService retryingService =
         new TcaService(
-            repository, arrivalSnapshotService, orderManagerClient, cache, publisher, metrics,
+            repository,
+            arrivalSnapshotService,
+            orderManagerClient,
+            cache,
+            publisher,
+            metrics,
             retrying);
     when(repository.existsByOrderId(orderId)).thenReturn(false);
     when(arrivalSnapshotService.findByOrderId(orderId))

@@ -150,7 +150,8 @@ class MarketDataCacheTest {
     Instant now = Instant.parse("2026-04-20T16:00:00Z");
     MarketDataCache withClock =
         new MarketDataCache(
-            new TcaConfig(60, 100, 60, "http://localhost", 2000, 1, 0), Clock.fixed(now, ZoneOffset.UTC));
+            new TcaConfig(60, 100, 60, "http://localhost", 2000, 1, 0),
+            Clock.fixed(now, ZoneOffset.UTC));
     withClock.record(trade("AAPL", now.minusSeconds(120), 100.00, 100));
     withClock.record(trade("AAPL", now.minusSeconds(30), 100.05, 100));
     withClock.evictStale();
