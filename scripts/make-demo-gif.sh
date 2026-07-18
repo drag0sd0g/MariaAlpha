@@ -12,7 +12,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # ── Tunables ────────────────────────────────────────────────────────────────────────────
-FPS="${DEMO_FPS:-13}"
+FPS="${DEMO_FPS:-12}"
 WIDTH="${DEMO_WIDTH:-1200}"
 MAX_MB="${DEMO_MAX_MB:-8}"
 OUT_DIR="docs/demo"

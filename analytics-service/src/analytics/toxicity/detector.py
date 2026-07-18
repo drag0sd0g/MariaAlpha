@@ -30,6 +30,7 @@ import statistics
 import threading
 from collections import deque
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import structlog
@@ -165,11 +166,24 @@ class FlowToxicityDetector:
             return
         self._last_alert_ts[key] = now
         if self._alert_publisher is not None:
+            mean_markout = stats.mean()
             alert = {
                 "alertType": "FLOW_TOXICITY",
+                # `symbol` and `message` complete the RiskAlert contract the UI/exec-engine
+                # producers share; toxicity is strategy-scoped, so the strategy stands in for
+                # the symbol slot. `timestamp` is a wall-clock ISO-8601 instant (the `now`
+                # argument is a monotonic clock, unusable as a calendar time) — the UI parses
+                # it with `new Date(...)`, so an omitted field rendered as "Invalid Date".
+                "symbol": strategy,
+                "message": (
+                    f"Toxic flow on {strategy}: mean markout {mean_markout:.1f}bps "
+                    f"over {horizon}s (threshold {self._threshold:.0f}bps, "
+                    f"n={stats.count()})"
+                ),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
                 "strategy": strategy,
                 "horizonSeconds": horizon,
-                "meanMarkoutBps": round(stats.mean(), 4),
+                "meanMarkoutBps": round(mean_markout, 4),
                 "stdevMarkoutBps": round(stats.stdev(), 4),
                 "observations": stats.count(),
                 "thresholdBps": self._threshold,

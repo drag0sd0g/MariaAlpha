@@ -1,6 +1,11 @@
 import { useShallow } from "zustand/react/shallow";
 import { useAlertStore } from "@/stores/alertStore";
 
+const formatTime = (ts: string): string => {
+  const d = new Date(ts);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString();
+};
+
 const severityClass = (s: string): string => {
   switch (s.toUpperCase()) {
     case "CRITICAL":
@@ -42,9 +47,7 @@ export default function AlertsBanner() {
                 {a.symbol ? ` · ${a.symbol}` : ""}
               </div>
               <div className="text-sm mt-1">{a.message}</div>
-              <div className="text-[10px] opacity-60 mt-1">
-                {new Date(a.timestamp).toLocaleTimeString()}
-              </div>
+              <div className="text-[10px] opacity-60 mt-1">{formatTime(a.timestamp)}</div>
             </div>
             <button
               type="button"

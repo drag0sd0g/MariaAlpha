@@ -1,13 +1,33 @@
 # Demo-recording overrides — layered on top of docker-compose.yml only when generating the
-# README demo GIF (`just demo-full`). NOT used for normal `just run`.
+# README demo GIF (`just demo-up` / `just demo-full`). NOT used for normal `just run`.
 #
 # The simulated market-data profile replays a historical CSV, so ticks carry their original
-# timestamps (e.g. 2026-03-24) rather than wall-clock "now". Post-trade's TCA arrival-snapshot
-# benchmark only accepts a tick within `arrival-snapshot-max-lookback-seconds` of the order's
-# arrival time (default 60s), so with replayed data it always skips — leaving the Analytics
-# page's TCA / PnL-attribution / flow-toxicity panels empty. Widening the lookback here lets
-# TCA compute against the replayed arrival price so those panels populate for the recording.
+# timestamps (e.g. 2026-03-24) rather than wall-clock "now". Three consequences drive the
+# overrides below:
+#
+#  1. The default tape spans only ~4.5s of tape-time and loops, so prices never drift and
+#     tick timestamps never leave one 1-minute bar bucket — the ML signal service can never
+#     complete a bar (every column reads NEUTRAL 0.00 / UNKNOWN 0.00) and time-windowed
+#     algos never cross a slice boundary. The demo mounts a generated 90-minute tape
+#     (`just demo-tape` → config/demo/market-data-demo.csv) with per-symbol drift instead.
+#  2. 1-minute bars would still need 60+ minutes of tape-time to warm the regime classifier
+#     (60-bar minimum). 10-second demo bars warm it after ~10 tape-minutes ≈ 60s of
+#     wall-clock at the profile's 10x speed multiplier.
+#  3. Post-trade's TCA arrival-snapshot benchmark only accepts a tick within
+#     `arrival-snapshot-max-lookback-seconds` of the order's arrival time (default 60s), so
+#     with replayed data it always skips — leaving the Analytics panels empty. Widening the
+#     lookback lets TCA compute against the replayed arrival price.
 services:
+  market-data-gateway:
+    environment:
+      MARKET_DATA_SIMULATED_CSV_PATH: "file:/app/demo/market-data-demo.csv"
+    volumes:
+      - ./config/demo/market-data-demo.csv:/app/demo/market-data-demo.csv:ro
+
+  ml-signal-service:
+    environment:
+      ML_SIGNAL_BAR_INTERVAL_SECONDS: "10"
+
   post-trade:
     environment:
       # ~400 days, so the 3-month-old replayed arrival tick is accepted.
