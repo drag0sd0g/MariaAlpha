@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import pytest
 
 from analytics.toxicity.detector import FillRecord, FlowToxicityDetector
@@ -101,6 +103,12 @@ def test_alert_fires_when_threshold_breached_after_min_observations():
     assert alerts[0]["alertType"] == "FLOW_TOXICITY"
     assert alerts[0]["strategy"] == "VWAP"
     assert alerts[0]["meanMarkoutBps"] == pytest.approx(100.0)
+    # RiskAlert contract the UI consumes: symbol/message/timestamp must be present so the
+    # alert toast renders a real time (a missing timestamp showed up as "Invalid Date").
+    assert alerts[0]["symbol"] == "VWAP"
+    assert "VWAP" in alerts[0]["message"]
+    parsed = datetime.fromisoformat(alerts[0]["timestamp"])
+    assert parsed.tzinfo is not None
 
 
 def test_alert_suppressed_below_min_observations():

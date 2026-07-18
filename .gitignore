@@ -14,5 +14,6 @@ proto/generated/
 ml-signal-service/html/
 ml-signal-service/mutmut-results.xml
 ui/demo/.output/
+config/demo/
 ui/test-results/
 ui/playwright-report/

@@ -141,25 +141,35 @@ ui-fix:
 # --- Demo recording (README GIF) — see ui/demo/README.md ---
 
 # Record the UI tour and regenerate docs/demo/mariaalpha-demo.gif.
-# Assumes the stack is already up (`just run`), healthy, and seeded (`just demo-seed`).
-# Requires ffmpeg + chromium (one-time: `cd ui && npx playwright install chromium`).
+# Assumes the demo-overlay stack is already up (`just demo-up`), healthy, and seeded
+# (`just demo-seed`). Requires ffmpeg + chromium (one-time: `cd ui && npx playwright install chromium`).
 demo:
     cd ui && npm run demo
     bash scripts/make-demo-gif.sh
 
-# Generate trading activity so the Dashboard + Analytics pages are populated, then wait for
-# flow-toxicity markouts (60s horizon) to mature. Override the wait with DEMO_SEED_WAIT.
+# Regenerate the demo replay tape (config/demo/market-data-demo.csv, gitignored) —
+# 90 minutes of drifting tape-time so P&L moves and the ML models warm up.
+demo-tape:
+    python3 scripts/generate-demo-tape.py
+
+# Boot the stack with the demo overlay (generated tape + fast ML bars + widened TCA
+# lookback) and wait for health. Use instead of `just run` when recording the demo.
+demo-up: demo-tape
+    MARIAALPHA_API_KEY="${MARIAALPHA_API_KEY:-demo-key}" docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+    just _wait-healthy
+
+# Generate trading activity so every tour scene lands on populated panels: axes, strategy
+# bindings, algo parent orders (TWAP/VWAP), MARKET + resting LIMIT orders. The script then
+# polls until the ML regime models, strategy-labelled TCA rows, and toxicity markouts are
+# ready. Override the markout wait with DEMO_SEED_WAIT.
 demo-seed:
     bash scripts/seed-demo-data.sh
-    @echo "Waiting ${DEMO_SEED_WAIT:-75}s for fills + analytics markouts to mature..."
-    sleep "${DEMO_SEED_WAIT:-75}"
 
 # Hermetic one-shot: clean boot, wait for health, seed data, record, tear down.
 # Starts from a wiped volume set so each recording is reproducible.
 demo-full:
     -MARIAALPHA_API_KEY="${MARIAALPHA_API_KEY:-demo-key}" docker compose down -v
-    MARIAALPHA_API_KEY="${MARIAALPHA_API_KEY:-demo-key}" docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
-    just _wait-healthy
+    just demo-up
     just demo-seed
     just demo
     docker compose down -v

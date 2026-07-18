@@ -80,9 +80,17 @@ jobs:
       - name: Build UI image
         run: docker compose build ui
 
+      - name: Generate demo replay tape
+        # docker-compose.demo.yml mounts this generated 90-minute drifting tape into
+        # market-data-gateway; it must exist before `up` or Docker creates a directory
+        # in its place.
+        run: just demo-tape
+
       - name: Start the stack
-        # docker-compose.demo.yml widens post-trade's TCA arrival-snapshot lookback so the
-        # Analytics panels populate from the historical-timestamped replay (see that file).
+        # docker-compose.demo.yml swaps in the generated demo tape, shortens ML bars so the
+        # signal/regime models warm during the run, and widens post-trade's TCA
+        # arrival-snapshot lookback so the Analytics panels populate from the
+        # historical-timestamped replay (see that file).
         run: docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d
 
       - name: Wait for health
