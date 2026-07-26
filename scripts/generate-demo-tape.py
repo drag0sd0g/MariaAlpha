@@ -92,8 +92,10 @@ def generate() -> list[tuple[float, str, str]]:
                     (
                         t,
                         symbol,
-                        f"{symbol},{fmt_ts(t)},TRADE,{price:.2f},{size},{bid:.2f},{ask:.2f},"
-                        f"{rng.randrange(100, 600, 25)},{rng.randrange(100, 600, 25)},{cumulative_volume}",
+                        (
+                            f"{symbol},{fmt_ts(t)},TRADE,{price:.2f},{size},{bid:.2f},{ask:.2f},"
+                            f"{rng.randrange(100, 600, 25)},{rng.randrange(100, 600, 25)},{cumulative_volume}"
+                        ),
                     )
                 )
             else:
@@ -101,8 +103,10 @@ def generate() -> list[tuple[float, str, str]]:
                     (
                         t,
                         symbol,
-                        f"{symbol},{fmt_ts(t)},QUOTE,{last_trade_price:.2f},0,{bid:.2f},{ask:.2f},"
-                        f"{rng.randrange(100, 600, 25)},{rng.randrange(100, 600, 25)},{cumulative_volume}",
+                        (
+                            f"{symbol},{fmt_ts(t)},QUOTE,{last_trade_price:.2f},0,{bid:.2f},{ask:.2f},"
+                            f"{rng.randrange(100, 600, 25)},{rng.randrange(100, 600, 25)},{cumulative_volume}"
+                        ),
                     )
                 )
 
