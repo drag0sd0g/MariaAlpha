@@ -82,12 +82,6 @@ jobs:
           for req in requirements.txt requirements-dev.txt; do
             [ -f "$req" ] && pip install -r "$req"
           done
-          # Pin ruff/mypy: this job runs `ruff check .` / `mypy .` at the repo
-          # root (no root config), so files outside the service dirs are linted
-          # under whatever ruff's defaults are. An unpinned upstream release then
-          # turns a green branch red on rules it newly enforces (ruff 0.16 did
-          # this via EXE001 then ISC004). Pin to the versions the repo lints with
-          # (mypy matches requirements-dev.txt); bump deliberately, not silently.
           pip install ruff==0.15.15 mypy==1.14.1 pytest pytest-cov
 
       - name: ruff check
