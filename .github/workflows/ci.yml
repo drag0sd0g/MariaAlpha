@@ -82,7 +82,7 @@ jobs:
           for req in requirements.txt requirements-dev.txt; do
             [ -f "$req" ] && pip install -r "$req"
           done
-          pip install ruff mypy pytest pytest-cov
+          pip install ruff==0.15.15 mypy==1.14.1 pytest pytest-cov
 
       - name: ruff check
         if: steps.detect.outputs.found == 'true'
