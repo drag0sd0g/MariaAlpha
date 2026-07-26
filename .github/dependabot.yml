@@ -1,0 +1,101 @@
+# Automated dependency updates.
+#
+# Covers every dependency surface in the repo that drifts independently:
+#   - Gradle version catalog (gradle/libs.versions.toml) for all Java services
+#   - Python requirements (ml-signal-service, analytics-service)
+#   - npm (ui)
+#   - Docker base images (every service Dockerfile)
+#   - GitHub Actions pins (.github/workflows)
+#
+# Updates are grouped (minor+patch together, majors separate) to keep PR noise
+# low. Snyk + CodeQL still catch vulnerabilities; Dependabot opens the fix PRs.
+version: 2
+updates:
+  # --- Java / Gradle (root version catalog + build scripts) ---
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "java"
+    groups:
+      gradle-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # --- Python services ---
+  - package-ecosystem: "pip"
+    directories:
+      - "/ml-signal-service"
+      - "/analytics-service"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      python-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # --- React UI ---
+  - package-ecosystem: "npm"
+    directory: "/ui"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "ui"
+    groups:
+      npm-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # --- Docker base images (one entry, all service build contexts) ---
+  - package-ecosystem: "docker"
+    directories:
+      - "/market-data-gateway"
+      - "/strategy-engine"
+      - "/execution-engine"
+      - "/order-manager"
+      - "/post-trade"
+      - "/api-gateway"
+      - "/ml-signal-service"
+      - "/analytics-service"
+      - "/ui"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "docker"
+    groups:
+      docker-images:
+        patterns:
+          - "*"
+
+  # --- GitHub Actions ---
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "ci"
+    groups:
+      github-actions:
+        patterns:
+          - "*"

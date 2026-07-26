@@ -44,7 +44,7 @@ test-e2e:
 
 # Run Python tests
 test-python:
-    cd ml-signal-service && pytest
+    cd ml-signal-service && .venv/bin/pytest
     cd analytics-service && .venv/bin/pytest tests/
 
 # Run mutation testing (Java PITest + Python mutmut) — slow; CI runs this weekly
