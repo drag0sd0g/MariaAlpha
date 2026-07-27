@@ -263,6 +263,10 @@ services:
       MANAGEMENT_PORT: 8083
       # RFQ pricing reads positions from order-manager; falls back to flat on timeout.
       ORDER_MANAGER_BASE_URL: http://order-manager:8086
+      # Roadmap 5.1.1 backtester — fetches real Alpaca historical bars via POST /api/backtest.
+      # Independent of the market-data profile; empty keys simply disable live fetches.
+      ALPACA_API_KEY_ID: ${ALPACA_API_KEY_ID:-}
+      ALPACA_API_SECRET_KEY: ${ALPACA_API_SECRET_KEY:-}
     ports:
       - "8082:8082"
       - "8083:8083"

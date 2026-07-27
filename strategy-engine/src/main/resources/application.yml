@@ -40,6 +40,22 @@ strategy-engine:
     sizing-neutral-fraction: 0.20
     sizing-lower-bound: 0.50
     sizing-upper-bound: 1.50
+  # Roadmap 5.1.1 — historical backtester. Replays real Alpaca 1-minute bars (synthesized into a
+  # tick tape) through the shipped strategies to prove P&L on historical data. Credentials reuse the
+  # same Alpaca keys as the market-data gateway's `alpaca` profile.
+  backtest:
+    alpaca:
+      base-url: ${ALPACA_DATA_URL:https://data.alpaca.markets}
+      api-key-id: ${ALPACA_API_KEY_ID:}
+      api-secret-key: ${ALPACA_API_SECRET_KEY:}
+      feed: ${ALPACA_DATA_FEED:iex}
+    # Default history window (calendar days back from now) when a request omits from/to.
+    lookback-days: 5
+    # Modelled cost against the touch on every aggressive fill, in basis points.
+    slippage-bps: 1.0
+    # Modelled bid/ask spread synthesized around each historical price, in basis points.
+    spread-bps: 2.0
+    report-dir: ${BACKTEST_REPORT_DIR:build/reports/backtest}
   # FR-17 — regime-driven algorithm selection. Disabled by default to preserve manual control.
   # Set enabled=true to let GetRegime pick the strategy when confidence ≥ confidence-threshold.
   regime:

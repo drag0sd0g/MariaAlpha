@@ -1,0 +1,21 @@
+meta {
+  name: Get Last Report
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/backtest/report
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Returns the self-contained HTML report for the most recent backtest run on
+  this strategy-engine instance (text/html). 404 until a backtest has been run.
+  Open the URL in a browser to see the equity curve, metric tiles, and blotter.
+}

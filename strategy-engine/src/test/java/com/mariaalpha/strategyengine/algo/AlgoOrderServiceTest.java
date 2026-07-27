@@ -12,6 +12,9 @@ import com.mariaalpha.strategyengine.model.Side;
 import com.mariaalpha.strategyengine.registry.StrategyRegistry;
 import com.mariaalpha.strategyengine.routing.SymbolStrategyRouter;
 import com.mariaalpha.strategyengine.strategy.TradingStrategy;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -35,7 +38,9 @@ class AlgoOrderServiceTest {
   @BeforeEach
   void setUp() {
     orderRegistry = new AlgoOrderRegistry();
-    service = new AlgoOrderService(strategyRegistry, router, orderRegistry, progressPublisher);
+    var clock = Clock.fixed(Instant.parse("2026-03-24T14:30:00Z"), ZoneOffset.UTC);
+    service =
+        new AlgoOrderService(strategyRegistry, router, orderRegistry, progressPublisher, clock);
   }
 
   @Test

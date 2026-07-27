@@ -1465,10 +1465,18 @@ no cloud footprint is required.
 
 | # | Issue Title | Component |
 | --- | --- | --- |
-| [5.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/104) | Implement backtesting engine (historical replay) | Strategy Engine |
+| [5.1.1](https://github.com/drag0sd0g/MariaAlpha/issues/104) ✅ **Delivered** | Implement backtesting engine (historical replay) | Strategy Engine |
 | [5.1.2](https://github.com/drag0sd0g/MariaAlpha/issues/109) | Implement A/B (shadow-mode) audit for the ML signal gate | ML Signal Service |
 | [5.1.3](https://github.com/drag0sd0g/MariaAlpha/issues/178) | Engineering benchmark suite + Grafana 'Benchmark' dashboard | Observability |
 | [5.1.4](https://github.com/drag0sd0g/MariaAlpha/issues/174) | Extended paper-trading evidence-gathering run (8+ weeks) | Strategy Engine |
+
+**5.1.1 is delivered.** The backtesting engine ships in `strategy-engine`
+(`com.mariaalpha.strategyengine.backtest`): it replays real Alpaca IEX 1-minute bars through the
+shipped `TradingStrategy` beans over a `SimulationClock`, simulates fills, and accounts P&L into an
+equity curve plus headline/execution-quality metrics, surfaced as `POST /api/backtest` (JSON) and a
+self-contained HTML report at `GET /api/backtest/report`. See
+[docs/strategies/backtesting.md](strategies/backtesting.md) for concepts, fidelity ceiling, and
+usage.
 
 5.1.1 was previously identifier 4.1.1 and 5.1.2 was 4.4.2. The order within 5.1 is sequential: the
 backtester (5.1.1) produces baseline per-strategy expectations on historical data; the A/B audit
