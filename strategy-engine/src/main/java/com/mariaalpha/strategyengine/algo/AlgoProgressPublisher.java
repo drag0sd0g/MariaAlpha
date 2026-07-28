@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mariaalpha.strategyengine.config.KafkaConfig;
 import com.mariaalpha.strategyengine.model.OrderSignal;
-import java.time.Instant;
+import java.time.Clock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -18,12 +18,17 @@ public class AlgoProgressPublisher {
   private final KafkaTemplate<String, String> kafkaTemplate;
   private final ObjectMapper objectMapper;
   private final KafkaConfig config;
+  private final Clock clock;
 
   public AlgoProgressPublisher(
-      KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper, KafkaConfig config) {
+      KafkaTemplate<String, String> kafkaTemplate,
+      ObjectMapper objectMapper,
+      KafkaConfig config,
+      Clock clock) {
     this.kafkaTemplate = kafkaTemplate;
     this.objectMapper = objectMapper;
     this.config = config;
+    this.clock = clock;
   }
 
   public void publishLifecycle(AlgoOrder order, AlgoProgressEvent.EventType eventType) {
@@ -39,7 +44,7 @@ public class AlgoProgressPublisher {
             null,
             null,
             null,
-            Instant.now());
+            clock.instant());
     send(event);
   }
 
@@ -56,7 +61,7 @@ public class AlgoProgressPublisher {
             signal.side(),
             (long) signal.quantity(),
             signal.limitPrice(),
-            Instant.now());
+            clock.instant());
     send(event);
   }
 

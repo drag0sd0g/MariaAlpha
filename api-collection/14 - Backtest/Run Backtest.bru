@@ -1,0 +1,43 @@
+meta {
+  name: Run Backtest
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/backtest
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+body:json {
+  {
+    "strategyName": "MOMENTUM",
+    "symbols": ["AAPL"],
+    "lookbackDays": 5,
+    "useMlGate": false,
+    "parameters": {
+      "tradeQuantity": 100,
+      "side": "BUY",
+      "fastPeriod": 20,
+      "slowPeriod": 50,
+      "volumeMultiplier": 0.0
+    }
+  }
+}
+
+docs {
+  Roadmap 5.1.1 — runs a historical backtest against real Alpaca 1-minute bars
+  (synthesized into a tick tape) and returns metrics + equity curve + trade
+  blotter as JSON. Requires ALPACA_API_KEY_ID / ALPACA_API_SECRET_KEY in the
+  strategy-engine environment; the free IEX feed excludes weekends/holidays and
+  very recent data, so pick a lookback that covers a full trading session.
+
+  `useMlGate: true` routes signals through the live ml-signal-service gate
+  (non-deterministic). Each run also writes an HTML report — fetch it via
+  "Get Last Report".
+}

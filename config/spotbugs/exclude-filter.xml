@@ -709,4 +709,15 @@
         <Class name="com.mariaalpha.strategyengine.algo.AlgoOrderService"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
+
+    <!-- Roadmap 5.1.1 — historical backtester. Spring-managed beans storing injected
+         collaborators; the backtest engine and controller hold references to other beans. -->
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.controller.BacktestController"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.strategyengine.backtest.BacktestEngine"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
 </FindBugsFilter>

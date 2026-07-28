@@ -2,7 +2,7 @@ package com.mariaalpha.strategyengine.algo;
 
 import com.mariaalpha.strategyengine.registry.StrategyRegistry;
 import com.mariaalpha.strategyengine.routing.SymbolStrategyRouter;
-import java.time.Instant;
+import java.time.Clock;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,16 +19,19 @@ public class AlgoOrderService {
   private final SymbolStrategyRouter router;
   private final AlgoOrderRegistry orderRegistry;
   private final AlgoProgressPublisher progressPublisher;
+  private final Clock clock;
 
   public AlgoOrderService(
       StrategyRegistry strategyRegistry,
       SymbolStrategyRouter router,
       AlgoOrderRegistry orderRegistry,
-      AlgoProgressPublisher progressPublisher) {
+      AlgoProgressPublisher progressPublisher,
+      Clock clock) {
     this.strategyRegistry = strategyRegistry;
     this.router = router;
     this.orderRegistry = orderRegistry;
     this.progressPublisher = progressPublisher;
+    this.clock = clock;
   }
 
   public AlgoOrder submit(AlgoOrderRequest request) {
@@ -45,7 +48,7 @@ public class AlgoOrderService {
     strategy.updateParameters(effectiveParams);
     router.setActiveStrategy(request.symbol(), request.strategyName());
 
-    var now = Instant.now();
+    var now = clock.instant();
     var order =
         new AlgoOrder(
             UUID.randomUUID(),
