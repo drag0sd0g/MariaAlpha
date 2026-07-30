@@ -73,7 +73,9 @@ execution-engine:
     var-trading-days-per-year: 252
     # COVARIANCE (default) or SUM_OF_ABSOLUTES for the pre-4.6.1 behaviour.
     var-aggregation: ${EXECUTION_ENGINE_VAR_AGGREGATION:COVARIANCE}
-    # Beyond this age the cached model is not trusted and the check falls back.
+    # Beyond this age the cached model is not trusted and the check falls back. Must comfortably
+    # exceed ANALYTICS_RISK_MODEL_PUBLISH_SECONDS (default 300) or the gate flaps between
+    # aggregations between publishes.
     risk-model-max-age-seconds: ${EXECUTION_ENGINE_RISK_MODEL_MAX_AGE_SECONDS:900}
     reference-data:
       symbols:

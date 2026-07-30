@@ -205,7 +205,9 @@ public class IntradayVarCheck implements RiskCheck {
     return false;
   }
 
-  /** Whether the cached model is absent or past its age ceiling. Cheap enough to call per scrape. */
+  /**
+   * Whether the cached model is absent or past its age ceiling. Cheap enough to call per scrape.
+   */
   private boolean modelStale() {
     if (config.varAggregation() != VarAggregation.COVARIANCE) {
       return false;

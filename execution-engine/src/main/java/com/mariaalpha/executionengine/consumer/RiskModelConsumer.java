@@ -24,9 +24,9 @@ import org.springframework.stereotype.Component;
  * <em>no</em> committed offset. After the first run the group has committed past the model, so a
  * restart resumes at the end of the log and the check silently runs on the conservative
  * sum-of-absolutes fallback until the publisher's next tick — up to five minutes of a needlessly
- * tighter risk limit, and longer if the publish interval is raised. Seeking to the beginning of
- * the (compacted) partition on assignment makes startup deterministic: the latest retained model
- * per key is always replayed.
+ * tighter risk limit, and longer if the publish interval is raised. Seeking to the beginning of the
+ * (compacted) partition on assignment makes startup deterministic: the latest retained model per
+ * key is always replayed.
  *
  * <p>Like {@link MarketDataConsumer}, this listener never lets an exception escape: a malformed
  * model must not stall the consumer group or poison the partition. A rejected payload simply leaves

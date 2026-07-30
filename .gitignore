@@ -17,3 +17,10 @@ ui/demo/.output/
 config/demo/
 ui/test-results/
 ui/playwright-report/
+
+# Python coverage artefacts. `just test-python` and the documented
+# `pytest --cov` workflow regenerate these on every run.
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/

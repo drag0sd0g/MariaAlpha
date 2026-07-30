@@ -71,6 +71,8 @@ execution-engine:
     # cached one is older than risk-model-max-age-seconds, so a dead analytics-service can never
     # loosen this gate.
     var-aggregation: ${EXECUTION_ENGINE_VAR_AGGREGATION:COVARIANCE}
+    # Must comfortably exceed ANALYTICS_RISK_MODEL_PUBLISH_SECONDS (default 300), or the model
+    # spends most of its life past this ceiling and the gate flaps between aggregations.
     risk-model-max-age-seconds: ${EXECUTION_ENGINE_RISK_MODEL_MAX_AGE_SECONDS:900}
     # Roadmap 3.5.2 — correlated-position concentration limits. Cluster lists are evaluated
     # independently; the same symbol can appear in multiple clusters.

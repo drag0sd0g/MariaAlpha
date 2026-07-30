@@ -254,7 +254,17 @@ execution-engine:
     risk-model-max-age-seconds: ${EXECUTION_ENGINE_RISK_MODEL_MAX_AGE_SECONDS:900}
 ```
 
-Set `SUM_OF_ABSOLUTES` to pin the pre-4.6.1 behaviour.
+Set `SUM_OF_ABSOLUTES` to pin the pre-4.6.1 behaviour. Both are also plumbed through
+`docker-compose.yml` (along with `EXECUTION_ENGINE_RISK_MAX_INTRADAY_VAR`) so the two aggregations
+can be A/B-compared on a running stack without rebuilding the image.
+
+> **Config constraint: `risk-model-max-age-seconds` must comfortably exceed
+> `ANALYTICS_RISK_MODEL_PUBLISH_SECONDS`.** Otherwise the model spends most of its life past the
+> ceiling and the gate flaps between aggregations between publishes — every order near the limit
+> then gets a different answer depending on when it arrives. The shipped defaults are 900 s against
+> a 300 s publish interval, which is 3x headroom. If you shorten the publish interval (the demo
+> overlay uses 30 s), the ceiling can come down with it; if you lengthen it, raise the ceiling
+> first.
 
 ---
 
