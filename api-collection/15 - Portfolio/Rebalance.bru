@@ -1,0 +1,41 @@
+meta {
+  name: Rebalance
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/analytics/portfolio/rebalance
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "objective": "RISK_PARITY",
+    "constraints": { "max_weight": 0.35 },
+    "min_trade_notional": 2500,
+    "no_trade_band_bps": 25
+  }
+}
+
+docs {
+  Solves max mu'w - (lambda/2) w'Sigma w - TC(w, w0) with a linear spread/commission term plus a
+  square-root market-impact term, then applies the no-trade band and lot rounding.
+
+  `basketOrderRequest` is ready to POST verbatim to /api/execution/baskets. `suppressedLegs`
+  shows what the band swallowed, so the filter is visible rather than silent.
+
+  This endpoint only computes. Use "Rebalance and Submit" to actually send it.
+}
+
+script:post-response {
+  if (res.status === 200 && res.body && res.body.basketOrderRequest) {
+    bru.setVar("rebalanceBasket", JSON.stringify(res.body.basketOrderRequest));
+  }
+}

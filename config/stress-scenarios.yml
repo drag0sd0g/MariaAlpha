@@ -1,0 +1,55 @@
+# Stress scenarios — roadmap 4.6.1. Consumed by analytics-service
+# (ANALYTICS_STRESS_SCENARIOS_PATH).
+#
+# Two scenario kinds:
+#   FACTOR   — a market shock propagated through each symbol's beta, with volatility scaled and
+#              correlations pulled toward `correlation-override`. Correlations converging to one
+#              *is* the crisis, so a stress test that keeps the calm-market correlation matrix
+#              understates the loss.
+#   EXPLICIT — per-symbol or per-sector percentage moves, with `default-shock` for the rest.
+stress:
+  loss-limit-usd: 1500000
+  scenarios:
+    - name: MARKET_DOWN_10
+      description: "Broad market -10%, vols double, correlations converge to 0.9"
+      kind: FACTOR
+      market-shock: -0.10
+      vol-multiplier: 2.0
+      correlation-override: 0.90
+
+    - name: MARKET_UP_10
+      description: "Broad market +10% — surfaces short-book exposure"
+      kind: FACTOR
+      market-shock: 0.10
+      vol-multiplier: 1.5
+      correlation-override: 0.80
+
+    - name: TECH_SELLOFF
+      description: "Sector rotation out of tech: TECH -15%, everything else -2%"
+      kind: EXPLICIT
+      sector-shocks:
+        TECH: -0.15
+      default-shock: -0.02
+
+    - name: COVID_20200316
+      description: "S&P -11.98% single day, VIX 82 — the 2020-03-16 replay"
+      kind: FACTOR
+      market-shock: -0.1198
+      vol-multiplier: 3.0
+      correlation-override: 0.95
+
+    - name: VOLMAGEDDON_20180205
+      description: "S&P -4.10%, short-vol complex unwinds — the 2018-02-05 replay"
+      kind: FACTOR
+      market-shock: -0.0410
+      vol-multiplier: 2.5
+      correlation-override: 0.85
+
+    - name: AI_UNWIND
+      description: "Idiosyncratic unwind of the crowded AI trade"
+      kind: EXPLICIT
+      symbol-shocks:
+        NVDA: -0.25
+        MSFT: -0.10
+        GOOGL: -0.08
+      default-shock: -0.01

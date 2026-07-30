@@ -1,0 +1,23 @@
+meta {
+  name: Component VaR
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/analytics/risk/components
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Euler allocation of portfolio VaR onto each position: componentVarUsd sums exactly to varUsd.
+
+  A negative componentVarUsd means the position is REDUCING total risk — a genuine hedge. That
+  is precisely the information the old sum-of-absolutes aggregation could not express, since it
+  took absolute values and scored a hedge like a doubled-up position.
+}

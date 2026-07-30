@@ -38,7 +38,7 @@ Each microservice has a dedicated explainer covering its architecture, data flow
 | Internal Crossing Engine | [`services/internal-crossing-engine.md`](services/internal-crossing-engine.md) | In-process midpoint matching for desk-vs-desk flow (sub-component of Execution Engine). |
 | Order Manager | [`services/order-manager.md`](services/order-manager.md) | System of record for orders, fills, positions, portfolio P&L, [currency exposure](strategies/currency-exposure.md). |
 | Post-Trade | *(deep-dive doc TBD — see TDD §5.2.6)* | TCA computation, end-of-day reconciliation, [trade allocation](strategies/trade-allocation.md). |
-| Analytics Service | [`services/analytics-service.md`](services/analytics-service.md) | Python FastAPI. Flow toxicity, PnL attribution, axe matcher. |
+| Analytics Service | [`services/analytics-service.md`](services/analytics-service.md) | Python FastAPI. Flow toxicity, PnL attribution, axe matcher, [portfolio construction](strategies/portfolio-construction.md) and the [firm-wide risk engine](strategies/portfolio-risk-engine.md). |
 | API Gateway | [`services/api-gateway.md`](services/api-gateway.md) | Unified REST + WebSocket entry point. API-key auth. |
 | React UI | [`services/ui.md`](services/ui.md) | TypeScript + Vite + Tailwind + Recharts. Dashboard, Order Entry, RFQ, etc. |
 | ML Signal Service animation | [`services/ml-signal-service-animation.html`](services/ml-signal-service-animation.html) | Visual walkthrough of the signal-generation pipeline. |
@@ -67,11 +67,18 @@ Each *execution* strategy implements `TradingStrategy` and registers with the St
 | RFQ pricing | [`strategies/rfq-pricing.md`](strategies/rfq-pricing.md) | Inventory-skewed, vol- and ADV-relative two-way quote. |
 | Options pricing | [`strategies/options-pricing.md`](strategies/options-pricing.md) | Black-Scholes-Merton pricing, Greeks, and implied-vol solver (Strategy Engine REST). |
 
+### Portfolio construction
+
+| Feature | Explainer | What it does |
+|---|---|---|
+| Portfolio construction | [`strategies/portfolio-construction.md`](strategies/portfolio-construction.md) | Covariance estimation (EWMA + Ledoit-Wolf), mean-variance / risk-parity / max-Sharpe optimisers, Black-Litterman, factor exposures, cost-aware rebalancing into a basket order. |
+
 ### Risk checks
 
 | Feature | Explainer | What it does |
 |---|---|---|
-| Intraday VaR | [`strategies/intraday-var.md`](strategies/intraday-var.md) | Pre-trade parametric VaR limit over the simulated post-trade portfolio. |
+| Intraday VaR | [`strategies/intraday-var.md`](strategies/intraday-var.md) | Pre-trade VaR limit over the simulated post-trade portfolio; covariance aggregation with a sum-of-absolutes fallback. |
+| Portfolio risk engine | [`strategies/portfolio-risk-engine.md`](strategies/portfolio-risk-engine.md) | Historical / parametric / Monte-Carlo VaR, expected shortfall, component VaR, stress scenarios. |
 | Correlated positions | [`strategies/correlated-positions.md`](strategies/correlated-positions.md) | Caps aggregate exposure across correlation clusters of symbols. |
 | Currency exposure | [`strategies/currency-exposure.md`](strategies/currency-exposure.md) | Read-side per-currency exposure and P&L aggregation in the Order Manager. |
 

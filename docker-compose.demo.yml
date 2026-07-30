@@ -32,3 +32,11 @@ services:
     environment:
       # ~400 days, so the 3-month-old replayed arrival tick is accepted.
       POST_TRADE_TCA_ARRIVAL_SNAPSHOT_MAX_LOOKBACK_SECONDS: "34560000"
+
+  analytics-service:
+    environment:
+      # The demo tape replays at 10x, so shrink the bar and the publish cadence enough that a
+      # live-estimated covariance model exists inside the recording window.
+      ANALYTICS_RETURNS_BAR_SECONDS: 10
+      ANALYTICS_RETURNS_MIN_OBSERVATIONS: 12
+      ANALYTICS_RISK_MODEL_PUBLISH_SECONDS: 30

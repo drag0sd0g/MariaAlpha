@@ -312,7 +312,20 @@ var_i = |position_notional_i| × σ_annualized_i / √trading_days × z(confiden
 
 Where `z(0.95) ≈ 1.645`, `z(0.99) ≈ 2.326` — these are quantiles of the standard normal.
 
-Portfolio VaR (our choice) = `Σ var_i` — **sum of absolutes**, no diversification credit. This is the conservative reading: assumes returns are perfectly tail-correlated. A "real" VaR uses a covariance matrix `√(w' Σ w)`; that's a future iteration.
+**Aggregating into a portfolio number** is where the interesting choice lives:
+
+```
+sum-of-absolutes:  VaR_p = z Σ_i |v_i| σ_i          <- assumes rho = 1 everywhere
+covariance:        VaR_p = z √(v' Σ_d v)            <- signed v, real correlations
+```
+
+The first is the rho = 1 *corner* of the second, so it is a genuine upper bound — and it was MariaAlpha's original choice, deliberately conservative. Its problem is that it takes **absolute** values, so it cannot tell a hedge from a doubled-up position. Long $1M NVDA against short $1M MSFT at rho = 0.95 scores $65,794 under sum-of-absolutes and $10,403 under the covariance form: a 6.3x overstatement on a book that is nearly flat.
+
+Since 4.6.1 the check uses the covariance form by default, from a correlation matrix estimated in `analytics-service` and shipped over Kafka. It falls back to sum-of-absolutes whenever that model is stale or missing — because covariance VaR is always the *smaller* number, a dead estimator must not be allowed to silently widen the limit.
+
+**Diversification ratio** = (sum-of-absolutes VaR) / (covariance VaR). 1.0 means no credit at all; the number is reported alongside every VaR so the value of the upgrade stays auditable.
+
+**Expected shortfall (ES / CVaR)** answers the question VaR ducks — "*if* we breach, how bad on average?" `ES = E[loss | loss > VaR]`. For a Gaussian, `ES = φ(z_α)/(1−α) · σ_p`, a fixed 1.2535× VaR at 95%. Unlike VaR it is *sub-additive*: merging two books can never increase it, which is why regulators moved to it.
 
 ### 7.2 Beta-weighted exposure
 
@@ -322,7 +335,19 @@ Portfolio VaR (our choice) = `Σ var_i` — **sum of absolutes**, no diversifica
 
 The classic 2023-2024 "AI trade" — NVDA + MSFT + GOOGL — spans two GICS sectors but moves as one narrative. Sector caps say "fine, MSFT is its own basket from GOOGL" (wrong in practice). Beta caps say "fine, the gross β is moderate" (also wrong — they're all the same trade). `CorrelatedPositionsCheck` lets you declare the narrative directly.
 
-**In code:** `execution-engine/.../risk/{RiskCheck, RiskCheckChain, MaxOrderNotionalCheck, MaxPositionPerSymbolCheck, MaxPortfolioExposureCheck, MaxOpenOrdersCheck, DailyLossLimitCheck, SectorExposureCheck, BetaExposureCheck, AdvParticipationCheck, IntradayVarCheck, CorrelatedPositionsCheck}`. Design: [`strategies/intraday-var.md`](strategies/intraday-var.md), [`strategies/correlated-positions.md`](strategies/correlated-positions.md).
+### 7.4 Component VaR — who actually owns the risk
+
+Portfolio volatility `σ_p = √(v' Σ_d v)` is homogeneous of degree one in `v`, so **Euler's theorem** gives an exact additive split:
+
+```
+MVaR_i = z (Σ_d v)_i / σ_p      marginal — $ of VaR per extra $ of exposure to i
+CVaR_i = v_i × MVaR_i            component
+Σ_i CVaR_i = VaR_p               exactly, not approximately
+```
+
+The punchline: `CVaR_i` can be **negative**. A short leg that offsets a correlated long *reduces* total risk, and Euler allocation says by exactly how much. Sum-of-absolutes cannot express this at all — every position adds.
+
+**In code:** `execution-engine/.../risk/{RiskCheck, RiskCheckChain, MaxOrderNotionalCheck, MaxPositionPerSymbolCheck, MaxPortfolioExposureCheck, MaxOpenOrdersCheck, DailyLossLimitCheck, SectorExposureCheck, BetaExposureCheck, AdvParticipationCheck, IntradayVarCheck, CorrelatedPositionsCheck, PortfolioRiskModel}` and `analytics-service/src/analytics/risk/`. Design: [`strategies/intraday-var.md`](strategies/intraday-var.md), [`strategies/correlated-positions.md`](strategies/correlated-positions.md), [`strategies/portfolio-risk-engine.md`](strategies/portfolio-risk-engine.md).
 
 ---
 
@@ -634,6 +659,52 @@ dS = μ·S·dt + σ·S·dW
 
 The same assumption underlies parametric VaR and the vol scaling identity in §12.3.
 
+### 12.9 Covariance estimation and shrinkage
+
+The sample covariance `S` estimates `N(N+1)/2` parameters from `T × N` numbers. When `T ≈ N` its extreme eigenvalues are badly biased — largest too large, smallest too small (the **Marchenko-Pastur** effect) — and since every optimiser *inverts* `Σ`, the error lands precisely on the directions that are least well estimated. With `T < N` it is singular outright.
+
+Two standard repairs, both used by MariaAlpha:
+
+- **EWMA (RiskMetrics)** — `Σ_t = λ Σ_{t−1} + (1−λ) r_t r_t'`. Weights recent observations more, capturing volatility clustering that an equal-weighted window averages away. `λ = 0.94` daily, `0.97` intraday.
+- **Ledoit-Wolf shrinkage** — blend toward a low-variance structured target: `Σ̂ = δF + (1−δ)S`, with `δ` chosen to minimise expected Frobenius loss. The intuition is bias-variance: `S` is unbiased but noisy, `F` is biased but stable, and the optimal mix beats both. `δ → 1` as data gets scarce.
+
+**PSD repair.** A matrix assembled from separately-estimated pieces can have negative eigenvalues, which makes `√(w'Σw)` imaginary. Eigen-decompose, clip the negatives to a small floor, reconstruct, then rescale the diagonal so marginal volatilities survive.
+
+### 12.10 Euler allocation
+
+For any function `f(v)` homogeneous of degree one (`f(cv) = c·f(v)`), Euler's theorem gives `f(v) = Σ_i v_i ∂f/∂v_i`. Portfolio volatility qualifies, which is why risk contributions and component VaR sum *exactly* to the total rather than approximately. This one identity underpins both risk parity (§12.11) and component VaR (§7.4).
+
+### 12.11 Portfolio construction — the three answers
+
+Given `Σ` and (maybe) `μ`, three canonical ways to pick weights:
+
+| Method | Objective | What it needs |
+|---|---|---|
+| **Mean-variance** (Markowitz 1952) | `max μ'w − (λ/2) w'Σw` | Both `μ` and `Σ` |
+| **Minimum variance** | `min w'Σw` | Only `Σ` |
+| **Risk parity** | `RC_i = RC_j` for all i, j | Only `Σ` |
+
+The ordering is not accidental. Mean-variance is theoretically optimal and practically fragile, because estimating `μ` is hopeless: the standard error of a mean return from `T` years is `σ/√T`, which at 25% volatility over five years is **11%** — the same size as the thing being estimated. That noise, run through `Σ⁻¹`, produces the notorious corner solutions.
+
+**Black-Litterman** (1990) is the standard fix, and it is genuinely elegant: don't estimate `μ` at all. Reverse-optimise the market-cap portfolio to get the returns the market's own positioning *implies* (`Π = λ_mkt Σ w_mkt`), then Bayesian-update those with whatever specific views you actually hold. No views ⇒ you hold the market. Strong views ⇒ you tilt, and only in the direction of the views.
+
+**Risk parity** sidesteps `μ` entirely by equalising each asset's contribution to portfolio volatility rather than its capital. It systematically underweights the volatile names — which is why it looks conservative in a bull market and holds up in a drawdown.
+
+And the honest benchmark for all three: **equal weight**. It is closed-form, needs no estimation at all, and out-of-sample it beats optimised portfolios more often than anyone likes to admit.
+
+### 12.12 Transaction costs and the no-trade band
+
+Re-optimising every period and trading to the answer loses money: the target wanders on estimation noise, and each wander pays spread plus impact. Two-part cost model:
+
+```
+TC_i = c_i × Q_i                                    linear (spread + commission)
+     + η σ_i Q_i √( Q_i / ADV_i )                   square-root market impact
+```
+
+The impact term is the same `η σ √(Q/V)` shape as Almgren-Chriss (§12.6) — the cost of demanding liquidity grows super-linearly, `Q^1.5` in total. Putting `TC` inside the objective makes the optimiser justify each trade, and a **no-trade band** (skip anything below N bps of NAV) kills the remaining churn. In practice the band does more work than the penalty.
+
+**In code:** `analytics-service/src/analytics/portfolio/`. Design: [`strategies/portfolio-construction.md`](strategies/portfolio-construction.md).
+
 ---
 
 ## 13. Worked walkthrough — life of a trade
@@ -703,6 +774,14 @@ That's most of the financial vocabulary in MariaAlpha across one trade.
 | PnL attribution | `analytics-service/.../pnl_attribution/` |
 | Flow toxicity | `analytics-service/.../flow_toxicity/` |
 | Axe matching | `analytics-service/.../axes/` |
+| Covariance estimation / shrinkage | `analytics-service/.../portfolio/covariance.py` |
+| Portfolio optimisers (MV, min-var, max-Sharpe, ERC) | `analytics-service/.../portfolio/optimizers.py` |
+| Black-Litterman | `analytics-service/.../portfolio/black_litterman.py` |
+| Factor exposures + PCA | `analytics-service/.../portfolio/factors.py` |
+| Cost-aware rebalancing | `analytics-service/.../portfolio/rebalance.py` |
+| VaR / ES / component VaR | `analytics-service/.../risk/engine.py` |
+| Stress scenarios | `analytics-service/.../risk/stress.py`, `config/stress-scenarios.yml` |
+| Covariance model on the wire | `execution-engine/.../risk/{PortfolioRiskModel, RiskModelSnapshot}`, `execution-engine/.../consumer/RiskModelConsumer` |
 | Trade allocation | `post-trade/.../allocation/{AllocationCalculator, AllocationService, SubAccountRegistry}` |
 | SOR / venue scoring | `execution-engine/.../router/{SmartOrderRouter, ScoredSmartOrderRouter}` |
 | Internal crossing | `execution-engine/.../crossing/InternalCrossingEngine` |

@@ -7,6 +7,8 @@ A Python 3.12 / FastAPI service that delivers the Phase-2 analytics layer:
 | 2.2.4 | Flow-toxicity / adverse-selection detector |
 | 2.2.5 | PnL attribution (spread / market / commission / timing / residual) |
 | 2.2.6 | Axe matching (client interest book + cross suggestions) |
+| 4.6.1 | Portfolio construction (optimisers, Black-Litterman, factors, rebalancer) |
+| 4.6.1 | Firm-wide risk engine (VaR / ES / component VaR / stress) |
 
 Lives at `analytics-service/` alongside `ml-signal-service/`; same packaging
 pattern (`pyproject.toml`, `requirements.txt`, `Dockerfile`, FastAPI + Uvicorn
@@ -19,17 +21,37 @@ analytics-service/
 ├── src/analytics/
 │   ├── __main__.py           # process entry: build components, start consumers, run uvicorn
 │   ├── config.py             # pydantic-settings Settings, env-prefix ANALYTICS_
-│   ├── metrics.py            # five Prometheus metrics (toxicity / pnl / axes)
-│   ├── api/app.py            # FastAPI surface + /health, /actuator/health, /metrics
+│   ├── metrics.py            # Prometheus metrics (toxicity / pnl / axes / portfolio / risk)
+│   ├── numeric.py            # FloatArray type alias shared by the numpy modules
+│   ├── api/
+│   │   ├── app.py                # FastAPI surface + /health, /actuator/health, /metrics
+│   │   └── portfolio_routes.py   # 4.6.1 — /v1/analytics/portfolio/** and /risk/**
 │   ├── toxicity/detector.py  # 2.2.4 — markout per fill, rolling mean, alerts
 │   ├── pnl/attribution.py    # 2.2.5 — Kissell-Glantz decomposition
 │   ├── axes/matcher.py       # 2.2.6 — axe book + match ranker
+│   ├── portfolio/            # 4.6.1 — construction
+│   │   ├── reference.py          # config/portfolio.yml loader + block correlation prior
+│   │   ├── state.py              # book rebuilt from positions.updates; NAV, weights
+│   │   ├── covariance.py         # sample / EWMA / Ledoit-Wolf / PSD repair / annualise
+│   │   ├── service.py            # CovarianceService — ties the cache, prior and estimator
+│   │   ├── optimizers.py         # mean-variance, min-var, max-Sharpe, ERC, frontier
+│   │   ├── black_litterman.py    # equilibrium + posterior (Woodbury and naive forms)
+│   │   ├── factors.py            # fundamental (BARRA-lite) + PCA decomposition
+│   │   ├── rebalance.py          # cost-aware rebalancer + basket payload
+│   │   └── basket_client.py      # optional POST to execution-engine (off by default)
+│   ├── risk/                 # 4.6.1 — the risk engine
+│   │   ├── engine.py             # parametric / historical / MC VaR, ES, component VaR
+│   │   ├── stress.py             # scenario loader + revaluation
+│   │   └── report.py             # self-contained HTML risk report
 │   ├── consumer/
-│   │   ├── market_data.py    # consumes market-data.ticks → MarketDataCache
+│   │   ├── market_data.py    # consumes market-data.ticks → MarketDataCache (+ bars/returns)
 │   │   ├── tca_consumer.py   # consumes analytics.tca → attribution + toxicity.on_fill
-│   │   └── orders_consumer.py# consumes orders.lifecycle → axe match suggestions
-│   └── publisher/risk_alert.py # publishes analytics.risk-alerts (FLOW_TOXICITY)
-└── tests/                    # ~58 unit + integration tests (pytest, FastAPI TestClient)
+│   │   ├── orders_consumer.py# consumes orders.lifecycle → axe match suggestions
+│   │   └── positions.py      # consumes positions.updates → PortfolioState
+│   └── publisher/
+│       ├── risk_alert.py     # publishes analytics.risk-alerts (FLOW_TOXICITY, VAR/STRESS breach)
+│       └── risk_model.py     # publishes analytics.risk-model (covariance model)
+└── tests/                    # ~430 unit + integration tests (pytest, FastAPI TestClient)
 ```
 
 ## Component sketches
@@ -134,16 +156,37 @@ All knobs are environment-variable driven with the `ANALYTICS_` prefix:
   matching `ANALYTICS_SERVICE_MANAGEMENT_URL` env var so the gateway doesn't
   fall back to its own loopback.
 - **Kafka topics consumed**: `analytics.tca`, `market-data.ticks`,
-  `orders.lifecycle`.
-- **Kafka topic produced**: `analytics.risk-alerts` (FLOW_TOXICITY events).
+  `orders.lifecycle`, `positions.updates` (4.6.1, from `earliest` so the book
+  survives a restart).
+- **Kafka topics produced**: `analytics.risk-alerts` (FLOW_TOXICITY,
+  PORTFOLIO_VAR_BREACH, STRESS_LIMIT_BREACH) and `analytics.risk-model` (4.6.1 —
+  compacted, consumed by execution-engine's `IntradayVarCheck`).
+- **Config mounts** (4.6.1): `config/portfolio.yml` and
+  `config/stress-scenarios.yml`, read-only at `/app/config/`.
 - **docker-compose** — service block at `analytics-service:8095`,
   `depends_on: kafka: service_healthy`, healthcheck pings `/health`.
 - **Helm** — not yet wired into the umbrella chart; tracked as a follow-up.
 
 ## Testing
 
-- `cd analytics-service && .venv/bin/pytest tests/` — ~58 unit and FastAPI
-  TestClient integration tests cover all three engines plus the REST surface.
+- `cd analytics-service && .venv/bin/pytest tests/` — ~430 unit and FastAPI
+  TestClient integration tests cover all six engines plus the REST surface (87%
+  line coverage; the 4.6.1 modules are 89-100%).
+- `cd analytics-service && .venv/bin/mypy src/` — strict, zero errors. numpy
+  arrays are annotated `FloatArray` (see `numeric.py`) because numpy's stubs
+  widen `float64` arithmetic to `floating[Any]`.
 - `cd e2e-tests && ../gradlew test --tests AnalyticsServiceE2ETest` —
   Testcontainers compose-stack test that exercises `/v1/analytics/axes` and
   the toxicity/PnL empty-state JSON through the API Gateway.
+- `cd e2e-tests && ../gradlew test --tests PortfolioRiskE2ETest` — 4.6.1 through
+  the gateway, ending with the rebalancer's basket payload being accepted by
+  `POST /api/execution/baskets`.
+
+## Deep dives
+
+- [Portfolio construction](../strategies/portfolio-construction.md) — covariance
+  estimation, the five optimisers, Black-Litterman, factor decomposition, the
+  cost-aware rebalancer.
+- [Portfolio risk engine](../strategies/portfolio-risk-engine.md) — VaR/ES,
+  component VaR, stress scenarios, and the `analytics.risk-model` contract with
+  execution-engine.

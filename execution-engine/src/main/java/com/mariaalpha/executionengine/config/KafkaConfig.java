@@ -8,4 +8,5 @@ public record KafkaConfig(
     String marketDataTopic,
     String ordersLifecycleTopic,
     String routingDecisionsTopic,
-    String riskAlertsTopic) {}
+    String riskAlertsTopic,
+    String riskModelTopic) {}

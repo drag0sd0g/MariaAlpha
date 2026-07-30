@@ -1,0 +1,28 @@
+meta {
+  name: Efficient Frontier
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/analytics/portfolio/efficient-frontier
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "points": 25,
+    "constraints": { "max_weight": 0.35 }
+  }
+}
+
+docs {
+  Samples the frontier by sweeping risk aversion rather than by targeting returns, which avoids
+  the infeasible-target problem that makes box-constrained frontiers look ragged.
+}

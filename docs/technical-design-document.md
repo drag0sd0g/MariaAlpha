@@ -368,6 +368,8 @@ sequenceDiagram
 | FR-34 | The Analytics Service SHALL compute and expose via REST API: daily P&L time series, cumulative return curve, Sharpe ratio (rolling and cumulative), maximum drawdown, win rate (percentage of profitable trades), and average trade duration. |
 | FR-35 | The Analytics Service SHALL compute per-strategy performance breakdowns, allowing comparison of algorithm effectiveness. |
 | FR-36 | The Analytics Service SHALL detect portfolio risk anomalies: concentration risk (single position exceeding configurable threshold of total portfolio value), unusually large drawdowns (exceeding 2× rolling standard deviation), and abnormal trading volume patterns. Risk alerts SHALL be published to the `analytics.risk-alerts` Kafka topic. |
+| FR-47 | The Analytics Service SHALL estimate a portfolio covariance model (EWMA with Ledoit-Wolf shrinkage toward a configured block-correlation prior) and expose portfolio construction: mean-variance, minimum-variance, max-Sharpe and risk-parity optimisers, Black-Litterman posterior returns, factor exposure decomposition, and a transaction-cost-aware rebalancer whose trade list is directly submittable to the basket-trading API. |
+| FR-48 | The Analytics Service SHALL compute firm-wide risk: parametric, historical-simulation and Monte-Carlo Value-at-Risk, expected shortfall, Euler component VaR, and configured stress scenarios. Limit breaches SHALL be published to `analytics.risk-alerts`. The covariance model SHALL be published to the compacted `analytics.risk-model` topic for consumption by the Execution Engine's pre-trade VaR check, which SHALL fall back to a conservative sum-of-absolutes aggregation whenever the model is absent or stale. |
 
 ### 3.8 React UI
 
@@ -1057,6 +1059,7 @@ All topics start with **1 partition** and **minimal retention** in the MVP. Part
 | `analytics.risk-alerts` | symbol | RiskAlert JSON | 1 | 3 days |
 | `routing.decisions` | orderId | SOR routing decision JSON | 1 | 3 days |
 | `algo.progress` | algoOrderId | AlgoProgressEvent JSON | 1 | 3 days |
+| `analytics.risk-model` | `"GLOBAL"` | Covariance/correlation model JSON | 1 | compacted |
 | `orders.dlq` | orderId | Error + original order JSON | 1 | 30 days |
 
 > **Rationale for non-zero retention:** Even in the MVP, consumers that crash and restart need to replay unprocessed messages from their last committed offset. Zero retention would cause data loss on restart. Market data ticks are high-volume with short-lived value (4 hours). Order/position topics are lower-volume with audit value (3 days). DLQ retains longer for manual inspection.
@@ -1442,10 +1445,30 @@ the operational and analytical surface of the product without changing what mark
 | [4.2.2](https://github.com/drag0sd0g/MariaAlpha/issues/106) | Implement role-based access control | API Gateway |
 | [4.3.1](https://github.com/drag0sd0g/MariaAlpha/issues/107) | Implement warrant trading via IBKR | Execution Engine |
 | [4.4.1](https://github.com/drag0sd0g/MariaAlpha/issues/108) | Implement model retraining pipeline | ML Signal Service |
-| [4.6.1](https://github.com/drag0sd0g/MariaAlpha/issues/111) | Implement portfolio optimization (mean-variance) | Analytics Service |
+| [4.6.1](https://github.com/drag0sd0g/MariaAlpha/issues/111) ✅ **Delivered** | Implement portfolio optimization (mean-variance) | Analytics Service |
 | [4.7.1](https://github.com/drag0sd0g/MariaAlpha/issues/112) | Implement client tiering for RFQ pricing | Strategy Engine |
 | [4.8.1](https://github.com/drag0sd0g/MariaAlpha/issues/113) | Implement ML-based adaptive SOR | Execution Engine |
 | [4.9.1](https://github.com/drag0sd0g/MariaAlpha/issues/114) | Evaluate Apache Flink for complex event processing | Infrastructure |
+
+**4.6.1 is delivered**, and scoped wider than its title. The Portfolio Construction & Risk layer
+ships in `analytics-service` (`analytics.portfolio`, `analytics.risk`): EWMA + Ledoit-Wolf
+covariance estimation, mean-variance / minimum-variance / max-Sharpe / risk-parity optimisers,
+Black-Litterman for blending views with equilibrium returns, fundamental and PCA factor
+decomposition, and a cost-aware rebalancer whose output POSTs verbatim to the existing
+[basket-trading service](strategies/program-basket-trading.md). Alongside it, a firm-wide risk
+engine computes parametric, historical and Monte-Carlo VaR, expected shortfall, Euler component
+VaR and stress scenarios, surfaced at `/api/analytics/portfolio/**` and `/api/analytics/risk/**`
+plus a self-contained HTML report.
+
+It also closes a real gap in the pre-trade chain: `IntradayVarCheck` aggregated per-position VaR
+as a **sum of absolutes**, which credits no diversification and — because it took absolute
+values — could not distinguish a hedge from a doubled-up position. It now consumes the covariance
+model over the compacted `analytics.risk-model` topic and computes `z sqrt(v' Sigma_d v)` with
+signed notionals, falling back to the old aggregation whenever the model is absent or stale so a
+dead analytics service can never loosen the gate. On a hedged +/-$1M book at rho = 0.95 the old
+model reported $65,794 against the new model's $10,403. See
+[`strategies/portfolio-construction.md`](strategies/portfolio-construction.md) and
+[`strategies/portfolio-risk-engine.md`](strategies/portfolio-risk-engine.md).
 
 ### Phase 5: Validation & Productionisation
 

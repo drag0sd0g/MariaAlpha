@@ -1,0 +1,22 @@
+meta {
+  name: Factor Exposures
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/analytics/portfolio/factors
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Fundamental exposures (market beta, size, volatility, momentum, sector dummies) alongside a
+  PCA of the correlation matrix. `notes` flags when the factor set saturates the universe —
+  with six factors over six assets everything classifies as systematic by construction, which is
+  an artefact of the setup rather than a finding.
+}

@@ -720,4 +720,20 @@
         <Class name="com.mariaalpha.strategyengine.backtest.BacktestEngine"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
+
+    <!-- Roadmap 4.6.1 — portfolio construction & risk. RiskModelSnapshot is the raw Jackson DTO
+         for the analytics.risk-model topic: it holds the wire arrays verbatim and is never handed
+         out beyond PortfolioRiskModel#update, which deep-copies everything it keeps (asserted by
+         PortfolioRiskModelTest#mutatingTheCallersArraysDoesNotChangeTheCachedModel). Note that
+         PortfolioRiskModel itself is deliberately absent from this filter — it does copy, so it
+         does not trip the detector. RiskModelConsumer stores an injected ObjectMapper, the same
+         Spring pattern already excluded for MarketDataConsumer and SignalConsumer. -->
+    <Match>
+        <Class name="com.mariaalpha.executionengine.risk.RiskModelSnapshot"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.mariaalpha.executionengine.consumer.RiskModelConsumer"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
 </FindBugsFilter>
