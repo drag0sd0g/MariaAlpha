@@ -4,7 +4,7 @@ confluent-kafka==2.8.0
 prometheus-client==0.22.0
 pydantic==2.10.4
 pydantic-settings==2.7.1
-structlog==25.1.0
+structlog==26.1.0
 # Roadmap 4.6.1 — portfolio construction & risk. numpy is pinned to the same version
 # ml-signal-service uses; scipy 1.15 supplies SLSQP, Cholesky and symmetric eigen.
 numpy==2.2.1
