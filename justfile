@@ -66,6 +66,10 @@ check:
     ./gradlew spotlessCheck checkstyleMain spotbugsMain
     ruff check .
     ruff format --check .
+    # Root-level mypy sweep — the same command CI runs. The per-service runs below use each
+    # service's own strict config and venv (which install stub packages); this one catches what
+    # CI sees with only ruff/mypy/pytest installed. Both are needed: they disagree.
+    .venv/bin/mypy . --ignore-missing-imports
     cd ml-signal-service && .venv/bin/ruff check src/ tests/ && .venv/bin/mypy src/
     cd analytics-service && .venv/bin/ruff check src/ tests/ && .venv/bin/mypy src/
 
