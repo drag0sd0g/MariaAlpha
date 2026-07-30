@@ -1,0 +1,29 @@
+meta {
+  name: Rebalance and Submit
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/analytics/portfolio/rebalance/submit
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "objective": "RISK_PARITY",
+    "constraints": { "max_weight": 0.35 }
+  }
+}
+
+docs {
+  Computes the plan AND posts the basket to execution-engine. Returns 503 unless
+  ANALYTICS_REBALANCE_SUBMIT_ENABLED=true — sending live orders from an analytics service is
+  opt-in on purpose. The full payload is logged at INFO before anything goes out.
+}

@@ -41,6 +41,9 @@ mypy_path = "src"
 module = [
     "confluent_kafka",
     "confluent_kafka.*",
+    # scipy ships only partial stubs; numpy is fully typed and stays under strict.
+    "scipy",
+    "scipy.*",
 ]
 ignore_missing_imports = true
 

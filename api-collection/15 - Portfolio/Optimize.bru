@@ -1,0 +1,38 @@
+meta {
+  name: Optimize
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/analytics/portfolio/optimize
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "objective": "RISK_PARITY",
+    "constraints": {
+      "max_weight": 0.35,
+      "allow_shorts": false
+    },
+    "risk_aversion": 3.0
+  }
+}
+
+docs {
+  Objectives: MIN_VARIANCE, MEAN_VARIANCE, MAX_SHARPE, RISK_PARITY, EQUAL_WEIGHT, INVERSE_VOL.
+
+  Expected returns default to the Black-Litterman equilibrium (reverse-optimised from market-cap
+  weights) rather than to sample means, which are far too noisy to feed an optimiser. Override
+  with "expected_returns": {"NVDA": 0.15, ...}.
+
+  RISK_PARITY returns near-identical riskContributions; if the box constraint binds, the message
+  says so, because equal contribution is then unreachable.
+}

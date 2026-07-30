@@ -9,7 +9,9 @@ from fastapi.responses import PlainTextResponse
 from prometheus_client import generate_latest
 from pydantic import BaseModel, Field
 
+from analytics.api.portfolio_routes import build_portfolio_router
 from analytics.metrics import AXES_ACTIVE
+from analytics.portfolio.reference import PortfolioReference
 
 if TYPE_CHECKING:
     from analytics.axes.matcher import AxeMatcher
@@ -17,6 +19,10 @@ if TYPE_CHECKING:
     from analytics.consumer.market_data import MarketDataCache
     from analytics.consumer.orders_consumer import OrdersConsumer
     from analytics.pnl.attribution import PnlAttributionEngine
+    from analytics.portfolio.basket_client import BasketClient
+    from analytics.portfolio.service import CovarianceService
+    from analytics.portfolio.state import PortfolioState
+    from analytics.risk.engine import RiskEngine
     from analytics.toxicity.detector import FlowToxicityDetector
 
 
@@ -37,11 +43,26 @@ def create_app(
     matcher: AxeMatcher,
     market_cache: MarketDataCache,
     orders_consumer: OrdersConsumer | None = None,
+    reference: PortfolioReference | None = None,
+    portfolio_state: PortfolioState | None = None,
+    covariance_service: CovarianceService | None = None,
+    risk_engine: RiskEngine | None = None,
+    basket_client: BasketClient | None = None,
 ) -> FastAPI:
+    """Build the FastAPI app.
+
+    The roadmap-4.6.1 components default to ``None`` so existing callers (and the pre-4.6.1
+    tests) keep working unchanged; the portfolio and risk routes are always mounted but answer
+    ``503`` when their dependency is absent, mirroring the convention already used by
+    ``/v1/analytics/axes/matches/{order_id}`` when the orders consumer is not running.
+    """
     app = FastAPI(
         title="MariaAlpha Analytics Service",
-        version="0.1.0",
-        description=("MariaAlpha analytics: flow toxicity, PnL attribution, and axe matching."),
+        version="0.2.0",
+        description=(
+            "MariaAlpha analytics: flow toxicity, PnL attribution, axe matching, portfolio "
+            "construction and the firm-wide risk engine."
+        ),
         docs_url="/openapi.json",
     )
 
@@ -60,6 +81,8 @@ def create_app(
             "pendingToxicityFills": toxicity.pending_count(),
             "marketDataSymbols": len(market_cache._history),
             "activeAxes": matcher.stats()["activeAxes"],
+            "portfolioPositions": portfolio_state.count() if portfolio_state else 0,
+            "riskEngineWired": risk_engine is not None,
         }
 
     @app.get("/metrics", response_class=PlainTextResponse)
@@ -140,4 +163,15 @@ def create_app(
             )
         return {"orderId": order_id, "matches": matches}
 
+    app.include_router(
+        build_portfolio_router(
+            settings=settings,
+            reference=reference if reference is not None else PortfolioReference(),
+            portfolio_state=portfolio_state,
+            covariance_service=covariance_service,
+            risk_engine=risk_engine,
+            market_cache=market_cache,
+            basket_client=basket_client,
+        )
+    )
     return app

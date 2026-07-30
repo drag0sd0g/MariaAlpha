@@ -1,0 +1,76 @@
+# Portfolio construction & risk reference data — roadmap 4.6.1.
+#
+# Consumed by analytics-service (ANALYTICS_PORTFOLIO_REFERENCE_PATH). The sector / beta / adv /
+# annualized-volatility values mirror execution-engine.risk.reference-data in
+# execution-engine/src/main/resources/application.yml — keep the two in sync when either changes.
+# Market cap is analytics-only: it supplies the SIZE factor exposure and the Black-Litterman
+# market portfolio w_mkt.
+portfolio:
+  universe: [AAPL, MSFT, GOOGL, AMZN, TSLA, NVDA]
+
+  # lambda in the mean-variance objective  max  mu'w - (lambda/2) w'Sigma w
+  risk-aversion: 3.0
+  # lambda_mkt used to reverse-optimise equilibrium returns  Pi = lambda_mkt Sigma w_mkt
+  market-risk-aversion: 2.5
+  # Black-Litterman scaling of the prior covariance: Omega = diag(tau P Sigma P')
+  tau: 0.05
+
+  # Prior correlation model. Used as the Ledoit-Wolf shrinkage target and as the whole model
+  # when there is not yet enough live tick history to estimate a sample covariance.
+  #   rho_ij = (1 - blend) * block_ij + blend * min(1, beta_i beta_j sigma_m^2 / (sigma_i sigma_j))
+  correlation-prior:
+    intra-sector: 0.65
+    inter-sector: 0.35
+    market-beta-blend: 0.5
+    market-volatility: 0.18
+
+  # Transaction-cost model for the rebalancer.
+  cost:
+    commission-bps: 0.5
+    default-half-spread-bps: 1.0
+    # eta in the square-root market-impact term  eta * sigma_daily * Q * sqrt(Q / (ADV * P))
+    impact-eta: 1.0
+
+  symbols:
+    - symbol: AAPL
+      sector: TECH
+      beta: 1.20
+      adv: 60000000
+      market-cap: 3400000000000
+      annualized-volatility: 0.28
+      half-spread-bps: 0.8
+    - symbol: MSFT
+      sector: TECH
+      beta: 0.95
+      adv: 25000000
+      market-cap: 3100000000000
+      annualized-volatility: 0.24
+      half-spread-bps: 0.8
+    - symbol: GOOGL
+      sector: TECH
+      beta: 1.05
+      adv: 25000000
+      market-cap: 2100000000000
+      annualized-volatility: 0.27
+      half-spread-bps: 1.0
+    - symbol: AMZN
+      sector: CONSUMER_DISCRETIONARY
+      beta: 1.20
+      adv: 45000000
+      market-cap: 2000000000000
+      annualized-volatility: 0.32
+      half-spread-bps: 1.0
+    - symbol: TSLA
+      sector: AUTOMOTIVE
+      beta: 1.80
+      adv: 90000000
+      market-cap: 800000000000
+      annualized-volatility: 0.55
+      half-spread-bps: 1.5
+    - symbol: NVDA
+      sector: TECH
+      beta: 1.65
+      adv: 250000000
+      market-cap: 3000000000000
+      annualized-volatility: 0.48
+      half-spread-bps: 1.0

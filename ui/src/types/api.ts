@@ -174,3 +174,164 @@ export interface RiskAlert {
   message: string;
   timestamp: string;
 }
+
+// --- Roadmap 4.6.1 — portfolio construction & risk (analytics-service) ---
+
+export interface PortfolioPosition {
+  symbol: string;
+  quantity: number;
+  avgEntryPrice: number;
+  markPrice: number;
+  markSource: string;
+  notionalUsd: number;
+  realizedPnl: number;
+  unrealizedPnl: number;
+  updatedAt: string | null;
+}
+
+export interface PortfolioStateResponse {
+  positions: PortfolioPosition[];
+  navUsd: number;
+  baseNavUsd: number;
+  grossExposureUsd: number;
+  netExposureUsd: number;
+  navSource: string;
+  positionCount: number;
+}
+
+export interface OptimizeResponse {
+  objective: string;
+  symbols: string[];
+  weights: Record<string, number>;
+  expectedReturn: number;
+  volatility: number;
+  sharpe: number;
+  riskContributions: Record<string, number>;
+  diversificationRatio: number;
+  effectiveN: number;
+  converged: boolean;
+  iterations: number;
+  message: string;
+  expectedReturnSource: string;
+}
+
+export interface FrontierPoint {
+  expectedReturn: number;
+  volatility: number;
+  sharpe: number;
+  weights: Record<string, number>;
+}
+export interface FrontierResponse {
+  symbols: string[];
+  points: FrontierPoint[];
+  expectedReturnSource: string;
+}
+
+export interface VarResult {
+  method: string;
+  confidence: number;
+  horizonDays: number;
+  varUsd: number;
+  expectedShortfallUsd: number;
+  portfolioVolatilityUsd: number;
+  observations: number | null;
+  simulations: number | null;
+  sufficient: boolean;
+  notes: string[];
+}
+
+export interface ComponentVarRow {
+  symbol: string;
+  notionalUsd: number;
+  standaloneVarUsd: number;
+  marginalVarUsd: number;
+  componentVarUsd: number;
+  pctOfTotal: number;
+}
+
+export interface RiskVarResponse {
+  asOf: string;
+  symbols: string[];
+  navUsd: number;
+  grossExposureUsd: number;
+  netExposureUsd: number;
+  confidence: number;
+  horizonDays: number;
+  parametric: VarResult;
+  historical: VarResult | null;
+  monteCarlo: VarResult | null;
+  components: ComponentVarRow[];
+  diversificationRatio: number;
+  sumOfAbsolutesVarUsd: number;
+  varLimitUsd: number;
+  breachesVarLimit: boolean;
+}
+
+export interface FactorsResponse {
+  symbols: string[];
+  factors: string[];
+  exposures: Record<string, number>;
+  varianceContributions: Record<string, number>;
+  systematicVariance: number;
+  idiosyncraticVariance: number;
+  modelVariance: number;
+  covarianceVariance: number;
+  modelFit: number;
+  systematicVariancePct: number;
+  idiosyncraticVariancePct: number;
+  modelVolatility: number;
+  covarianceVolatility: number;
+  pca: {
+    varianceExplained: number[];
+    cumulativeVarianceExplained: number[];
+    portfolioLoadings: number[];
+    topComponentSymbols: { symbol: string; loading: number }[];
+  };
+  notes: string[];
+}
+
+export interface StressScenarioResult {
+  name: string;
+  description: string;
+  pnlUsd: number;
+  pnlPctOfNav: number;
+  worstSymbol: string;
+  worstSymbolPnlUsd: number;
+  breachesLimit: boolean;
+}
+export interface StressResponse {
+  navUsd: number;
+  lossLimitUsd: number;
+  scenarios: StressScenarioResult[];
+}
+
+export interface TradeLeg {
+  symbol: string;
+  side: "BUY" | "SELL";
+  currentShares: number;
+  targetShares: number;
+  deltaShares: number;
+  notionalUsd: number;
+  linearCostUsd: number;
+  impactCostUsd: number;
+  totalCostUsd: number;
+}
+
+export interface RebalanceResponse {
+  symbols: string[];
+  legs: TradeLeg[];
+  suppressedLegs: TradeLeg[];
+  currentWeights: Record<string, number>;
+  targetWeights: Record<string, number>;
+  navUsd: number;
+  turnoverPct: number;
+  estimatedCostUsd: number;
+  expectedUtilityGain: number;
+  converged: boolean;
+  message: string;
+  basketOrderRequest: {
+    name: string;
+    legs: { symbol: string; side: string; orderType: string; quantity: number; tif: string }[];
+  };
+  submitEnabled: boolean;
+}

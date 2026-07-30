@@ -14,6 +14,7 @@ const navItems: NavItem[] = [
   { to: "/options", label: "Options" },
   { to: "/strategies", label: "Strategies" },
   { to: "/analytics", label: "Analytics" },
+  { to: "/portfolio", label: "Portfolio" },
   { to: "/reconciliation", label: "Reconciliation" },
   { to: "/allocations", label: "Allocations" },
 ];

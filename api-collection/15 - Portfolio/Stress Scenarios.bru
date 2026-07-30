@@ -1,0 +1,26 @@
+meta {
+  name: Stress Scenarios
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/api/analytics/risk/stress
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Revalues the book under every scenario in config/stress-scenarios.yml, worst loss first.
+
+  FACTOR scenarios propagate a market move through each name's beta and pull correlations toward
+  `correlation-override` — correlations converging to one IS the crisis, and a stress test that
+  keeps the calm-market matrix will always report that the hedged book is fine.
+
+  Breaches publish a STRESS_LIMIT_BREACH event on analytics.risk-alerts, which the gateway fans
+  out over /ws/alerts to the UI banner.
+}

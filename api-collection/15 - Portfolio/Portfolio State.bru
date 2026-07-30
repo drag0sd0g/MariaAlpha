@@ -1,0 +1,21 @@
+meta {
+  name: Portfolio State
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/analytics/portfolio/state
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Current book as analytics-service sees it, rebuilt from the positions.updates topic.
+  `navSource` says explicitly how NAV was derived — MariaAlpha has no cash ledger, so it is
+  the configured ANALYTICS_PORTFOLIO_BASE_NAV plus the marked gross exposure.
+}

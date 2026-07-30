@@ -1,0 +1,33 @@
+meta {
+  name: Black-Litterman
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/analytics/portfolio/black-litterman
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "views": [
+      { "name": "nvda-bull", "pick": { "NVDA": 1.0 }, "expected_return": 0.15, "confidence": 0.8 },
+      { "name": "aapl-over-msft", "pick": { "AAPL": 1.0, "MSFT": -1.0 }, "expected_return": 0.03, "confidence": 0.4 }
+    ]
+  }
+}
+
+docs {
+  A pick row summing to 1 is an absolute view; summing to 0 is a relative one. `viewImpact` is
+  posterior minus equilibrium per symbol — it shows how far each view moved the prior and how
+  much correlation dragged the peers along.
+
+  Send "views": [] and the posterior equals the equilibrium exactly.
+}

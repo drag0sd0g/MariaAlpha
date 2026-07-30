@@ -1,0 +1,24 @@
+meta {
+  name: Risk VaR
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/analytics/risk/var
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Parametric, historical and Monte-Carlo VaR plus expected shortfall for the live book, reported
+  side by side because their disagreement is the information.
+
+  `sumOfAbsolutesVarUsd` is what the pre-4.6.1 aggregation would have reported, and
+  `diversificationRatio` is the quotient — so the value of the covariance upgrade stays
+  continuously auditable instead of being a claim in a PR description.
+}

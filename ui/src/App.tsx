@@ -9,6 +9,7 @@ import Rfq from "@/pages/Rfq";
 import Options from "@/pages/Options";
 import Strategies from "@/pages/Strategies";
 import Analytics from "@/pages/Analytics";
+import Portfolio from "@/pages/Portfolio";
 import Reconciliation from "@/pages/Reconciliation";
 import Allocations from "@/pages/Allocations";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="options" element={<Options />} />
           <Route path="strategies" element={<Strategies />} />
           <Route path="analytics" element={<Analytics />} />
+          <Route path="portfolio" element={<Portfolio />} />
           <Route path="reconciliation" element={<Reconciliation />} />
           <Route path="allocations" element={<Allocations />} />
         </Route>

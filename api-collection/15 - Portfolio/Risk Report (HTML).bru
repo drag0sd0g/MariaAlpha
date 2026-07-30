@@ -1,0 +1,22 @@
+meta {
+  name: Risk Report (HTML)
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/api/analytics/risk/report
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+docs {
+  Self-contained HTML risk report — no CDN, no external stylesheet, inline SVG correlation heat
+  map. Open it straight in a browser:
+
+    curl -s -H "X-API-Key: $KEY" localhost:8080/api/analytics/risk/report -o /tmp/risk.html && open /tmp/risk.html
+}

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import threading
 import time
+from pathlib import Path
 
 import structlog
 import uvicorn
@@ -22,9 +23,17 @@ from analytics.axes.matcher import AxeMatcher
 from analytics.config import Settings
 from analytics.consumer.market_data import MarketDataCache, MarketDataConsumer
 from analytics.consumer.orders_consumer import OrdersConsumer
+from analytics.consumer.positions import PositionsConsumer
 from analytics.consumer.tca_consumer import TcaConsumer
 from analytics.pnl.attribution import PnlAttributionEngine
+from analytics.portfolio.basket_client import BasketClient
+from analytics.portfolio.reference import PortfolioReference
+from analytics.portfolio.service import CovarianceService
+from analytics.portfolio.state import PortfolioState
 from analytics.publisher.risk_alert import RiskAlertPublisher
+from analytics.publisher.risk_model import RiskModelPublisher
+from analytics.risk.engine import RiskEngine
+from analytics.risk.stress import load_scenarios
 from analytics.toxicity.detector import FlowToxicityDetector
 
 logger = structlog.get_logger()
@@ -74,6 +83,48 @@ def main() -> None:
 
     threading.Thread(target=_toxicity_loop, name="toxicity-tick", daemon=True).start()
 
+    # --- Roadmap 4.6.1 — portfolio construction & risk ---
+
+    reference = PortfolioReference.load(Path(settings.portfolio_reference_path))
+    scenarios = load_scenarios(Path(settings.stress_scenarios_path))
+    portfolio_state = PortfolioState(
+        base_nav=settings.portfolio_base_nav, price_lookup=market_cache.latest
+    )
+    positions_consumer = PositionsConsumer(settings, portfolio_state)
+    threading.Thread(target=positions_consumer.run, name="positions-consumer", daemon=True).start()
+
+    covariance_service = CovarianceService(settings, market_cache, reference)
+    risk_engine = RiskEngine(
+        settings=settings,
+        covariance_service=covariance_service,
+        portfolio_state=portfolio_state,
+        reference=reference,
+        scenarios=scenarios,
+        market_cache=market_cache,
+        alert_publisher=risk_publisher.publish,
+    )
+    basket_client = BasketClient(settings)
+
+    if settings.risk_model_enabled:
+        model_publisher = RiskModelPublisher(settings)
+
+        def _risk_model_loop() -> None:
+            while True:
+                try:
+                    model_publisher.publish(covariance_service.current())
+                    risk_engine.evaluate_limits()
+                except Exception:
+                    logger.exception("risk_model_loop_failed")
+                time.sleep(settings.risk_model_publish_seconds)
+
+        threading.Thread(target=_risk_model_loop, name="risk-model", daemon=True).start()
+        logger.info(
+            "risk_model_publisher_started",
+            topic=settings.kafka_risk_model_topic,
+            interval_seconds=settings.risk_model_publish_seconds,
+            universe=len(reference.universe),
+        )
+
     app = create_app(
         settings=settings,
         toxicity=toxicity,
@@ -81,6 +132,11 @@ def main() -> None:
         matcher=matcher,
         market_cache=market_cache,
         orders_consumer=orders_consumer,
+        reference=reference,
+        portfolio_state=portfolio_state,
+        covariance_service=covariance_service,
+        risk_engine=risk_engine,
+        basket_client=basket_client,
     )
     uvicorn.run(app, host="0.0.0.0", port=settings.api_port, log_level="info")
 

@@ -1,0 +1,38 @@
+meta {
+  name: Risk VaR - What If
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/analytics/risk/var
+  body: json
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "positions": [
+      { "symbol": "NVDA", "quantity": 2000, "price": 500.0 },
+      { "symbol": "MSFT", "quantity": -2415, "price": 414.0 }
+    ],
+    "confidence": 0.99,
+    "horizon_days": 1.0,
+    "distribution": "t"
+  }
+}
+
+docs {
+  Same engine against a supplied book. This particular pair is the roadmap-4.6.1 motivating case:
+  a nearly-hedged long/short book where the sum-of-absolutes aggregation overstates risk several
+  times over.
+
+  "distribution": "t" switches the Monte-Carlo innovations to Student-t (rescaled to unit
+  variance so only the tail fattens, not the volatility), which typically lifts 99% VaR by
+  20-35% over the Gaussian.
+}

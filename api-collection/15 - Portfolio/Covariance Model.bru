@@ -1,0 +1,26 @@
+meta {
+  name: Covariance Model
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/analytics/portfolio/covariance
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+}
+
+params:query {
+  ~symbols: NVDA,MSFT,AAPL
+}
+
+docs {
+  Annualised volatilities plus the correlation matrix, with a `diagnostics` block naming the
+  estimator, the number of aligned bars behind it, the Ledoit-Wolf shrinkage intensity, and
+  which symbols fell back to the configured prior. `source` is one of prior / sample+prior /
+  supplied — no number is ever returned without its provenance.
+}

@@ -112,7 +112,8 @@ class ScoredRouterKafkaIntegrationTest {
             "market-data.ticks",
             "orders.lifecycle",
             "routing.decisions",
-            "analytics.risk-alerts");
+            "analytics.risk-alerts",
+            "analytics.risk-model");
     var publisher = new RoutingDecisionPublisher(producerTemplate, MAPPER, kafkaConfig);
     var cache = new RoutingDecisionCache(config);
     var tracker = new MarketStateTracker();
