@@ -12,7 +12,7 @@ dependencies {
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 
     // OpenAPI 3
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
 
     // Resilience4j
     implementation(libs.resilience4j.circuitbreaker)
