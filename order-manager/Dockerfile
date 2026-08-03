@@ -1,4 +1,4 @@
-FROM gradle:8.12-jdk21 AS builder
+FROM gradle:9.6-jdk21 AS builder
 WORKDIR /workspace
 COPY gradlew gradlew
 COPY gradle gradle
@@ -14,7 +14,7 @@ COPY order-manager/build.gradle.kts order-manager/
 COPY order-manager/src order-manager/src
 RUN ./gradlew :order-manager:bootJar --no-daemon -x test -x checkstyleMain -x spotbugsMain -x spotlessCheck
 
-FROM eclipse-temurin:21-jre-jammy
+FROM eclipse-temurin:25-jre-jammy
 WORKDIR /app
 COPY --from=builder /workspace/order-manager/build/libs/order-manager.jar app.jar
 EXPOSE 8086 8087

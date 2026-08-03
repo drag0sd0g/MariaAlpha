@@ -1,4 +1,4 @@
-FROM gradle:8.12-jdk21 AS builder
+FROM gradle:9.6-jdk21 AS builder
 WORKDIR /workspace
 
 # Root build files
@@ -21,7 +21,7 @@ COPY api-gateway/src api-gateway/src
 
 RUN ./gradlew :api-gateway:bootJar --no-daemon -x test -x checkstyleMain -x spotbugsMain -x spotlessCheck
 
-FROM eclipse-temurin:21-jre-jammy
+FROM eclipse-temurin:25-jre-jammy
 WORKDIR /app
 COPY --from=builder /workspace/api-gateway/build/libs/api-gateway.jar app.jar
 EXPOSE 8080 8091

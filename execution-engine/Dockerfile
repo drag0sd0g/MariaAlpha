@@ -1,4 +1,4 @@
-FROM gradle:8.12-jdk21 AS builder
+FROM gradle:9.6-jdk21 AS builder
 WORKDIR /workspace
 COPY gradlew gradlew
 COPY gradle gradle
@@ -14,7 +14,7 @@ COPY execution-engine/build.gradle.kts execution-engine/
 COPY execution-engine/src execution-engine/src
 RUN ./gradlew :execution-engine:bootJar --no-daemon -x test -x checkstyleMain -x spotbugsMain -x spotlessCheck
 
-FROM eclipse-temurin:21-jre-jammy
+FROM eclipse-temurin:25-jre-jammy
 WORKDIR /app
 COPY --from=builder /workspace/execution-engine/build/libs/execution-engine.jar app.jar
 EXPOSE 8084 8085
