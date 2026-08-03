@@ -19,14 +19,14 @@ jobs:
     name: Java (lint + test)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6.2.0
 
       - name: Checkstyle
         run: ./gradlew checkstyleMain checkstyleTest --continue
@@ -39,7 +39,7 @@ jobs:
 
       - name: Upload JaCoCo reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: jacoco-reports
           path: "**/build/reports/jacoco/test/html/"
@@ -47,7 +47,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: java-test-results
           path: "**/build/reports/tests/test/"
@@ -57,7 +57,7 @@ jobs:
     name: Python (lint + test)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check for Python source files
         id: detect
@@ -69,7 +69,7 @@ jobs:
             echo "No Python files found — skipping Python checks."
           fi
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: steps.detect.outputs.found == 'true'
         with:
           python-version: "3.12"
@@ -98,7 +98,7 @@ jobs:
 
       - name: Upload Python coverage
         if: steps.detect.outputs.found == 'true' && always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: python-coverage
           path: htmlcov/
@@ -108,7 +108,7 @@ jobs:
     name: UI (lint + typecheck)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check for UI project
         id: detect
@@ -126,7 +126,7 @@ jobs:
             echo "No UI project found — skipping UI checks."
           fi
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.detect.outputs.found == 'true'
         with:
           node-version: "22"
@@ -164,17 +164,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6.2.0
 
       # Buildx + the local cache exporter give us layer reuse across PRs.
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Generate Python proto stubs
         run: |
@@ -230,7 +230,7 @@ jobs:
 
       - name: Upload compose logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-compose-logs
           path: compose-logs.txt
@@ -238,7 +238,7 @@ jobs:
 
       - name: Upload test report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-test-report
           path: e2e-tests/build/reports/tests/test/
@@ -248,10 +248,10 @@ jobs:
     name: Helm chart (lint + render)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
         with:
           version: v3.16.4
 

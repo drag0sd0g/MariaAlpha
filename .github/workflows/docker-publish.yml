@@ -53,7 +53,7 @@ jobs:
           - { service: ml-signal-service,   dockerfile: ml-signal-service/Dockerfile }
           - { service: ui,                  dockerfile: ui/Dockerfile }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The ml-signal-service image COPYs proto/generated/python/, which is
       # git-ignored and so must be generated before `docker build` (same step the
@@ -64,15 +64,15 @@ jobs:
           pip install grpcio-tools==1.70.0 --quiet
           bash proto/generate_python.sh
 
-      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-qemu-action@v4
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       # No login on PRs — those runs build but never push, and forks have no
       # write access to GHCR anyway.
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -80,7 +80,7 @@ jobs:
 
       - name: Docker metadata (tags + labels)
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.service }}
           tags: |
@@ -97,7 +97,7 @@ jobs:
             org.opencontainers.image.title=mariaalpha-${{ matrix.service }}
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ matrix.dockerfile }}
@@ -121,7 +121,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
 
@@ -144,7 +144,7 @@ jobs:
           yq '.global.images' charts/mariaalpha/values.yaml
 
       - name: Open Helm bump PR
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: chore/helm-image-tag-${{ steps.version.outputs.tag }}
