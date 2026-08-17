@@ -1,5 +1,5 @@
 # Stage 1 — build the static SPA bundle.
-FROM node:20-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 
 # Build args are optional. The runtime path (window.MA_CONFIG from /config.js,
@@ -19,7 +19,7 @@ ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 RUN npm run build
 
 # Stage 2 — serve the static bundle behind nginx with a reverse proxy for /api + /ws.
-FROM nginx:1.27-alpine
+FROM nginx:1.31-alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY ui/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
