@@ -73,6 +73,12 @@ Each *execution* strategy implements `TradingStrategy` and registers with the St
 |---|---|---|
 | Portfolio construction | [`strategies/portfolio-construction.md`](strategies/portfolio-construction.md) | Covariance estimation (EWMA + Ledoit-Wolf), mean-variance / risk-parity / max-Sharpe optimisers, Black-Litterman, factor exposures, cost-aware rebalancing into a basket order. |
 
+### Backtesting
+
+| Feature | Explainer | What it does |
+|---|---|---|
+| Backtester | [`strategies/backtesting.md`](strategies/backtesting.md) | Replays historical market data through the shipped strategies with simulated fills; equity curve, Sharpe, drawdown, slippage, and an HTML report (`POST /api/backtest`). |
+
 ### Risk checks
 
 | Feature | Explainer | What it does |
