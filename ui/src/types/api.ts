@@ -3,12 +3,7 @@ export type OrderType = "MARKET" | "LIMIT" | "STOP" | "IOC" | "FOK" | "GTC" | "I
 export type PegType = "MIDPOINT" | "PRIMARY" | "MARKET";
 export type TimeInForce = "DAY" | "IOC" | "FOK" | "GTC";
 export type OrderStatus =
-  | "NEW"
-  | "SUBMITTED"
-  | "PARTIALLY_FILLED"
-  | "FILLED"
-  | "CANCELLED"
-  | "REJECTED";
+  "NEW" | "SUBMITTED" | "PARTIALLY_FILLED" | "FILLED" | "CANCELLED" | "REJECTED";
 
 export interface PortfolioSummary {
   totalValue: number;
