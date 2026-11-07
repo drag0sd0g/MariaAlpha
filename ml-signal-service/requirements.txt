@@ -2,7 +2,7 @@ fastapi==0.162.0
 uvicorn[standard]==0.54.0
 grpcio==1.85.1
 grpcio-tools==1.85.1
-protobuf==5.29.3
+protobuf==7.36.2
 confluent-kafka==2.16.1
 lightgbm==4.7.0
 scikit-learn==1.9.1
