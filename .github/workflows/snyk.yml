@@ -42,7 +42,7 @@ jobs:
         # Only upload when a SARIF was actually produced — on free-tier quota
         # exhaustion Snyk exits non-zero before writing the file.
         if: always() && hashFiles('snyk.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: snyk.sarif
         continue-on-error: true
