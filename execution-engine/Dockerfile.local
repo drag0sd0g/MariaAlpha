@@ -1,7 +1,7 @@
 # Thin CI/local image — see market-data-gateway/Dockerfile.local for rationale.
 # Expects execution-engine/build/libs/execution-engine.jar to exist (run
 # `./gradlew :execution-engine:bootJar` first).
-FROM eclipse-temurin:21-jre-jammy
+FROM eclipse-temurin:25-jre-jammy
 WORKDIR /app
 COPY execution-engine/build/libs/execution-engine.jar app.jar
 EXPOSE 8084 8085
