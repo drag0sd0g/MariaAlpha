@@ -1,13 +1,13 @@
-fastapi==0.162.0
+fastapi==0.165.0
 uvicorn[standard]==0.54.0
-confluent-kafka==2.16.1
+confluent-kafka==2.16.2
 prometheus-client==0.26.0
-pydantic==2.14.2
-pydantic-settings==2.16.2
+pydantic==2.14.4
+pydantic-settings==2.16.3
 structlog==25.1.0
 # Roadmap 4.6.1 — portfolio construction & risk. numpy is pinned to the same version
 # ml-signal-service uses; scipy 1.15 supplies SLSQP, Cholesky and symmetric eigen.
-numpy==2.5.4
+numpy==2.5.5
 scipy==1.18.1
 pyyaml==6.0.3
 # Optional basket submission to execution-engine (ANALYTICS_REBALANCE_SUBMIT_ENABLED).
